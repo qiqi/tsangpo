@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+
+geometry/out/
+flow360/cases/
+flow360/results/
+flow360/manifest.json
+post/out/
+
+# ESP / OpenCSM intermediates
+*.cpc
+*.udc
+*.tess
+*.egads
+*.jrnl
+serveCSM.log
+
+# Local editor / OS noise
+.DS_Store
+.idea/
+.vscode/

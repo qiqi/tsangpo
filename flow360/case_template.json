@@ -1,0 +1,92 @@
+{
+  "_comment": "Flow360 steady-state RANS template for the Himalayan eSTOL Study 1. Concrete numeric placeholders (<...>) are filled by flow360/run_matrix.py per case. Reference values pulled from params.py.",
+
+  "geometry": {
+    "refArea": "<wing_area_ft2>",
+    "momentCenter": [0.0, 0.0, 0.0],
+    "momentLength": "<MAC>",
+    "meshUnit": "ft"
+  },
+
+  "freestream": {
+    "alphaAngle": "<alpha_deg>",
+    "betaAngle": 0.0,
+    "Mach": "<Mach_inf>",
+    "muRef": "<mu_ref>",
+    "Temperature": 244.184,
+    "Reynolds": "<Re_MAC>"
+  },
+
+  "boundaries": {
+    "wing":         { "type": "NoSlipWall" },
+    "fuselage":     { "type": "NoSlipWall" },
+    "htail":        { "type": "NoSlipWall" },
+    "vtail":        { "type": "NoSlipWall" },
+    "flap_right":   { "type": "NoSlipWall" },
+    "flap_left":    { "type": "NoSlipWall" },
+    "farfield":     { "type": "Freestream" },
+    "symmetry":     { "type": "SlipWall" }
+  },
+
+  "actuatorDisks": [
+    {
+      "_comment": "One block per prop. The Python driver expands this list.",
+      "name":          "<prop_name>",
+      "center":        ["<x_disk>", "<y_disk>", "<z_disk>"],
+      "axisThrust":    [-1.0, 0.0, 0.0],
+      "thickness":     "<disk_thickness>",
+      "outerRadius":   "<R_disk>",
+      "innerRadius":   "<R_hub>",
+      "forcePerArea":  "<thrust_per_area>",
+      "swirl":         { "model": "constantCt", "Ct_q": "<Ct_torque>" }
+    }
+  ],
+
+  "navierStokesSolver": {
+    "equationEvalFrequency": 1,
+    "linearIterations": 35,
+    "absoluteTolerance": 1.0e-9,
+    "relativeTolerance": 1.0e-3,
+    "kappaMUSCL": 0.5
+  },
+
+  "turbulenceModelSolver": {
+    "modelType": "SpalartAllmaras",
+    "DDES": false,
+    "ZDES": false,
+    "rotationCorrection": true,
+    "absoluteTolerance": 1.0e-8
+  },
+
+  "timeStepping": {
+    "physicalSteps": 1,
+    "maxPseudoSteps": 5000,
+    "CFL": {
+      "type": "ramp",
+      "initial": 5,
+      "final": 200,
+      "rampSteps": 1500
+    }
+  },
+
+  "outputs": {
+    "surface": {
+      "outputFields": ["Cp", "Cf", "yPlus", "wallShearStress"],
+      "surfaces":     ["wing", "htail", "flap_right", "flap_left", "fuselage"]
+    },
+    "volume": {
+      "outputFields": ["Mach", "qcriterion", "vorticityMagnitude", "primitiveVars"],
+      "animation":    false
+    },
+    "slices": [
+      { "name": "midspan",        "origin": [0, 0, 0],         "normal": [0, 1, 0] },
+      { "name": "inboard_prop_y", "origin": [0, "<y_prop1>", 0], "normal": [0, 1, 0] },
+      { "name": "htail_LE_plane", "origin": ["<X_tail>", 0, 0], "normal": [1, 0, 0] }
+    ],
+    "monitors": {
+      "globalCoefficients":     { "boundaries": ["wing", "flap_right", "flap_left", "htail", "fuselage"] },
+      "htailCoefficients":      { "boundaries": ["htail"] },
+      "wingCoefficients":       { "boundaries": ["wing", "flap_right", "flap_left"] }
+    }
+  }
+}

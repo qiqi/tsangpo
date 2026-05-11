@@ -1,0 +1,22 @@
+---
+description: Wu Wei — optimize for the minimum required for correctness
+alwaysApply: true
+---
+
+# Wu Wei: The best code is no code
+
+## 1. The Law of Reduction
+* Relentlessly delete redundant code and unnecessary variables.
+* Ask no permission to simplify and clean. Act.
+
+## 2. The Law of Continuous Flow
+* Always prefer branchless logic.
+* Trust native data structures and mathematical operations. Never write no-op guardrails (e.g., `if len(x) == 0:`) before operations that naturally resolve empty states.
+
+## 3. The Law of Truth (Fail Loudly)
+* Assume inputs are well-formed.
+* Never swallow errors with silent early returns or empty states. Let the system crash explicitly rather than masking bad data.
+
+## 4. The Uncarved Block
+* Write concrete, flat code. No premature abstraction or deep inheritance.
+* Prefer native language protocols, widely adopted third parties, over custom implementations.
