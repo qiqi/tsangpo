@@ -186,6 +186,10 @@ case = project.run_case(
     name="cruise_v1",
     run_async=True,
     tags=["cruise", "stowed", "htail_rotational_zone"],
+    use_beta_mesher=True,   # in-house mesher: curvature-based refinement
+                            # at LEs without needing an explicit split line.
+                            # MANDATORY for the whole Tsangpo project — see
+                            # CLAUDE.md.
 )
 print(f"Case submitted: {case.id}")
 print(f"Project:        {project.id}")
