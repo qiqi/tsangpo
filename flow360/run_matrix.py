@@ -65,7 +65,7 @@ def _build(case: P.Case) -> dict:
 def _submit(case: P.Case, cfg: dict) -> dict:
     import flow360 as f3  # crash loud if not installed
     step = REPO / "geometry" / "out" / case.name / "airframe.step"
-    project = f3.Project.from_geometry(name=f"himalaya/{case.name}", files=[str(step)])
+    project = f3.Project.from_geometry(name=f"tsangpo/{case.name}", files=[str(step)])
     mesh    = project.generate_volume_mesh(params=REPO / "flow360" / "mesh_params.json")
     run     = project.run_case(params=cfg, name=f"{case.name}_alpha{int(case.alpha_deg)}")
     return {"mesh_id": mesh.id, "case_id": run.id}

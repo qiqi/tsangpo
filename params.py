@@ -1,5 +1,5 @@
 """
-Himalayan eSTOL — Central Parameter Repository.
+Tsangpo eSTOL — Central Parameter Repository.
 
 Single source of truth. US customary units (ft, slug, lbf, s).
 Origin at wing root quarter-chord on the symmetry plane; +X aft, +Y stbd, +Z up.

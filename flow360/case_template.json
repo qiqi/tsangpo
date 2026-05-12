@@ -1,5 +1,5 @@
 {
-  "_comment": "Flow360 steady-state RANS template for the Himalayan eSTOL Study 1. Concrete numeric placeholders (<...>) are filled by flow360/run_matrix.py per case. Reference values pulled from params.py.",
+  "_comment": "Flow360 steady-state RANS template for the Tsangpo eSTOL Study 1. Concrete numeric placeholders (<...>) are filled by flow360/run_matrix.py per case. Reference values pulled from params.py.",
 
   "geometry": {
     "refArea": "<wing_area_ft2>",

@@ -1,4 +1,4 @@
-# Flow360 Meshing Strategy — Himalayan eSTOL
+# Flow360 Meshing Strategy — Tsangpo eSTOL
 
 ## Goal
 
@@ -24,21 +24,27 @@ Everything else is secondary; mesh budget is spent on (1)-(3).
 | Wing wake           | wing TE                         | wedge widening 5°, length 5 · MAC                      | 0.05 · MAC       |
 | Tail wake           | H-tail TE                       | wedge widening 5°, length 3 · MAC_ht                   | 0.04 · MAC_ht    |
 
-Streamtube zones are tagged by attribute `propIndex` carried over from the
-CSM file, so they re-build automatically when the geometry is regenerated
-for a different `Z_tail` station.
+The 10 propeller streamtube refinement boxes are placed by
+`flow360/run_matrix.py` from `params.PROP_Y_NONDIM` and `params.PROP_X_FT`
+— the CSM does *not* carry prop geometry (Flow360 models them directly as
+actuator disks, see `params.PROP_*` and `T_PER_PROP_LBF`).
+
+The gap shear-layer slab is keyed off `gap_fraction × wing_semispan`; it
+collapses to a no-op refinement when `gap_fraction = 0`.
 
 ## Cell count target
 
-| Configuration | Approx cells |
-|---------------|--------------|
-| Baseline      | 35 M         |
-| Proposed      | 42 M (extra refinement in the gap shear layer) |
-| Sweep cases   | 35-40 M each |
+| Case                       | gap  | $Z_t/c$ | Approx cells |
+|----------------------------|------|---------|--------------|
+| C1 Industry Baseline       | 0.00 | +2.50   | 35 M         |
+| C2 Downwash Failure        | 0.00 |  0.00   | 35 M         |
+| C3 Bad Trade-off           | 0.35 | +2.50   | 42 M (extra refinement in the gap shear layer) |
+| C4 Proposed Synthesis      | 0.35 |  0.00   | 42 M         |
 
 ## Verification
 
-One mesh-independence triple on the Proposed case at the design point:
+One mesh-independence triple on **C4 Proposed Synthesis** at the design
+point — that's the load-bearing case for the paper:
 
 - Coarse: 50 % cells (~21 M)
 - Medium: nominal (~42 M)
