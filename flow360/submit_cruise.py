@@ -11,6 +11,7 @@ dynamics in a follow-up case to find the trim point.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -25,18 +26,26 @@ sys.path = [p for p in sys.path if str(REPO / "flow360") not in p]
 import flow360 as fl
 
 STOWED = REPO / "geometry" / "out" / "stowed"
-# Upload order fixes the body00001..body00004 mapping in the Flow360 project.
-STEPS = [STOWED / f"{n}.step" for n in ("main_wing", "vane", "aft_flap", "htail")]
-for s in STEPS:
-    assert s.exists(), f"{s} not found; run serveCSM tsangpo.csm first"
 
-print("Uploading 4 per-body STEPs as a new Flow360 project …")
-project = fl.Project.from_geometry(
-    [str(s) for s in STEPS],
-    name="tsangpo_cruise",
-    length_unit="ft",
-    tags=["tsangpo", "cruise", "stowed"],
-)
+# Reuse an existing Flow360 project by exporting TSANGPO_PROJECT_ID; otherwise
+# upload the four stowed-phase STEPs into a fresh project.
+project_id = os.environ.get("TSANGPO_PROJECT_ID")
+if project_id:
+    print(f"Reusing Flow360 project {project_id} …")
+    project = fl.Project.from_cloud(project_id)
+else:
+    # Upload order fixes the body00001..body00004 mapping.
+    STEPS = [STOWED / f"{n}.step" for n in ("main_wing", "vane", "aft_flap", "htail")]
+    for s in STEPS:
+        assert s.exists(), f"{s} not found; run serveCSM tsangpo.csm first"
+    print("Uploading 4 per-body STEPs as a new Flow360 project …")
+    project = fl.Project.from_geometry(
+        [str(s) for s in STEPS],
+        name="tsangpo_cruise",
+        length_unit="ft",
+        tags=["tsangpo", "cruise", "stowed"],
+    )
+
 geo = project.geometry
 geo.group_faces_by_tag("groupByBodyId")
 geo.rename_surfaces("body00001", "main_wing")
@@ -66,6 +75,17 @@ farfield = fl.AutomatedFarfield()
 
 with fl.imperial_unit_system:
 
+    # Cylinder shared by the mesher (RotationVolume) and the solver (Rotation
+    # model). Centered on the H-tail quarter-chord; height & radius leave
+    # clearance for the sliding-interface mesh on both sides of the surface.
+    htail_rot_cylinder = fl.Cylinder(
+        name="htail_pitch_zone",
+        center=(HTAIL_QC_X, 0.0, HTAIL_QC_Z) * fl.u.ft,
+        axis=(0, 1, 0),
+        height=HTAIL_ZONE_HEIGHT * fl.u.ft,
+        outer_radius=HTAIL_ZONE_RADIUS * fl.u.ft,
+    )
+
     ad_models = []
     for side, side_sign in (("R", +1), ("L", -1)):
         for i, eta in enumerate(P.PROP_Y_NONDIM, start=1):
@@ -90,19 +110,23 @@ with fl.imperial_unit_system:
 
     htail_rotation = fl.Rotation(
         name="htail_pitch_for_trim",
-        volumes=[fl.Cylinder(
-            name="htail_rotation_zone",
-            center=(HTAIL_QC_X, 0.0, HTAIL_QC_Z) * fl.u.ft,
-            axis=(0, 1, 0),
-            height=HTAIL_ZONE_HEIGHT * fl.u.ft,
-            outer_radius=HTAIL_ZONE_RADIUS * fl.u.ft,
-        )],
+        volumes=[htail_rot_cylinder],
         spec=fl.FromUserDefinedDynamics(),
     )
 
     params = fl.SimulationParams(
         meshing=fl.MeshingParams(
-            volume_zones=[farfield],
+            volume_zones=[
+                farfield,
+                fl.RotationVolume(
+                    name="htail_rotation_volume",
+                    entities=htail_rot_cylinder,
+                    enclosed_entities=[htail_surf],
+                    spacing_axial=0.5 * fl.u.ft,
+                    spacing_radial=0.2 * fl.u.ft,
+                    spacing_circumferential=0.2 * fl.u.ft,
+                ),
+            ],
             defaults=fl.MeshingDefaults(
                 surface_max_edge_length=0.25 * fl.u.ft,
                 curvature_resolution_angle=15 * fl.u.deg,
