@@ -1,9 +1,9 @@
 # =====================================================================
-# Tsangpo eSTOL — parametric configuration model (LANDING phase)
+# Tsangpo eSTOL — parametric configuration model
 # ---------------------------------------------------------------------
 # 3-element high-lift wing:
 #   * Main wing — coved LS(1)-0417 (Selig contour with cove cutout +
-#     filleted vertex, ~0.5% c blunt upper-lip face).
+#     filleted vertex, ~0.5 % c blunt upper-lip face).
 #   * Vane     — NACA 9621, anchored between stowed LE/TE.
 #   * Aft flap — NACA 6311, anchored between stowed LE/TE.
 #   Each closed planar contour lives in airfoils/{main_wing,vane,flap,
@@ -15,39 +15,53 @@
 # stowed-chord-normalized units, applied BEFORE chord scaling so the
 # normalized vector scales to physical feet via `scale wing_chord`.
 #
-# H-tail: inverted LS(1)-0417 (tail.udc).  Negative camber gives down-
-# force at AoA = 0 without baking in incidence here — set it later if
-# needed via a `rotatey` block in front of `extrude`.
+# H-tail: inverted LS(1)-0417 (tail.udc). Negative camber gives down-
+# force at AoA = 0 without baking in incidence here.
 #
 # All dimensions in feet, angles in degrees. Origin at the wing root
 # quarter-chord (of the stowed 3-element chord) on the symmetry plane
 # (Y = 0); +X aft, +Y starboard, +Z up.
 # =====================================================================
 
+# ----- Phase selector ------------------------------------------------
+#   phase = 0 → stowed,  1 → takeoff,  2 → landing
+# Values match airfoils/estol_config.yaml :: kinematics.phases.
+despmtr   phase            0
+
+ifthen    phase EQ 1
+   set    flap_dx          0.290
+   set    flap_dy          0.040
+   set    flap_rot_deg    -40.0
+elseif    phase EQ 2
+   set    flap_dx          0.320
+   set    flap_dy          0.055
+   set    flap_rot_deg    -65.0
+else
+   set    flap_dx          0.000
+   set    flap_dy          0.000
+   set    flap_rot_deg     0.0
+endif
+
 # ----- Wing planform -------------------------------------------------
-despmtr   wing_area_ft2     165.0
-despmtr   wing_AR             8.0
+despmtr   wing_area_ft2    165.0
+despmtr   wing_AR            8.0
 
-set       wing_span         sqrt(wing_AR*wing_area_ft2)
-set       wing_semispan     wing_span/2
-set       wing_chord        wing_area_ft2/wing_span   # stowed-chord ref
-set       MAC               wing_chord
+set       wing_span        sqrt(wing_AR*wing_area_ft2)
+set       wing_semispan    wing_span/2
+set       wing_chord       wing_area_ft2/wing_span   # stowed-chord ref
+set       MAC              wing_chord
 
-# ----- Fowler kinematics (LANDING phase) -----------------------------
-# Values match airfoils/estol_config.yaml :: kinematics.phases.landing
-despmtr   pivot_x           0.550
-despmtr   pivot_y          -0.048
-despmtr   flap_dx           0.320
-despmtr   flap_dy           0.055
-despmtr   flap_rot_deg    -65.0
+# ----- Vane / aft-flap rigid assembly pivot --------------------------
+despmtr   pivot_x          0.550
+despmtr   pivot_y         -0.048
 
 # ----- Inboard gap (applied to the vane + aft-flap assembly) ---------
 despmtr   gap_fraction      0.0     # 0.0 = baseline, 0.35 = proposed
 despmtr   flap_outboard_eta 0.95
 
-set       flap_y_in         gap_fraction*wing_semispan
-set       flap_y_out        flap_outboard_eta*wing_semispan
-set       flap_panel        flap_y_out-flap_y_in
+set       flap_y_in        gap_fraction*wing_semispan
+set       flap_y_out       flap_outboard_eta*wing_semispan
+set       flap_panel       flap_y_out-flap_y_in
 
 # ----- H-tail --------------------------------------------------------
 despmtr   htail_span_frac   0.35
@@ -55,19 +69,18 @@ despmtr   htail_AR          4.5
 despmtr   X_tail_mac        3.5
 despmtr   Z_tail_chords     0.0
 
-set       htail_span        htail_span_frac*wing_span
-set       htail_semispan    htail_span/2
-set       htail_area        htail_span^2/htail_AR
-set       htail_chord       htail_area/htail_span
-set       X_tail            X_tail_mac*MAC
-set       Z_tail            Z_tail_chords*MAC
+set       htail_span       htail_span_frac*wing_span
+set       htail_semispan   htail_span/2
+set       htail_area       htail_span^2/htail_AR
+set       htail_chord      htail_area/htail_span
+set       X_tail           X_tail_mac*MAC
+set       Z_tail           Z_tail_chords*MAC
 
 # =====================================================================
 # BUILD — each lifting element is built from a closed planar sketch
 # (UDC file) in the XY plane, swung into the XZ plane by `rotatex 90`,
 # scaled to chord, translated to its root Y-station, then extruded
-# along +Y for the spanwise length. Sketches are closed by construction
-# so `extrude` always yields a SolidBody.
+# along +Y for the spanwise length.
 # =====================================================================
 
 # --- Main wing (full-span solid; cove is upstream of the gap study) --
@@ -80,14 +93,12 @@ extrude   0   wing_span   0
 store     main_wing
 
 # --- Vane + aft-flap rigid assembly ----------------------------------
-# Kinematics (rotatez about pivot, then translate dx/dy) live in the
-# normalized XY plane and execute BEFORE chord scaling.  When
-# gap_fraction <= 0 the assembly is a single full-span pair; when
-# 0 < gap_fraction < flap_outboard_eta it splits into left/right
-# panels; otherwise the assembly is suppressed entirely.
+# Kinematics (rotatez about pivot, then translate dx/dy) execute in the
+# normalized XY plane BEFORE chord scaling. gap_fraction = 0 builds a
+# single full-span pair; 0 < gap_fraction < flap_outboard_eta splits
+# into left/right panels.
 
 ifthen    gap_fraction LE 0
-   # --- Vane (single full-span solid) ---
    udprim    $/airfoils/vane
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -98,7 +109,6 @@ ifthen    gap_fraction LE 0
       attribute _name $vane
    store     vane
 
-   # --- Aft flap (single full-span solid) ---
    udprim    $/airfoils/flap
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -109,7 +119,6 @@ ifthen    gap_fraction LE 0
       attribute _name $aft_flap
    store     aft_flap
 elseif    gap_fraction LT flap_outboard_eta
-   # --- Vane right (+Y panel) ---
    udprim    $/airfoils/vane
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -120,7 +129,6 @@ elseif    gap_fraction LT flap_outboard_eta
       attribute _name $vane_right
    store     vane_right
 
-   # --- Vane left (-Y panel) ---
    udprim    $/airfoils/vane
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -131,7 +139,6 @@ elseif    gap_fraction LT flap_outboard_eta
       attribute _name $vane_left
    store     vane_left
 
-   # --- Aft flap right (+Y panel) ---
    udprim    $/airfoils/flap
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -142,7 +149,6 @@ elseif    gap_fraction LT flap_outboard_eta
       attribute _name $aft_flap_right
    store     aft_flap_right
 
-   # --- Aft flap left (-Y panel) ---
    udprim    $/airfoils/flap
    rotatez   flap_rot_deg   pivot_x   pivot_y
    translate flap_dx   flap_dy   0
@@ -164,8 +170,7 @@ extrude   0   htail_span   0
 store     htail
 
 # =====================================================================
-# DUMP: one STL per body for the renderer, plus a combined STEP for
-# the downstream Flow360 mesher.
+# DUMP: one STL per body + a combined STEP for the Flow360 mesher.
 # =====================================================================
 restore   main_wing
 dump      main_wing.stl
