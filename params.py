@@ -36,7 +36,7 @@ T_PER_PROP_LBF = TW_DESIGN * W_GROSS_LBF / N_PROPS
 PROP_Y_NONDIM = (0.1, 0.3, 0.5, 0.7, 0.9)
 PROP_Y_FT     = tuple(eta * WING_SEMI_SPAN_FT for eta in PROP_Y_NONDIM)
 PROP_X_FT     = -0.30 * WING_MAC_FT
-PROP_Z_FT     = +0.05 * WING_MAC_FT
+PROP_Z_FT     = -0.05 * WING_MAC_FT      # Electra-style: just below wing chord plane
 
 # Flap / inboard gap ---------------------------------------------------
 GAP_FRACTION_BASELINE = 0.0
@@ -59,12 +59,21 @@ RHO_12K_SLUG_FT3   = 1.6480e-3
 A_SOUND_12K_FT_S   = 1069.4
 MU_12K_SLUG_FT_S   = 3.5343e-7
 
-# Flight condition -----------------------------------------------------
+# Flight conditions ----------------------------------------------------
+# High-lift design point (takeoff / landing, full flap deflection)
 ALPHA_DESIGN_DEG = 10.0
 V_INF_FT_S       = 80.0
 Q_INF_PSF        = 0.5 * RHO_12K_SLUG_FT3 * V_INF_FT_S ** 2
 MACH_INF         = V_INF_FT_S / A_SOUND_12K_FT_S
 RE_MAC           = RHO_12K_SLUG_FT3 * V_INF_FT_S * WING_MAC_FT / MU_12K_SLUG_FT_S
+
+# Cruise point (clean wing, stowed flap, level flight at altitude)
+ALT_CRUISE_FT     = 12000.0
+V_CRUISE_FT_S     = 150.0                # ~89 kts
+ALPHA_CRUISE_DEG  = 3.0                  # nominal cruise α; UDD trims h-tail
+Q_CRUISE_PSF      = 0.5 * RHO_12K_SLUG_FT3 * V_CRUISE_FT_S ** 2
+T_CRUISE_TOTAL_LBF = Q_CRUISE_PSF * WING_AREA_FT2 * 0.04   # CD ≈ 0.04 initial guess
+T_CRUISE_PER_PROP_LBF = T_CRUISE_TOTAL_LBF / N_PROPS
 
 
 @dataclass(frozen=True)

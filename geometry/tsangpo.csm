@@ -172,27 +172,36 @@ store     htail
 # =====================================================================
 # DUMP: one STL per body + a combined STEP for the Flow360 mesher.
 # =====================================================================
+# Per-body dumps (one STL + one STEP each). Flow360's `from_geometry`
+# treats each STEP as a separate body, so uploading the four STEPs
+# together gives a project with body00001..body00004 ready for naming.
 restore   main_wing
 dump      main_wing.stl
+dump      main_wing.step
 restore   htail
 dump      htail.stl
+dump      htail.step
 
 ifthen    gap_fraction LE 0
    restore   vane
    dump      vane.stl
+   dump      vane.step
    restore   aft_flap
    dump      aft_flap.stl
+   dump      aft_flap.step
 elseif    gap_fraction LT flap_outboard_eta
    restore   vane_right
    dump      vane_right.stl
+   dump      vane_right.step
    restore   vane_left
    dump      vane_left.stl
+   dump      vane_left.step
    restore   aft_flap_right
    dump      aft_flap_right.stl
+   dump      aft_flap_right.step
    restore   aft_flap_left
    dump      aft_flap_left.stl
+   dump      aft_flap_left.step
 endif
-
-dump      airframe.step  0  -1
 
 end
