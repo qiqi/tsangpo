@@ -186,7 +186,9 @@ select face
 store     htail
 
 # =====================================================================
-# DUMP: one STL per body + a combined STEP for the Flow360 mesher.
+# DUMP: one STL + one STEP per body (no combined airframe.step — Flow360
+# rejects multi-file STEP uploads anyway; submit_cruise.py inlines this
+# CSM and uploads it as a single .csm instead).
 # =====================================================================
 # Per-body dumps. Body0000N order on the Flow360 side is irrelevant —
 # surface names come from `attribute capsGroup $<name>` on each face

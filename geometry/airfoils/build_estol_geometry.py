@@ -13,15 +13,23 @@ UDC topology:
     vane/flap — 2 splines (upper TE corner → LE, LE → lower TE corner)
                 joined by a zero-length linseg break, plus a linseg blunt
                 TE close.
-    tail     — 2 splines (sharp TE on LS(1)-0417), joined by linseg break;
-                no blunt TE since both upper/lower meet at (1, 0).
+    tail     — 2 splines (upper TE corner → LE, LE → lower TE corner)
+                joined by a zero-length linseg break, plus a linseg blunt
+                TE close.  TE thickness in tail-chord units is chosen so
+                the ABSOLUTE TE thickness matches the 3-element wing's
+                (= 0.003 × c_wing).  See `main()`.
 """
 import math
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+import params as P  # single source of truth for c_wing / c_htail
 
 
 # ---------------------------------------------------------------------------
@@ -172,14 +180,35 @@ def build_naca_element(code, te_thickness, target_le, target_te, n_panels=160):
     return segments, anchored
 
 
-def build_tail(airfoil_cfg):
-    """Inverted LS(1)-0417 with negative camber (downforce at AoA = 0)."""
+def build_tail(airfoil_cfg, te_thickness):
+    """Inverted LS(1)-0417 with negative camber (downforce at AoA = 0),
+    truncated to a flat blunt TE of vertical thickness `te_thickness`
+    in chord-normalized units."""
     upper = np.asarray(airfoil_cfg['upper'], dtype=float)
     lower = np.asarray(airfoil_cfg['lower'], dtype=float)
+    # Inverted contour: new_upper from old lower (y flipped), and v.v.
     new_upper = np.column_stack([lower[:, 0], -lower[:, 1]])
     new_lower = np.column_stack([upper[:, 0], -upper[:, 1]])
-    contour = np.vstack([new_upper[::-1], new_lower[1:]])
-    le_idx = np.argmin(contour[:, 0])
+
+    # Find x where the vertical gap between new_upper and new_lower
+    # equals te_thickness.  Gap decreases monotonically toward x=1 (TE).
+    x_scan = np.linspace(0.5, 1.0, 5001)
+    yu_scan = np.interp(x_scan, new_upper[:, 0], new_upper[:, 1])
+    yl_scan = np.interp(x_scan, new_lower[:, 0], new_lower[:, 1])
+    gap_scan = yu_scan - yl_scan
+    x_cut = float(np.interp(te_thickness, gap_scan[::-1], x_scan[::-1]))
+    y_upper_cut = float(np.interp(x_cut, new_upper[:, 0], new_upper[:, 1]))
+    y_lower_cut = float(np.interp(x_cut, new_lower[:, 0], new_lower[:, 1]))
+
+    new_upper_trim = np.vstack([new_upper[new_upper[:, 0] < x_cut],
+                                [[x_cut, y_upper_cut]]])
+    new_lower_trim = np.vstack([new_lower[new_lower[:, 0] < x_cut],
+                                [[x_cut, y_lower_cut]]])
+
+    # Selig order: upper TE corner → LE → lower TE corner.  The blunt TE
+    # close is the implicit linseg added by write_udc.
+    contour = np.vstack([new_upper_trim[::-1], new_lower_trim[1:]])
+    le_idx = int(np.argmin(contour[:, 0]))
 
     segments = [
         ('spline', contour[:le_idx + 1]),
@@ -272,7 +301,14 @@ def main(cfg_path):
                                                vane_cfg['stowed_le'], vane_cfg['stowed_te'])
     flap_segs, flap_flat = build_naca_element(flap_cfg['naca'], blunt / flap_chord,
                                                flap_cfg['stowed_le'], flap_cfg['stowed_te'])
-    tail_segs, tail_flat = build_tail(cfg['airfoils']['ls1_0417'])
+    # Match the htail's ABSOLUTE TE thickness to the 3-element wing's.
+    # Since `blunt` is in c_wing units, divide by (c_htail / c_wing) to
+    # re-express in c_htail units for the build_tail input.
+    tail_te = blunt * (P.WING_CHORD_M / P.HTAIL_CHORD_M)
+    print(f"  tail TE thickness: {tail_te:.5f} c_htail "
+          f"(= {blunt * P.WING_CHORD_M * 1000:.2f} mm absolute, "
+          f"same as wing)")
+    tail_segs, tail_flat = build_tail(cfg['airfoils']['ls1_0417'], tail_te)
 
     write_selig(here / 'main_wing.dat',   'main_wing_ls1_0417_coved',           main_flat)
     write_selig(here / 'vane_stowed.dat', f"vane_naca{vane_cfg['naca']}_stowed", vane_flat)

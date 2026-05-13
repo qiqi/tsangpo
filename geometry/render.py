@@ -72,14 +72,14 @@ def draw_side(ax, parts):
 def props_top(ax):
     for sign in (+1, -1):
         for eta in P.PROP_Y_NONDIM:
-            ax.add_patch(Circle((sign * eta * P.WING_SEMI_SPAN_FT, P.PROP_X_FT),
-                                P.PROP_RADIUS_FT,
+            ax.add_patch(Circle((sign * eta * P.WING_SEMI_SPAN_M, P.PROP_X_M),
+                                P.PROP_RADIUS_M,
                                 facecolor="#D04141", edgecolor="#9a2424",
                                 alpha=0.30, linewidth=0.8))
 
 
 def props_side(ax):
-    ax.add_patch(Circle((P.PROP_X_FT, P.PROP_Z_FT), P.PROP_RADIUS_FT,
+    ax.add_patch(Circle((P.PROP_X_M, P.PROP_Z_M), P.PROP_RADIUS_M,
                         facecolor="#D04141", edgecolor="#9a2424",
                         alpha=0.30, linewidth=0.8))
 
@@ -88,8 +88,8 @@ def main():
     parts_all = {p: load_phase(OUT / p) for p in PHASES}
 
     bb = np.array([m.bounds for parts in parts_all.values() for m in parts.values()])
-    extras = np.array([[P.PROP_X_FT - P.PROP_RADIUS_FT, 0, P.PROP_Z_FT - P.PROP_RADIUS_FT],
-                       [P.PROP_X_FT + P.PROP_RADIUS_FT, 0, P.PROP_Z_FT + P.PROP_RADIUS_FT]])
+    extras = np.array([[P.PROP_X_M - P.PROP_RADIUS_M, 0, P.PROP_Z_M - P.PROP_RADIUS_M],
+                       [P.PROP_X_M + P.PROP_RADIUS_M, 0, P.PROP_Z_M + P.PROP_RADIUS_M]])
     lo = np.minimum(bb[:, 0, :].min(axis=0), extras[0])
     hi = np.maximum(bb[:, 1, :].max(axis=0), extras[1])
     pad = 0.8
@@ -107,17 +107,17 @@ def main():
         ax_t.invert_yaxis()
         ax_t.grid(alpha=0.3)
         if col == 0:
-            ax_t.set_ylabel("x (chord-wise, ft) — nose ↑")
-            ax_t.set_xlabel("y (span, ft)")
+            ax_t.set_ylabel("x (chord-wise, m) — nose ↑")
+            ax_t.set_xlabel("y (span, m)")
 
         ax_s = axes[1, col]
         props_side(ax_s)
         draw_side(ax_s, parts)
         ax_s.set(xlim=x_lim, ylim=z_lim, aspect="equal",
-                 xlabel="x (chord-wise, ft)")
+                 xlabel="x (chord-wise, m)")
         ax_s.grid(alpha=0.3)
         if col == 0:
-            ax_s.set_ylabel("z (vertical, ft)")
+            ax_s.set_ylabel("z (vertical, m)")
 
     handles = [Patch(facecolor=COLOR[k], edgecolor="#1a1a1a", label=LABEL[k])
                for k in ORDER]

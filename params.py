@@ -81,6 +81,13 @@ Q_CRUISE_PA        = 0.5 * RHO_CRUISE_KG_M3 * V_CRUISE_M_S ** 2
 T_CRUISE_TOTAL_N   = Q_CRUISE_PA * WING_AREA_M2 * 0.04   # CD ≈ 0.04 initial guess
 T_CRUISE_PER_PROP_N = T_CRUISE_TOTAL_N / N_PROPS
 
+# Takeoff / climb-out point (flap phase 1 deployed, blown lift from props)
+V_TAKEOFF_M_S      = 18.0                  # 35 knots
+ALT_TAKEOFF_M      = ALT_CRUISE_M          # same altitude (high-altitude STOL)
+RHO_TAKEOFF_KG_M3  = RHO_CRUISE_KG_M3
+Q_TAKEOFF_PA       = 0.5 * RHO_TAKEOFF_KG_M3 * V_TAKEOFF_M_S ** 2
+CLIMB_ANGLE_DEG    = 30.0                  # target climb-out flight-path angle
+
 
 @dataclass(frozen=True)
 class Case:
