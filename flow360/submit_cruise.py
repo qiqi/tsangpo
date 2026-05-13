@@ -36,13 +36,14 @@ import flow360 as fl
 CSM      = REPO / "geometry" / "tsangpo.csm"
 AIRFOILS = REPO / "geometry" / "airfoils"
 
-# Effective AoA via ac_pitch passive rotation:
+# Effective AoA via ac_pitch ACTIVE rotation (unsteady):
 #   freestream is held at α = 0 in the operating condition; the aircraft
-#   rotation volume is rotated by θ_ac so that the body sees the
-#   freestream tilted by θ_ac, i.e. effective AoA = −θ_ac.  α = +7° ⇒
-#   θ_ac = −7° = −0.12217 rad.
+#   rotation volume is physically rotated by θ_ac, so +θ_ac = nose UP and
+#   α_eff = +θ_ac.  α = +7° ⇒ θ_ac = +0.12217 rad.  (Verified by
+#   case-f4a71962 with θ_ac = −0.122 returning CL = −0.18 — sign flipped
+#   here.)
 ALPHA_EFF_DEG = 7.0
-THETA_AC_RAD  = -radians(ALPHA_EFF_DEG)
+THETA_AC_RAD  = +radians(ALPHA_EFF_DEG)
 THETA_HT_RAD  = 0.0
 
 

@@ -1,14 +1,17 @@
 """
-H-tail incidence sweep — 10 forks of the cruise parent, each with a
-DIFFERENT constant θ_htail (and α pinned at +7° via constant θ_ac).
+α calibration sweep — 10 forks of the cruise parent, each with a
+DIFFERENT constant aircraft-pitch angle (θ_htail stays at 0).
 
-Replaces the prior single-fork-with-ramp design (which broke on fork
-`AngleExpression(t)` and `Unsteady(steps=...)` semantics).  Each fork
-pins a constant rotation and uses `steps=20` so it gets ~10 new
-physical steps after the parent's 10 to settle on the new htail angle.
+The previous single-fork-with-ramp design failed: the fork's
+`AngleExpression(t)` semantics and `Unsteady(steps=N)` semantics are
+not what we expected, and even with a shifted ramp every fork
+returned data at only one (severely diverged) physical step.  This
+script bypasses those uncertainties: each fork pins a CONSTANT
+θ_ac and runs `steps=20` so it gets a handful of new physical steps
+to settle on the new angle.
 
 Run:
-    TSANGPO_PARENT_CASE_ID=case-... python3 flow360/submit_htail_sweep.py
+    TSANGPO_PARENT_CASE_ID=case-... python3 flow360/submit_alpha_sweep.py
 """
 from __future__ import annotations
 
@@ -29,13 +32,11 @@ import flow360 as fl
 PARENT_CASE_ID = os.environ["TSANGPO_PARENT_CASE_ID"]
 parent_case = fl.Case.from_cloud(PARENT_CASE_ID)
 project = fl.Project.from_cloud(parent_case.project_id)
-print(f"Forking htail sweep from {PARENT_CASE_ID} on {project.id} ({project.metadata.name})")
+print(f"Forking α-sweep from {PARENT_CASE_ID} on {project.id} ({project.metadata.name})")
 
-ALPHA_EFF_DEG    = 7.0
-THETA_AC_RAD     = +radians(ALPHA_EFF_DEG)
-HTAIL_VALUES_DEG = (-12.0, -9.0, -6.0, -3.0, 0.0, +3.0, +6.0, +9.0, +12.0, +15.0)
-N_STEPS_TOTAL    = 20
-STEP_SIZE_S      = 1.0
+ALPHA_VALUES_DEG = (-3.0, -1.0, +1.0, +3.0, +5.0, +7.0, +9.0, +11.0, +13.0, +15.0)
+N_STEPS_TOTAL = 20      # cumulative target (parent did 10, fork gets ~10 more to settle)
+STEP_SIZE_S   = 1.0
 
 geo = project.geometry
 geo.group_faces_by_tag("capsGroup")
@@ -54,7 +55,7 @@ HTAIL_ZONE_RADIUS    = 1.50 * P.HTAIL_CHORD_M
 PROP_REFINE_SPACING  = 0.05 * P.WING_MAC_M
 
 
-def build_params(theta_ht_rad: float) -> fl.SimulationParams:
+def build_params(theta_ac_rad: float) -> fl.SimulationParams:
     farfield = fl.AutomatedFarfield()
     with fl.SI_unit_system:
         ac_pitch_cyl = fl.Cylinder(
@@ -96,11 +97,11 @@ def build_params(theta_ht_rad: float) -> fl.SimulationParams:
         ]
         ac_rotation = fl.Rotation(
             name="ac_pitch", volumes=[ac_pitch_cyl],
-            spec=fl.AngleExpression(f"{THETA_AC_RAD:.10f}"),
+            spec=fl.AngleExpression(f"{theta_ac_rad:.10f}"),
         )
         htail_rotation = fl.Rotation(
             name="htail_pitch", volumes=[htail_pitch_cyl],
-            spec=fl.AngleExpression(f"{theta_ht_rad:.10f}"),
+            spec=fl.AngleExpression("0.0"),
             parent_volume=ac_pitch_cyl,
         )
         return fl.SimulationParams(
@@ -181,22 +182,20 @@ def build_params(theta_ht_rad: float) -> fl.SimulationParams:
 
 
 submitted = []
-print(f"  α_eff (pinned) = {ALPHA_EFF_DEG}°  (θ_ac = {THETA_AC_RAD:+.4f} rad)")
-for theta_deg in HTAIL_VALUES_DEG:
-    theta_rad = radians(theta_deg)
-    name = f"htail_{theta_deg:+.0f}deg".replace("+", "p").replace("-", "m")
-    params = build_params(theta_rad)
+for alpha_deg in ALPHA_VALUES_DEG:
+    theta = radians(alpha_deg)
+    name = f"alpha_{alpha_deg:+.1f}deg".replace("+", "p").replace("-", "m").replace(".", "p")
+    params = build_params(theta)
     case = project.run_case(
         params=params, name=name, run_async=True,
         fork_from=parent_case,
-        tags=["SI", f"alpha{int(ALPHA_EFF_DEG)}", "htail_sweep",
-              f"htail{theta_deg:+.1f}", "constant_angle_fork"],
+        tags=["SI", "alpha_sweep", f"alpha{alpha_deg:+.1f}", "constant_angle_fork"],
         use_beta_mesher=True,
     )
-    submitted.append((theta_deg, case.id))
-    print(f"  θ_htail = {theta_deg:+5.1f}°  →  {case.id}")
+    submitted.append((alpha_deg, case.id))
+    print(f"  α = {alpha_deg:+5.1f}°  (θ_ac = {theta:+.4f} rad)  →  {case.id}")
 
 print()
-print("Submitted htail-sweep forks:")
-for th, cid in submitted:
-    print(f"  θ_htail = {th:+5.1f}°  {cid}")
+print("Submitted α-sweep forks:")
+for a, cid in submitted:
+    print(f"  α = {a:+5.1f}°  {cid}")
