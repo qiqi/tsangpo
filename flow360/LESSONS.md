@@ -166,6 +166,25 @@ Last reviewed: 2026-05-13 — SDK v25.9.x.
   control of an actuator-disk thrust multiplier can be expressed as
   a ternary on `physicalStep` directly — no `t`-conversion needed.
 
+- **GAI volume mesher rejects `enclosed_entities` referenced by their
+  original capsGroup name when the surface lives inside nested
+  rotation zones.** Volume mesh `vm-2d091b4e` (parent
+  `case-a8634829`, GAI cruise trim campaign) errored with
+  `(ERROR 7221) Encountered object name: htail in enclosed objects
+  for sliding interface: slidingInterface-htail_pitch_zone, which is
+  not a known volume entity.` The GAI surface mesher had renamed the
+  patch to `htail__rotating_ac_pitch_zone__rotating_htail_pitch_zone`
+  (zone-hierarchy suffix); the volume mesher then can't match
+  `htail` from `Rotation(...).enclosed_entities`. The identical
+  `SimulationParams` builds cleanly under the legacy beta mesher (which
+  apparently keeps an internal alias).  All 30 forks downstream of
+  the failed parent also errored.
+
+  Workaround: skip `use_geometry_AI=True` for cases that have nested
+  rotation volumes referencing surfaces inside them. The trim-centered
+  cruise campaign was re-submitted as a non-GAI run
+  (`submit_cruise_trim_campaign.py`).
+
 ## Open / unverified
 
 - Does the AngleExpression parser accept C-style ternary `?:`? Not
