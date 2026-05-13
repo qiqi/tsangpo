@@ -127,43 +127,51 @@ with fl.imperial_unit_system:
                         / (q_inf * P.WING_AREA_FT2))   # ≈ 0.040
 
     # NOTE on update laws: Steady RANS sets `timeStepSize = inf`, so the
-    # gain here is a per-pseudo-step rate (not a per-unit-time rate).
-    # Stability bound is roughly  gain · |∂error/∂state| < 1.
+    # `gain` here is a per-pseudo-step increment, not a per-unit-time rate.
+    # The flow needs many pseudo-steps to relax after each rotation
+    # increment, so gains must be small enough that the integrator does
+    # not race ahead of the flow.  Update law clamps each step to a
+    # physical bound to keep a runaway from corrupting the mesh.
 
     # ── UDD #1: aircraft pitch → CL = CL_target ────────────────────────
-    # state[0] = theta_ac (rad). +theta = aircraft nose up → α↑ → CL↑.
-    # dCL/dθ ≈ 2π per rad ≈ 6 /rad, so gain · 6 < 1 → use gain ≲ 0.05.
+    # state[0] = θ_ac (rad), clamped to ±0.2 rad ≈ ±11.5°.
+    # +θ = aircraft nose up → α↑ → CL↑.
     ac_alpha_udd = fl.UserDefinedDynamic(
         name="ac_alpha_trim",
         input_vars=["CL"],
-        constants={"CL_target": float(CL_target), "gain": 2e-3},
+        constants={"CL_target": float(CL_target),
+                   "gain": 1e-4,
+                   "theta_max": 0.2},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
-        update_law=["state[0] + gain * (CL_target - CL);"],
+        update_law=[
+            "min(theta_max, max(-theta_max, "
+            "state[0] + gain * (CL_target - CL)));"
+        ],
         input_boundary_patches=all_surfs,
         output_target=ac_pitch_cyl,
     )
 
     # ── UDD #2: H-tail pitch → momentY = 0 ─────────────────────────────
-    # state[0] = theta_htail (rad, relative to aircraft pitch).
-    # +theta_htail = htail nose up → less downforce → smaller nose-up
-    # moment.  dCMy/dθ_htail ~ 1 /rad; gain ≲ 0.5 stable. Conservative.
+    # state[0] = θ_htail (rad, relative to airframe), clamped to ±0.2 rad.
+    # +θ_htail = htail nose up → less downforce → smaller +CMy.
     htail_udd = fl.UserDefinedDynamic(
         name="htail_trim",
         input_vars=["momentY"],
-        constants={"gain": 5e-3},
+        constants={"gain": 5e-4, "theta_max": 0.2},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
-        update_law=["state[0] + gain * momentY;"],
+        update_law=[
+            "min(theta_max, max(-theta_max, "
+            "state[0] + gain * momentY));"
+        ],
         input_boundary_patches=all_surfs,
         output_target=htail_pitch_cyl,
     )
 
     # ── UDD #3: thrust scaling → wall_forceX = T_base · mult ───────────
-    # forceX from input_boundary_patches integrates wall pressure/skin
-    # friction only — the actuator-disk source term isn't included.
-    # Track wall drag against the disk thrust contribution (T_base · mult).
-    # Equilibrium:  wall_forceX = T_base · mult    (drag = thrust)
+    # state[0] = uniform thrustMultiplier, clamped to [0.1, 5.0].
+    # Equilibrium: wall_forceX = T_base · state[0]  ⇔  drag = thrust.
     thrust_outputs = {
         f"actuatorDisk_{cyl.name}_thrustMultiplier": "state[0];"
         for cyl in prop_cyls
@@ -171,10 +179,16 @@ with fl.imperial_unit_system:
     thrust_udd = fl.UserDefinedDynamic(
         name="thrust_trim",
         input_vars=["forceX"],
-        constants={"gain": 0.1, "T_base": T_base_coef},
+        constants={"gain": 5e-3,
+                   "T_base": T_base_coef,
+                   "mult_min": 0.1,
+                   "mult_max": 5.0},
         output_vars=thrust_outputs,
         state_vars_initial_value=["1.0"],
-        update_law=["state[0] + gain * (forceX - T_base * state[0]);"],
+        update_law=[
+            "min(mult_max, max(mult_min, "
+            "state[0] + gain * (forceX - T_base * state[0])));"
+        ],
         input_boundary_patches=all_surfs,
     )
 
