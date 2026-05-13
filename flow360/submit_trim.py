@@ -253,11 +253,13 @@ with fl.imperial_unit_system:
     )
 
 print("Forking with UDD trim controllers …")
-draft = parent_case.fork(
-    name="trim_v1",
+case = project.run_case(
     params=params,
+    name="trim_v1",
+    run_async=True,
+    fork_from=parent_case,
     tags=["cruise", "trim_search", "UDD"],
+    use_beta_mesher=True,
 )
-case = draft.submit()
 print(f"Forked case: {case.id}")
 print(f"Project:     {project.id}")
