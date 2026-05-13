@@ -90,6 +90,8 @@ scale     wing_chord
 translate -0.25*wing_chord   -wing_semispan   0
 extrude   0   wing_span   0
    attribute _name $main_wing
+select face
+   attribute capsGroup $main_wing
 store     main_wing
 
 # --- Vane + aft-flap rigid assembly ----------------------------------
@@ -107,6 +109,8 @@ ifthen    gap_fraction LE 0
    translate -0.25*wing_chord   -wing_semispan   0
    extrude   0   wing_span   0
       attribute _name $vane
+   select face
+      attribute capsGroup $vane
    store     vane
 
    udprim    $/airfoils/flap
@@ -117,6 +121,8 @@ ifthen    gap_fraction LE 0
    translate -0.25*wing_chord   -wing_semispan   0
    extrude   0   wing_span   0
       attribute _name $aft_flap
+   select face
+      attribute capsGroup $aft_flap
    store     aft_flap
 elseif    gap_fraction LT flap_outboard_eta
    udprim    $/airfoils/vane
@@ -127,6 +133,8 @@ elseif    gap_fraction LT flap_outboard_eta
    translate -0.25*wing_chord   flap_y_in   0
    extrude   0   flap_panel   0
       attribute _name $vane_right
+   select face
+      attribute capsGroup $vane_right
    store     vane_right
 
    udprim    $/airfoils/vane
@@ -137,6 +145,8 @@ elseif    gap_fraction LT flap_outboard_eta
    translate -0.25*wing_chord   -flap_y_out   0
    extrude   0   flap_panel   0
       attribute _name $vane_left
+   select face
+      attribute capsGroup $vane_left
    store     vane_left
 
    udprim    $/airfoils/flap
@@ -147,6 +157,8 @@ elseif    gap_fraction LT flap_outboard_eta
    translate -0.25*wing_chord   flap_y_in   0
    extrude   0   flap_panel   0
       attribute _name $aft_flap_right
+   select face
+      attribute capsGroup $aft_flap_right
    store     aft_flap_right
 
    udprim    $/airfoils/flap
@@ -157,6 +169,8 @@ elseif    gap_fraction LT flap_outboard_eta
    translate -0.25*wing_chord   -flap_y_out   0
    extrude   0   flap_panel   0
       attribute _name $aft_flap_left
+   select face
+      attribute capsGroup $aft_flap_left
    store     aft_flap_left
 endif
 
@@ -167,16 +181,17 @@ scale     htail_chord
 translate X_tail-0.25*htail_chord   -htail_semispan   Z_tail
 extrude   0   htail_span   0
    attribute _name $htail
+select face
+   attribute capsGroup $htail
 store     htail
 
 # =====================================================================
 # DUMP: one STL per body + a combined STEP for the Flow360 mesher.
 # =====================================================================
-# Per-body dumps. Dump ORDER fixes the body0000N numbering on the
-# Flow360 side (when uploading the inlined .csm, ESP assigns body IDs
-# in the order it sees the dumps). Keep the order matched to the
-# rename calls in flow360/submit_cruise.py:
-#   body00001=main_wing, body00002=vane, body00003=aft_flap, body00004=htail
+# Per-body dumps. Body0000N order on the Flow360 side is irrelevant —
+# surface names come from `attribute capsGroup $<name>` on each face
+# (set in the build section above), and submit_cruise.py groups faces
+# by `capsGroup`.
 restore   main_wing
 dump      main_wing.stl
 dump      main_wing.step

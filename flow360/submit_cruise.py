@@ -74,11 +74,10 @@ else:
     )
 
 geo = project.geometry
-geo.group_faces_by_tag("groupByBodyId")
-geo.rename_surfaces("body00001", "main_wing")
-geo.rename_surfaces("body00002", "vane")
-geo.rename_surfaces("body00003", "aft_flap")
-geo.rename_surfaces("body00004", "htail")
+# Group faces by the `capsGroup` attribute set per-element in tsangpo.csm
+# via `select face / attribute capsGroup $<name>`. Surface names come
+# directly from the .csm, so no body0000N dump-order coupling.
+geo.group_faces_by_tag("capsGroup")
 main_wing_surf = geo["main_wing"]
 vane_surf      = geo["vane"]
 aft_flap_surf  = geo["aft_flap"]

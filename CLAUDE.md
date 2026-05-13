@@ -21,6 +21,12 @@ the beta mesher; with the legacy mesher it silently does nothing.
   script's docstring.
 - `geometry/tsangpo.csm` is phase-parameterized: pass `phase 0/1/2` via
   `-despmtrs` for stowed / takeoff / landing.
-- One `.step` per body (not a combined airframe.step): Flow360 merges a
-  combined STEP into a single body, which defeats the per-surface
-  boundary naming.
+- **Name every element's faces with `attribute capsGroup $<name>`**
+  (right after `extrude`, via `select face / attribute capsGroup …`).
+  Flow360's geometry processor exposes `capsGroup` as a face attribute
+  tag; `submit_cruise.py` calls `geo.group_faces_by_tag("capsGroup")`
+  and looks up surfaces by their .csm-given names. Do NOT rely on body
+  dump order or `body0000N` renaming — it's fragile across configs.
+- Upload to Flow360 by inlining UDCs into `tsangpo.csm` and passing a
+  single `.csm` file to `from_geometry`. Multi-file STEP uploads only
+  surface-mesh body00001 (Flow360 limitation as of 25.9.x).
