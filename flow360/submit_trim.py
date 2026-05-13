@@ -155,32 +155,36 @@ with fl.imperial_unit_system:
         input_boundary_patches=all_surfs,
     )
 
-    # ── UDD #2: H-tail pitch → momentY = 0 ─────────────────────────────
-    # state[0] = θ_htail (rad, relative to airframe), clamped to ±0.25 rad.
-    # Empirically dCMy/dθ_htail < 0 once α is in the trim range, so the
-    # stable proportional law is  state += gain·momentY  (CMy>0 ⇒ state
-    # grows, htail unloads further; CMy<0 ⇒ state shrinks back).
+    # Cascade thresholds: hold the slower trim variables fixed while α
+    # settles, then enable them sequentially so coupled transients don't
+    # push the integrators into clamps before they see their true target.
+    HTAIL_ACTIVE_STEP  = 2000
+    THRUST_ACTIVE_STEP = 3500
+
+    # ── UDD #2: H-tail pitch → momentY = 0 (active after α settles) ────
+    # Held at θ_htail = 0 for the first HTAIL_ACTIVE_STEP pseudo-steps.
+    # Once α is at the trim value, dCMy/dθ_htail < 0 → stable feedback
+    # with  state += gain·momentY.
     htail_udd = fl.UserDefinedDynamic(
         name="htail_trim",
         input_vars=["momentY"],
-        constants={"gain": 1e-3, "theta_max": 0.25},
+        constants={"gain": 1e-3,
+                   "theta_max": 0.25,
+                   "active_step": HTAIL_ACTIVE_STEP},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
         update_law=[
-            "min(theta_max, max(-theta_max, "
+            "if (pseudoStep < active_step) 0.0; "
+            "else min(theta_max, max(-theta_max, "
             "state[0] + gain * momentY));"
         ],
         input_boundary_patches=all_surfs,
         output_target=htail_pitch_cyl,
     )
 
-    # ── UDD #3: thrust scaling → wall_forceX = T_base · mult ───────────
-    # state[0] = uniform thrustMultiplier, clamped to [0.5, 5.0].
-    # Tracker form  state += gain · (forceX/T_base − state)  has a
-    # clearer per-step decay rate (= gain) than the original.  Initial
-    # value 2.0 is the rough D/T_base ratio at the trim α (235 lbf /
-    # 122 lbf ≈ 1.9), so the controller starts near the answer and the
-    # transient can't trip the floor clamp.
+    # ── UDD #3: thrust → wall_forceX = T_base · mult (last to activate) ─
+    # Held at mult = 2.0 (≈ D/T_base at α_trim) until both α and θ_htail
+    # have settled. Tracker form for clear per-step decay rate.
     thrust_outputs = {
         f"actuatorDisk_{cyl.name}_thrustMultiplier": "state[0];"
         for cyl in prop_cyls
@@ -191,11 +195,13 @@ with fl.imperial_unit_system:
         constants={"gain": 5e-3,
                    "T_base": T_base_coef,
                    "mult_min": 0.5,
-                   "mult_max": 5.0},
+                   "mult_max": 5.0,
+                   "active_step": THRUST_ACTIVE_STEP},
         output_vars=thrust_outputs,
         state_vars_initial_value=["2.0"],
         update_law=[
-            "min(mult_max, max(mult_min, "
+            "if (pseudoStep < active_step) 2.0; "
+            "else min(mult_max, max(mult_min, "
             "state[0] + gain * (forceX / T_base - state[0])));"
         ],
         input_boundary_patches=all_surfs,
@@ -268,7 +274,9 @@ with fl.imperial_unit_system:
             *ad_models,
         ],
         time_stepping=fl.Steady(
-            max_steps=5000,
+            # Stage budget: ≈2000 for α, then ≈1500 for htail, then ≈2500
+            # for thrust, with margin for the tail of each transient.
+            max_steps=6000,
             CFL=fl.AdaptiveCFL(max=1e4, convergence_limiting_factor=0.25),
         ),
         user_defined_dynamics=[ac_alpha_udd, htail_udd, thrust_udd],
