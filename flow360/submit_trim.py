@@ -120,9 +120,15 @@ with fl.imperial_unit_system:
         parent_volume=ac_pitch_cyl,
     )
 
+    # Baseline (mult = 1) total disk thrust coefficient — used by the thrust
+    # UDD to balance disk thrust against wall drag (forceX integrates only
+    # over wall patches, not the volume momentum sources).
+    T_base_coef = float(P.T_CRUISE_PER_PROP_LBF * P.N_PROPS
+                        / (q_inf * P.WING_AREA_FT2))   # ≈ 0.040
+
     # ── UDD #1: aircraft pitch → CL = CL_target ────────────────────────
-    # state[0] = theta_ac (rad).  Simple Euler integrator on (CL_target − CL).
-    # +theta = aircraft nose up (LE of wing rises), which increases effective α.
+    # state[0] = theta_ac (rad). Simple Euler integrator on (CL_target − CL).
+    # +theta = aircraft nose up (LE rises) → effective α↑ → CL↑.
     ac_alpha_udd = fl.UserDefinedDynamic(
         name="ac_alpha_trim",
         input_vars=["CL"],
@@ -132,6 +138,7 @@ with fl.imperial_unit_system:
         update_law=[
             "state[0] + timeStepSize * gain * (CL_target - CL);"
         ],
+        input_boundary_patches=all_surfs,
         output_target=ac_pitch_cyl,
     )
 
@@ -148,12 +155,16 @@ with fl.imperial_unit_system:
         update_law=[
             "state[0] + timeStepSize * gain * momentY;"
         ],
+        input_boundary_patches=all_surfs,
         output_target=htail_pitch_cyl,
     )
 
-    # ── UDD #3: thrust scaling → forceX = 0 ─────────────────────────────
-    # state[0] = uniform thrustMultiplier (starts at 1.0).
-    # forceX > 0 → net aft force (drag > thrust) → mult should rise.
+    # ── UDD #3: thrust scaling → wall_forceX = T_base · mult ────────────
+    # forceX from input_boundary_patches integrates the WALL pressure/
+    # viscous forces only — the actuator-disk source term isn't included.
+    # So we drive thrust = drag by tracking wall_forceX against the disk
+    # thrust contribution (T_base · mult).  Equilibrium:
+    #     wall_forceX = T_base · mult     (i.e. drag = thrust)
     thrust_outputs = {
         f"actuatorDisk_{cyl.name}_thrustMultiplier": "state[0];"
         for cyl in prop_cyls
@@ -161,12 +172,13 @@ with fl.imperial_unit_system:
     thrust_udd = fl.UserDefinedDynamic(
         name="thrust_trim",
         input_vars=["forceX"],
-        constants={"gain": 5e-2},
+        constants={"gain": 1e-2, "T_base": T_base_coef},
         output_vars=thrust_outputs,
         state_vars_initial_value=["1.0"],
         update_law=[
-            "state[0] + timeStepSize * gain * forceX;"
+            "state[0] + timeStepSize * gain * (forceX - T_base * state[0]);"
         ],
+        input_boundary_patches=all_surfs,
     )
 
     params = fl.SimulationParams(
