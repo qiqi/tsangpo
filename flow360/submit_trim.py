@@ -156,27 +156,31 @@ with fl.imperial_unit_system:
     )
 
     # ── UDD #2: H-tail pitch → momentY = 0 ─────────────────────────────
-    # state[0] = θ_htail (rad, relative to airframe), clamped to ±0.2 rad.
-    # Same passive-rotation sign convention as ac_alpha: +θ_htail decreases
-    # the htail's effective α → for inverted camber, MORE downforce → MORE
-    # nose-up CMy. Hence state must decrease when momentY > 0.
+    # state[0] = θ_htail (rad, relative to airframe), clamped to ±0.25 rad.
+    # Empirically dCMy/dθ_htail < 0 once α is in the trim range, so the
+    # stable proportional law is  state += gain·momentY  (CMy>0 ⇒ state
+    # grows, htail unloads further; CMy<0 ⇒ state shrinks back).
     htail_udd = fl.UserDefinedDynamic(
         name="htail_trim",
         input_vars=["momentY"],
-        constants={"gain": 2e-3, "theta_max": 0.2},
+        constants={"gain": 1e-3, "theta_max": 0.25},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
         update_law=[
             "min(theta_max, max(-theta_max, "
-            "state[0] - gain * momentY));"
+            "state[0] + gain * momentY));"
         ],
         input_boundary_patches=all_surfs,
         output_target=htail_pitch_cyl,
     )
 
     # ── UDD #3: thrust scaling → wall_forceX = T_base · mult ───────────
-    # state[0] = uniform thrustMultiplier, clamped to [0.1, 5.0].
-    # Equilibrium: wall_forceX = T_base · state[0]  ⇔  drag = thrust.
+    # state[0] = uniform thrustMultiplier, clamped to [0.5, 5.0].
+    # Tracker form  state += gain · (forceX/T_base − state)  has a
+    # clearer per-step decay rate (= gain) than the original.  Initial
+    # value 2.0 is the rough D/T_base ratio at the trim α (235 lbf /
+    # 122 lbf ≈ 1.9), so the controller starts near the answer and the
+    # transient can't trip the floor clamp.
     thrust_outputs = {
         f"actuatorDisk_{cyl.name}_thrustMultiplier": "state[0];"
         for cyl in prop_cyls
@@ -186,13 +190,13 @@ with fl.imperial_unit_system:
         input_vars=["forceX"],
         constants={"gain": 5e-3,
                    "T_base": T_base_coef,
-                   "mult_min": 0.1,
+                   "mult_min": 0.5,
                    "mult_max": 5.0},
         output_vars=thrust_outputs,
-        state_vars_initial_value=["1.0"],
+        state_vars_initial_value=["2.0"],
         update_law=[
             "min(mult_max, max(mult_min, "
-            "state[0] + gain * (forceX - T_base * state[0])));"
+            "state[0] + gain * (forceX / T_base - state[0])));"
         ],
         input_boundary_patches=all_surfs,
     )
