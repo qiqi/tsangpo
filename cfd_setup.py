@@ -65,16 +65,19 @@ def get_geometry_surfaces(project):
 
 # Tsangpo folder hierarchy on Flow360 (`Tsangpo/<config_num>_<descr>/`).
 # Configurations:
-#   1  continuous flap, low htail  (current — cruise + takeoff + landing campaigns)
-#   2  continuous flap, high htail (Electra-style; future)
-#   3  gapped flap,     low htail  (future)
-#   4  gapped flap,     high htail (future)
+#   1  continuous flap, low htail            (v1 geometry — cruise + takeoff + landing v1 campaigns)
+#   2  continuous flap, high htail           (Electra-style; future)
+#   3  gapped flap,     low htail            (future)
+#   4  gapped flap,     high htail           (future)
+#   5  v2 low_htail with bigger tail         (post-revision: CG-origin, half-chord-over-CG, c_h=c_w,
+#                                             span 0.40 b_w, htail LE 4 c aft of wing LE)
 TSANGPO_FOLDER_IDS = {
     "Tsangpo":                       "folder-4ba7bf56-581f-4b41-b8ee-af8d80c27d11",
     "1_continuous_flap_low_htail":   "folder-8375dac1-f190-48af-82f2-1cfa0dd054f2",
     "2_continuous_flap_high_htail":  "folder-503c0720-2d4b-4a26-859d-9aa949264944",
     "3_gapped_flap_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
     "4_gapped_flap_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
+    "5_v2_low_htail_bigger_tail":    "folder-2c582dd7-918a-430f-a0f8-e28e036451ad",
 }
 
 
@@ -140,10 +143,11 @@ def build_params(
             center=(0, 0, 0) * fl.u.m, axis=(0, 1, 0),
             height=AC_HEIGHT_M * fl.u.m, outer_radius=AC_RADIUS_M * fl.u.m,
         )
+        # In v2 geometry the origin is the CG and the htail's absolute z is
+        # P.WING_Z_M + P.Z_TAIL_LOW_CHORDS · MAC (= +0.4 c for low, +2.9 c for high).
         ht_cyl = fl.Cylinder(
             name="htail_pitch_zone",
-            center=(P.X_TAIL_DEFAULT_M, 0,
-                    P.Z_TAIL_LOW_CHORDS * P.WING_MAC_M) * fl.u.m,
+            center=(P.X_TAIL_DEFAULT_M, 0, P.Z_TAIL_LOW_M) * fl.u.m,
             axis=(0, 1, 0),
             height=HT_HEIGHT_M * fl.u.m, outer_radius=HT_RADIUS_M * fl.u.m,
         )

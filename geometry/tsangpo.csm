@@ -1,5 +1,5 @@
 # =====================================================================
-# Tsangpo eSTOL — parametric configuration model
+# Tsangpo eSTOL — parametric configuration model  (GEOMETRY v2)
 # ---------------------------------------------------------------------
 # 3-element high-lift wing:
 #   * Main wing — coved LS(1)-0417 (Selig contour with cove cutout +
@@ -13,19 +13,22 @@
 # Fowler kinematics: the vane + aft-flap move as a rigid assembly.
 # Rotation about pivot_point, then translation by (dx, dy), both in
 # stowed-chord-normalized units, applied BEFORE chord scaling so the
-# normalized vector scales to physical feet via `scale wing_chord`.
+# normalized vector scales to physical metres via `scale wing_chord`.
 #
 # H-tail: inverted LS(1)-0417 (tail.udc). Negative camber gives down-
-# force at AoA = 0 without baking in incidence here.
+# force at AoA = 0 without baking in incidence here.  In v2 the htail
+# has chord = wing chord and span = 0.40 b_wing — bigger, longer arm.
 #
-# All dimensions in METRES, angles in degrees. Origin at the wing root
-# quarter-chord (of the stowed 3-element chord) on the symmetry plane
-# (Y = 0); +X aft, +Y starboard, +Z up.
+# All dimensions in METRES, angles in degrees.
+#
+# GEOMETRY VERSION 2 — Origin is the CG.  CG sits under the wing's
+# HALF-chord, 0.4 c below the wing chord plane.  +X aft, +Y starboard,
+# +Z up.  Wing LE is at x = -0.5 c, wing chord plane at z = +0.4 c.
+# H-tail LE is 4.0 c aft of the wing LE, with chord = wing chord.
 # =====================================================================
 
 # ----- Phase selector ------------------------------------------------
 #   phase = 0 → stowed,  1 → takeoff,  2 → landing
-# Values match airfoils/estol_config.yaml :: kinematics.phases.
 despmtr   phase            0
 
 ifthen    phase EQ 1
@@ -48,46 +51,51 @@ despmtr   wing_AR            8.0
 
 set       wing_span        sqrt(wing_AR*wing_area_m2)
 set       wing_semispan    wing_span/2
-set       wing_chord       wing_area_m2/wing_span   # stowed-chord ref
+set       wing_chord       wing_area_m2/wing_span      # stowed-chord ref
 set       MAC              wing_chord
+
+# ----- Wing position relative to CG (origin) -------------------------
+# CG under wing's half-chord and 0.4 c below the wing chord plane.
+set       wing_x_LE        -0.5*wing_chord             # wing LE forward of CG
+set       wing_z           +0.4*wing_chord             # wing chord plane above CG
 
 # ----- Vane / aft-flap rigid assembly pivot --------------------------
 despmtr   pivot_x          0.550
 despmtr   pivot_y         -0.048
 
 # ----- Inboard gap (applied to the vane + aft-flap assembly) ---------
-despmtr   gap_fraction      0.0     # 0.0 = baseline, 0.35 = proposed
+despmtr   gap_fraction      0.0      # 0.0 = baseline, 0.35 = proposed
 despmtr   flap_outboard_eta 0.95
 
 set       flap_y_in        gap_fraction*wing_semispan
 set       flap_y_out       flap_outboard_eta*wing_semispan
 set       flap_panel       flap_y_out-flap_y_in
 
-# ----- H-tail --------------------------------------------------------
-despmtr   htail_span_frac   0.35
-despmtr   htail_AR          4.5
-despmtr   X_tail_mac        3.5
-despmtr   Z_tail_chords     0.0
+# ----- H-tail (v2: bigger, longer arm) -------------------------------
+despmtr   htail_span_frac   0.40        # was 0.35
+despmtr   htail_chord_frac  1.00        # c_htail = c_wing  (was ~0.62)
+despmtr   X_tail_LE_chords  4.0         # htail LE 4 c_wing aft of wing LE
+despmtr   Z_tail_chords     0.0         # 0 = low (in wing chord plane), 2.5 = high
 
 set       htail_span       htail_span_frac*wing_span
 set       htail_semispan   htail_span/2
-set       htail_area       htail_span^2/htail_AR
-set       htail_chord      htail_area/htail_span
-set       X_tail           X_tail_mac*MAC
-set       Z_tail           Z_tail_chords*MAC
+set       htail_chord      htail_chord_frac*wing_chord
+set       htail_area       htail_span*htail_chord
+set       X_tail_LE        wing_x_LE + X_tail_LE_chords*MAC
+set       Z_tail           wing_z    + Z_tail_chords*MAC
 
 # =====================================================================
 # BUILD — each lifting element is built from a closed planar sketch
 # (UDC file) in the XY plane, swung into the XZ plane by `rotatex 90`,
-# scaled to chord, translated to its root Y-station, then extruded
-# along +Y for the spanwise length.
+# scaled to chord, translated to its root Y-station and z-station,
+# then extruded along +Y for the spanwise length.
 # =====================================================================
 
 # --- Main wing (full-span solid; cove is upstream of the gap study) --
 udprim    $/airfoils/main_wing
 rotatex   90  0  0
 scale     wing_chord
-translate -0.25*wing_chord   -wing_semispan   0
+translate wing_x_LE   -wing_semispan   wing_z
 extrude   0   wing_span   0
    attribute _name $main_wing
 select face
@@ -106,7 +114,7 @@ ifthen    gap_fraction LE 0
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   -wing_semispan   0
+   translate wing_x_LE   -wing_semispan   wing_z
    extrude   0   wing_span   0
       attribute _name $vane
    select face
@@ -118,7 +126,7 @@ ifthen    gap_fraction LE 0
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   -wing_semispan   0
+   translate wing_x_LE   -wing_semispan   wing_z
    extrude   0   wing_span   0
       attribute _name $aft_flap
    select face
@@ -130,7 +138,7 @@ elseif    gap_fraction LT flap_outboard_eta
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   flap_y_in   0
+   translate wing_x_LE   flap_y_in   wing_z
    extrude   0   flap_panel   0
       attribute _name $vane_right
    select face
@@ -142,7 +150,7 @@ elseif    gap_fraction LT flap_outboard_eta
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   -flap_y_out   0
+   translate wing_x_LE   -flap_y_out   wing_z
    extrude   0   flap_panel   0
       attribute _name $vane_left
    select face
@@ -154,7 +162,7 @@ elseif    gap_fraction LT flap_outboard_eta
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   flap_y_in   0
+   translate wing_x_LE   flap_y_in   wing_z
    extrude   0   flap_panel   0
       attribute _name $aft_flap_right
    select face
@@ -166,7 +174,7 @@ elseif    gap_fraction LT flap_outboard_eta
    translate flap_dx   flap_dy   0
    rotatex   90  0  0
    scale     wing_chord
-   translate -0.25*wing_chord   -flap_y_out   0
+   translate wing_x_LE   -flap_y_out   wing_z
    extrude   0   flap_panel   0
       attribute _name $aft_flap_left
    select face
@@ -175,10 +183,11 @@ elseif    gap_fraction LT flap_outboard_eta
 endif
 
 # --- H-tail (inverted LS(1)-0417, single full-span solid) ------------
+# v2: c_htail = c_wing, span = 0.40 b_wing, LE 4 c_wing aft of wing LE.
 udprim    $/airfoils/tail
 rotatex   90  0  0
 scale     htail_chord
-translate X_tail-0.25*htail_chord   -htail_semispan   Z_tail
+translate X_tail_LE   -htail_semispan   Z_tail
 extrude   0   htail_span   0
    attribute _name $htail
 select face
@@ -186,14 +195,9 @@ select face
 store     htail
 
 # =====================================================================
-# DUMP: one STL + one STEP per body (no combined airframe.step — Flow360
-# rejects multi-file STEP uploads anyway; submit_cruise.py inlines this
-# CSM and uploads it as a single .csm instead).
+# DUMP: one STL + one STEP per body. submit_*.py scripts inline the
+# UDC contours into a single .csm and upload that.
 # =====================================================================
-# Per-body dumps. Body0000N order on the Flow360 side is irrelevant —
-# surface names come from `attribute capsGroup $<name>` on each face
-# (set in the build section above), and submit_cruise.py groups faces
-# by `capsGroup`.
 restore   main_wing
 dump      main_wing.stl
 dump      main_wing.step
