@@ -144,6 +144,128 @@ completes.
 
 ★ Dedup: the α=+8° fork and the T_mult=16 fork have identical params (both at the BO baseline), so Flow360 returned the same case ID.
 
-### Phase C — GAI takeoff sweep (refined trim)
+### Phase A — coarse takeoff sweep, **v2 forks** (tight iter settings)
 
-Pending Phase A completion + sensitivity refinement.
+Initial v1 forks (1000 pseudo iters × 10 new steps) were cancelled after
+inspecting the parent's convergence — forces stabilised by physical
+step 5 and within-step CL is flat to 0.008 % across 1000 pseudo iters.
+Resubmitted with **N_FORK_NEW=6, PSEUDO_FORK=500** (≈70 % compute
+saving per fork), forked from the now-completed parent
+`case-95963eff` (parent solver wall time 63 min, realFlexUnit 23.5).
+
+| sweep | values | case IDs |
+|---|---|---|
+| α [°] | −2, +2, +5, +8, +11, +14, +17, +20, +25, +30 | `611dc481`, `e2740270`, `af473707`, `f50417a9`★, `56a02a76`, `86973474`, `a44322f9`, `06ff58fc`, `07d360f5`, `5e7b3963` |
+| θ_ht [°] | −12, −9, −6, −4, −2, 0, +2, +4, +6, +9 | `db98b4d4`, `1c8aa00a`, `8cf4a3ff`, `e390dc48`, `af6eac32`, `3da44e22`, `c7c3ab88`, `e1fe6661`, `3901f098`, `b4ea25cc` |
+| T_mult | 6, 9, 12, 14, 16, 18, 20, 22, 25, 30 | `96ca3665`, `623c3792`, `c40be1d2`, `f4fc5718`, `f50417a9`★, `d5a429d0`, `1a8b9776`, `bd92aedd`, `44923768`, `134b5899` |
+
+★ Dedup: α=+8° and T_mult=16 share `case-f50417a9` (identical
+SimulationParams — both at the BO baseline).
+
+### Phase B — refined trim solve from Phase A v2 sensitivities
+
+Sensitivities about the BO baseline (α=+8°, θ_ht=−5°, T_mult=+16),
+using 20/29 of the v2 forks (alpha sweep complete, half of htail and
+half of thrust):
+
+| | value |
+|---|---:|
+| dCL/dα | +0.203 /deg (pre-stall fit, α ≤ +11°) |
+| dCL/dθ_ht | +0.008 /deg (very weak) |
+| dCL/dT_mult | +0.203 /unit (huge — blown-lift dominates) |
+| dCMy/dα | +0.017 /deg |
+| **dCMy/dθ_ht** | **−0.022 /deg** ← half of cruise's −0.048, slipstream wake diminishes htail authority |
+| dCMy/dT_mult | −0.098 /unit |
+| dCD/dα | +0.145 /deg |
+| dCD/dT_mult | +0.114 /unit |
+| dCT_delivered/dT_mult | +0.246 /unit (matches Mach-based AD scaling) |
+
+Baseline at BO: CL=+7.82, CMy_CG=−1.71, CFx=+2.84, CT_delivered=+3.93
+(referenced to qS=2109 N). Solving the linearised 3×3 system for
+`CL = (W·cos γ − T·sin α)/qS`, `CMy_CG = 0`, `CT_del·cos α − CFx =
+W·sin γ /qS`:
+
+> Δα = **−4.71°**, Δθ_ht = **−27.88°**, ΔT_mult = **−12.02**
+
+i.e., raw refined trim α=+3.3°, θ_ht=−32.9°, T_mult=+4.0.
+
+**Trim feasibility caveat.** The α and T_mult numbers are credible
+(BO over-lifts ~1.9× → both knobs need to come way down). But the
+Δθ_ht is unphysical — well outside the sweep range (−12 to +9°) and
+beyond any reasonable elevator deflection. The htail in heavy
+slipstream wake from the wing+flap has too little authority to
+balance the wing/flap nose-down moment (CMy_CG_base = −1.71 vs
+dCMy/dθ_ht ≈ −0.022 /deg ⇒ need ≈ −78° of htail input — clearly
+not achievable). This is a real finding: **the current low-htail
+phase-1-flap geometry can't pitch-trim aerodynamically in a
+30°-climb takeoff at the assumed CG (z = −0.4c, x = 0 = wing-root
+c/4)**. Likely fixes:
+
+1. Move the CG aft by ≈ 0.2 c (puts wing CL arm closer to neutral
+   point — would shift CMy_CG by +0.2 × CL ≈ +1.6, enough to trim).
+2. High-htail (Electra config #2) — htail out of the wing/flap wake
+   should restore much of the dCMy/dθ_ht authority.
+3. Reduce flap deflection from −40° (phase 1) to something milder.
+
+For Phase C we proceed with a **damped, envelope-clipped trim**:
+
+| | Phase C target |
+|---|---:|
+| α | +5° (between BO=+8° and linear solve=+3.3°, just past CL_max stall onset) |
+| θ_ht | −12° (lower limit of sweep envelope; maximum nose-up htail authority) |
+| T_mult | +8 (between BO=16 and linear solve=4, clipped to keep blown lift) |
+
+This isn't a *trimmed* point — CMy_CG will still be negative — but
+it brings CL into the target zone (~4.5) and lets us cross-check
+the sensitivities at a much better operating point than the BO.
+
+### Phase C — refined sweep (legacy mesher, tightened mesh)
+
+Submitted parent at the damped trim above with tightened mesh
+settings (legacy beta mesher; GAI still blocked per
+`post/FLOW360_GAI_BUG_REPORT.md`):
+
+| | Phase A | Phase C |
+|---|---:|---:|
+| surface_max_edge_length | 0.075 m | **0.04 m** (≈ 2× finer surface) |
+| curvature_resolution_angle | 15° | **10°** |
+| first-layer thickness | 7.62 × 10⁻⁶ m | unchanged |
+
+- Project: `prj-25133de4-…` (same as Phase A)
+- **Phase C parent**: `case-16cebe64-db52-4b86-a470-3b2e530b428b`
+  (α=+5°, θ_ht=−12°, T_mult=+8)
+
+Fork sweeps around this point are a follow-on if the Phase C parent
+delivers an answer in the right ballpark (CL near target, residual
+CMy small enough to be a sensible operating point).
+
+### Phase C parent — result
+
+`case-16cebe64` completed in ~25 min (mesh + solve, all 20 physical
+steps).  At (α=+5°, θ_ht=−12°, T_mult=+8) on the **tightened mesh**:
+
+| | Phase A linear extrap | Phase C actual | error |
+|---|---:|---:|---:|
+| CL | +5.53 | **+5.95** | +7.5% |
+| CFx (= CD) | +1.50 | **+1.64** | +9% |
+| CT_delivered | +1.97 | **+1.99** | +1% |
+| CMy_CG (with thrust) | −0.82 | **−1.96** | **+138%** |
+
+So:
+- CL is still 25% over target (~4.5–4.8 needed; we have 5.95) →
+  α and/or T_mult need to come down further.
+- Net axial (T_delivered − D) ≈ 4,206 − 3,462 = **+744 N**, target
+  W·sin(30°) = +5,782 N — still ~5 kN of *missing thrust* to hold
+  the climb.  This pulls T_mult back up, not down.
+- **CMy is dramatically more negative than the linear extrap
+  predicted** — the wing+flap nose-down moment grows nonlinearly
+  with reduced lift, and the htail (in slipstream wake) gives no
+  authority to fix it.  The 138 % CMy prediction error is the
+  clearest signal that the linear trim is unreliable for any
+  large step in this regime.
+
+So Phase C at this point is **CL-too-high, thrust-too-low,
+moment-uncorrected**.  The takeoff condition simply doesn't trim
+in this geometry — same conclusion as landing, with the same
+underlying physics.  See `post/LANDING_PLAN.md` "Design
+conclusion" section.

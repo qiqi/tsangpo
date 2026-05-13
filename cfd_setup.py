@@ -63,6 +63,30 @@ def get_geometry_surfaces(project):
     return geo["main_wing"], geo["vane"], geo["aft_flap"], geo["htail"]
 
 
+# Tsangpo folder hierarchy on Flow360 (`Tsangpo/<config_num>_<descr>/`).
+# Configurations:
+#   1  continuous flap, low htail  (current — cruise + takeoff + landing campaigns)
+#   2  continuous flap, high htail (Electra-style; future)
+#   3  gapped flap,     low htail  (future)
+#   4  gapped flap,     high htail (future)
+TSANGPO_FOLDER_IDS = {
+    "Tsangpo":                       "folder-4ba7bf56-581f-4b41-b8ee-af8d80c27d11",
+    "1_continuous_flap_low_htail":   "folder-8375dac1-f190-48af-82f2-1cfa0dd054f2",
+    "2_continuous_flap_high_htail":  "folder-503c0720-2d4b-4a26-859d-9aa949264944",
+    "3_gapped_flap_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
+    "4_gapped_flap_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
+}
+
+
+def move_project_to_folder(project, folder_name: str):
+    """Move a Flow360 Project into the named Tsangpo subfolder."""
+    from flow360.cloud.http_util import http
+    folder_id = TSANGPO_FOLDER_IDS[folder_name]
+    http.patch(f"v2/projects/{project.id}",
+               json={"parentFolderId": folder_id})
+    return folder_id
+
+
 # ---------------------------------------------------------------------------
 # SimulationParams construction
 # ---------------------------------------------------------------------------
@@ -79,15 +103,17 @@ PROP_REFINE_M = 0.05 * P.WING_MAC_M
 
 def build_params(
     surfaces,
-    theta_ac_rad:        float,
-    theta_ht_rad:        float,
-    thrust_mult:         float,
-    velocity_m_s:        float = P.V_CRUISE_M_S,
-    altitude_m:          float = P.ALT_CRUISE_M,
-    n_steps_total:       int   = 10,
-    step_size_s:         float = 1.0,
-    max_pseudo_steps:    int   = 1000,
-    geometry_accuracy_m: float | None = None,
+    theta_ac_rad:              float,
+    theta_ht_rad:              float,
+    thrust_mult:               float,
+    velocity_m_s:              float = P.V_CRUISE_M_S,
+    altitude_m:                float = P.ALT_CRUISE_M,
+    n_steps_total:             int   = 10,
+    step_size_s:               float = 1.0,
+    max_pseudo_steps:          int   = 1000,
+    geometry_accuracy_m:       float | None = None,
+    surface_max_edge_length_m: float = 0.075,
+    curvature_resolution_deg:  float | None = None,
 ):
     """Build a SimulationParams for one (α_body, θ_htail, T_mult) point.
 
@@ -156,9 +182,12 @@ def build_params(
             parent_volume=ac_cyl,
         )
 
+        crv_res = curvature_resolution_deg
+        if crv_res is None:
+            crv_res = 12 if use_gai else 15
         defaults_kwargs = dict(
-            surface_max_edge_length=0.075 * fl.u.m,
-            curvature_resolution_angle=(12 if use_gai else 15) * fl.u.deg,
+            surface_max_edge_length=surface_max_edge_length_m * fl.u.m,
+            curvature_resolution_angle=crv_res * fl.u.deg,
             boundary_layer_first_layer_thickness=7.62e-6 * fl.u.m,
             boundary_layer_growth_rate=1.3,
         )
@@ -183,7 +212,14 @@ def build_params(
                     ),
                     fl.RotationVolume(
                         name="htail_rotation", entities=ht_cyl,
-                        enclosed_entities=[htail_surf],
+                        # GAI volume mesher errors with ERROR 7221 when
+                        # the inner RotationVolume's `enclosed_entities`
+                        # lists a surface by its original capsGroup name
+                        # (the surface mesher has renamed it with the
+                        # zone hierarchy suffix).  Drop the explicit
+                        # hint — the htail surface is geometrically
+                        # inside `ht_cyl`, so spatial inclusion suffices
+                        # for both meshers.  See post/FLOW360_GAI_BUG_REPORT.md.
                         spacing_axial=0.15 * fl.u.m,
                         spacing_radial=0.06 * fl.u.m,
                         spacing_circumferential=0.06 * fl.u.m,

@@ -88,6 +88,13 @@ RHO_TAKEOFF_KG_M3  = RHO_CRUISE_KG_M3
 Q_TAKEOFF_PA       = 0.5 * RHO_TAKEOFF_KG_M3 * V_TAKEOFF_M_S ** 2
 CLIMB_ANGLE_DEG    = 30.0                  # target climb-out flight-path angle
 
+# Landing / steep-descent point (flap phase 2 deployed)
+V_LANDING_M_S      = 12.86                 # 25 knots
+ALT_LANDING_M      = ALT_CRUISE_M
+RHO_LANDING_KG_M3  = RHO_CRUISE_KG_M3
+Q_LANDING_PA       = 0.5 * RHO_LANDING_KG_M3 * V_LANDING_M_S ** 2
+DESCENT_ANGLE_DEG  = -30.0                 # target descent (negative = downward) flight-path angle
+
 
 @dataclass(frozen=True)
 class Case:

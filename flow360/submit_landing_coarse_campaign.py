@@ -1,28 +1,21 @@
 """
-Takeoff (flap phase 1) coarse-mesh campaign.
+Landing (flap phase 2) coarse-mesh campaign — companion to
+`submit_takeoff_coarse_campaign.py`.
 
-Uploads (or reuses, via TSANGPO_TAKEOFF_PROJECT_ID) the Flow360 project
-with `despmtr phase 1` (takeoff flap deflection) baked into the
-geometry, then submits:
+Uploads (or reuses, via TSANGPO_LANDING_PROJECT_ID) a Flow360 project
+with `despmtr phase 2` (landing flap deflection) baked into the
+geometry, then submits the parent + three 10-fork sweeps at the
+back-of-envelope landing trim guess.  See post/LANDING_PLAN.md.
 
-  • Parent case at the back-of-envelope trim
-        α=+8°, θ_ht=-5°, T_mult=+16   (post/TAKEOFF_PLAN.md)
-  • Three 10-fork sweeps around it.
+Tight iteration settings (carried over from takeoff post-mortem):
+  • Forks: 6 new physical steps after the parent's 20.
+  • max_pseudo_steps: 500 per step (1000 for the parent).
 
-Convergence-tuned settings (post-mortem from case-95963eff):
-  • Forks: 6 new physical steps after the parent's 20.  Forces from
-    the parent settle within <0.1 % by step 5; we add 1 step of safety
-    margin for the across-step transition into the new fork condition.
-  • max_pseudo_steps = 500 per step.  Within-step CL is flat to 0.008%
-    across the full 1000 pseudo iters in the takeoff regime (residual
-    floor at ~7e-8, the dual-time pseudo solve has nothing more to do).
+If TSANGPO_LANDING_PARENT_CASE_ID is set, the parent submit is
+skipped and forks attach to the existing case.  Same env-var
+contract as the takeoff script.
 
-The PARENT keeps 1000 pseudo iters because it starts from freestream
-and crosses through a larger transient.  Refine → relaunch on GAI mesh
-once Phase A lands.
-
-Run:
-    python3 flow360/submit_takeoff_coarse_campaign.py
+    python3 flow360/submit_landing_coarse_campaign.py
 """
 from __future__ import annotations
 
@@ -41,25 +34,22 @@ import flow360 as fl
 CSM      = REPO / "geometry" / "tsangpo.csm"
 AIRFOILS = REPO / "geometry" / "airfoils"
 
-# === Back-of-envelope initial trim guess (post/TAKEOFF_PLAN.md) ===
 ALPHA_GUESS_DEG    = +8.0
-THETA_HT_GUESS_DEG = -5.0
-T_MULT_GUESS       = +16.0
+THETA_HT_GUESS_DEG = -6.0
+T_MULT_GUESS       = +12.0
 
-# === Sweep ranges centred on the guess ===
 ALPHA_SWEEP_DEG = (-2.0, +2.0, +5.0, +8.0, +11.0, +14.0, +17.0, +20.0, +25.0, +30.0)
-HTAIL_SWEEP_DEG = (-12.0, -9.0, -6.0, -4.0, -2.0, 0.0, +2.0, +4.0, +6.0, +9.0)
-THRUST_SWEEP    = (6.0, 9.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 25.0, 30.0)
+HTAIL_SWEEP_DEG = (-15.0, -12.0, -9.0, -6.0, -3.0, 0.0, +3.0, +6.0, +9.0, +12.0)
+THRUST_SWEEP    = (4.0, 7.0, 10.0, 12.0, 14.0, 16.0, 18.0, 21.0, 25.0, 30.0)
 
-# === Time stepping (see header for derivation) ===
 N_PARENT_STEPS = 20
 N_FORK_NEW     = 6
 N_FORK_TOTAL   = N_PARENT_STEPS + N_FORK_NEW
 PSEUDO_PARENT  = 1000
 PSEUDO_FORK    = 500
 
-project_id = os.environ.get("TSANGPO_TAKEOFF_PROJECT_ID")
-parent_id  = os.environ.get("TSANGPO_TAKEOFF_PARENT_CASE_ID")
+project_id = os.environ.get("TSANGPO_LANDING_PROJECT_ID")
+parent_id  = os.environ.get("TSANGPO_LANDING_PARENT_CASE_ID")
 
 if parent_id:
     parent_case = fl.Case.from_cloud(parent_id)
@@ -69,27 +59,23 @@ elif project_id:
     project = fl.Project.from_cloud(project_id)
     parent_case = None
 else:
-    inlined = C.set_csm_phase(C.inline_udcs(CSM, AIRFOILS), 1)
+    inlined = C.set_csm_phase(C.inline_udcs(CSM, AIRFOILS), 2)
     with tempfile.NamedTemporaryFile("w", suffix=".csm", delete=False) as f:
         f.write(inlined)
         tmp_csm = f.name
-    print(f"Uploading takeoff geometry (phase=1, {len(inlined.splitlines())} lines)…")
+    print(f"Uploading landing geometry (phase=2, {len(inlined.splitlines())} lines)…")
     project = fl.Project.from_geometry(
-        tmp_csm, name="tsangpo_takeoff_coarse_phaseA",
-        length_unit="m", tags=["tsangpo", "takeoff", "SI", "phase1", "coarse"],
+        tmp_csm, name="tsangpo_landing_coarse_phaseA",
+        length_unit="m", tags=["tsangpo", "landing", "SI", "phase2", "coarse"],
     )
     C.move_project_to_folder(project, "1_continuous_flap_low_htail")
     parent_case = None
 print(f"Project: {project.id} ({project.metadata.name})")
 
 surfaces = C.get_geometry_surfaces(project)
-print(f"V_takeoff  = {P.V_TAKEOFF_M_S:.2f} m/s  ({P.V_TAKEOFF_M_S/0.5144:.1f} kt)")
-print(f"q·S        = {P.Q_TAKEOFF_PA * P.WING_AREA_M2:.1f} N\n")
+print(f"V_landing = {P.V_LANDING_M_S:.2f} m/s  ({P.V_LANDING_M_S/0.5144:.1f} kt)")
+print(f"q·S       = {P.Q_LANDING_PA * P.WING_AREA_M2:.1f} N\n")
 
-# ---------------------------------------------------------------------------
-# Parent at the BO-envelope estimate (full 1000 pseudo for the first solve).
-# Skipped if TSANGPO_TAKEOFF_PARENT_CASE_ID was provided.
-# ---------------------------------------------------------------------------
 if parent_case is None:
     print(f"=== Parent: α={ALPHA_GUESS_DEG:+.1f}°, θ_ht={THETA_HT_GUESS_DEG:+.1f}°, "
           f"T_mult={T_MULT_GUESS:.1f}× ===")
@@ -98,20 +84,18 @@ if parent_case is None:
                               theta_ac_rad=radians(ALPHA_GUESS_DEG),
                               theta_ht_rad=radians(THETA_HT_GUESS_DEG),
                               thrust_mult=T_MULT_GUESS,
-                              velocity_m_s=P.V_TAKEOFF_M_S,
-                              altitude_m=P.ALT_TAKEOFF_M,
+                              velocity_m_s=P.V_LANDING_M_S,
+                              altitude_m=P.ALT_LANDING_M,
                               n_steps_total=N_PARENT_STEPS,
                               max_pseudo_steps=PSEUDO_PARENT),
-        name="takeoff_coarse_BO_estimate",
+        name="landing_coarse_BO_estimate",
         run_async=True,
-        tags=["SI", "takeoff", "phase1", "coarse", "parent", "BO_estimate"],
+        tags=["SI", "landing", "phase2", "coarse", "parent", "BO_estimate"],
         use_beta_mesher=True,
     )
     print(f"  parent case = {parent_case.id}\n")
 
-# ---------------------------------------------------------------------------
-# Sweeps (fewer steps, fewer pseudo iters — see header).
-# ---------------------------------------------------------------------------
+
 def sweep(label, values, vary):
     submitted = []
     print(f"=== {label} sweep ===")
@@ -119,16 +103,16 @@ def sweep(label, values, vary):
         ta = radians(v) if vary == "alpha"  else radians(ALPHA_GUESS_DEG)
         th = radians(v) if vary == "htail"  else radians(THETA_HT_GUESS_DEG)
         tm = v          if vary == "thrust" else T_MULT_GUESS
-        name = (f"TO_coarse_{vary}_{v:+.2f}"
+        name = (f"LD_coarse_{vary}_{v:+.2f}"
                 .replace("+", "p").replace("-", "m").replace(".", "p"))
         case = project.run_case(
             params=C.build_params(surfaces, ta, th, tm,
-                                  velocity_m_s=P.V_TAKEOFF_M_S,
-                                  altitude_m=P.ALT_TAKEOFF_M,
+                                  velocity_m_s=P.V_LANDING_M_S,
+                                  altitude_m=P.ALT_LANDING_M,
                                   n_steps_total=N_FORK_TOTAL,
                                   max_pseudo_steps=PSEUDO_FORK),
             name=name, run_async=True, fork_from=parent_case,
-            tags=["SI", "takeoff", "coarse", f"{vary}_sweep", f"{vary}{v:+.2f}",
+            tags=["SI", "landing", "coarse", f"{vary}_sweep", f"{vary}{v:+.2f}",
                   "tight_iters"],
             use_beta_mesher=True,
         )
