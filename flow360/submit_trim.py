@@ -107,11 +107,15 @@ with fl.imperial_unit_system:
         for cyl in prop_cyls
     ]
 
-    # Both rotation models now driven by UDD.
+    # The aircraft rotation volume's `theta` output proved unable to
+    # drive the mesh frame in steady RANS (changing θ_ac by ±0.2 rad
+    # moved CL by < 0.1 instead of the expected ~1.2). Use the
+    # freestream `alphaAngle` UDD to control α instead; the aircraft
+    # rotation volume stays in the mesh but is held at 0°.
     ac_rotation = fl.Rotation(
         name="ac_pitch",
         volumes=[ac_pitch_cyl],
-        spec=fl.FromUserDefinedDynamics(),
+        spec=fl.AngleExpression("0"),
     )
     htail_rotation = fl.Rotation(
         name="htail_pitch",
@@ -133,25 +137,22 @@ with fl.imperial_unit_system:
     # not race ahead of the flow.  Update law clamps each step to a
     # physical bound to keep a runaway from corrupting the mesh.
 
-    # ── UDD #1: aircraft pitch → CL = CL_target ────────────────────────
-    # state[0] = θ_ac (rad), clamped to ±0.2 rad ≈ ±11.5°.
-    # Flow360's Rotation is a passive transform: +θ about Y rotates the
-    # frame, so the body sees the freestream rotated +θ → effective α = -θ
-    # for the wing. Hence state must decrease when CL < CL_target.
+    # ── UDD #1: freestream α → CL = CL_target ──────────────────────────
+    # state[0] = alphaAngle (degrees, per Flow360 convention).  Clamp to
+    # ±12° so an under-converged transient cannot stall the wing.
     ac_alpha_udd = fl.UserDefinedDynamic(
-        name="ac_alpha_trim",
+        name="alpha_trim",
         input_vars=["CL"],
         constants={"CL_target": float(CL_target),
-                   "gain": 5e-4,
-                   "theta_max": 0.2},
-        output_vars={"theta": "state[0];"},
+                   "gain": 5e-2,         # deg per pseudo-step per ΔCL
+                   "alpha_max": 12.0},
+        output_vars={"alphaAngle": "state[0];"},
         state_vars_initial_value=["0.0"],
         update_law=[
-            "min(theta_max, max(-theta_max, "
-            "state[0] - gain * (CL_target - CL)));"
+            "min(alpha_max, max(-alpha_max, "
+            "state[0] + gain * (CL_target - CL)));"
         ],
         input_boundary_patches=all_surfs,
-        output_target=ac_pitch_cyl,
     )
 
     # ── UDD #2: H-tail pitch → momentY = 0 ─────────────────────────────
