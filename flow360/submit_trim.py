@@ -200,7 +200,7 @@ with fl.imperial_unit_system:
                     name="ac_rotation",
                     entities=ac_pitch_cyl,
                     enclosed_entities=[main_wing_surf, vane_surf, aft_flap_surf,
-                                       htail_surf, htail_pitch_cyl],
+                                       htail_pitch_cyl],
                     spacing_axial=1.0 * fl.u.ft,
                     spacing_radial=0.5 * fl.u.ft,
                     spacing_circumferential=0.5 * fl.u.ft,

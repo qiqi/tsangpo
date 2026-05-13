@@ -170,15 +170,13 @@ with fl.imperial_unit_system:
                 fl.RotationVolume(
                     name="ac_rotation",
                     entities=ac_pitch_cyl,
-                    # Walls + nested htail rotation volume. Prop cylinders are
-                    # NOT enclosed (they're not RotationVolumes themselves, and
-                    # listing them here makes Flow360 mis-classify them as
-                    # nested sliding interfaces); they stay in the outer zone
-                    # as UniformRefinement regions. The thrust axis stays
-                    # fixed in inertial X — acceptable for the small (<5°)
-                    # aircraft pitch range UDD will explore.
+                    # Only the surfaces that are NOT inside a deeper rotation
+                    # volume plus the htail rotation cylinder itself. Listing
+                    # htail_surf here as well as inside htail_pitch_zone makes
+                    # Flow360 zero out the integrated wall forces (the surface
+                    # gets duplicated under two zone owners).
                     enclosed_entities=[main_wing_surf, vane_surf, aft_flap_surf,
-                                       htail_surf, htail_pitch_cyl],
+                                       htail_pitch_cyl],
                     spacing_axial=1.0 * fl.u.ft,
                     spacing_radial=0.5 * fl.u.ft,
                     spacing_circumferential=0.5 * fl.u.ft,
