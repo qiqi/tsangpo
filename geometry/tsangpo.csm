@@ -18,7 +18,7 @@
 # H-tail: inverted LS(1)-0417 (tail.udc). Negative camber gives down-
 # force at AoA = 0 without baking in incidence here.
 #
-# All dimensions in feet, angles in degrees. Origin at the wing root
+# All dimensions in METRES, angles in degrees. Origin at the wing root
 # quarter-chord (of the stowed 3-element chord) on the symmetry plane
 # (Y = 0); +X aft, +Y starboard, +Z up.
 # =====================================================================
@@ -43,12 +43,12 @@ else
 endif
 
 # ----- Wing planform -------------------------------------------------
-despmtr   wing_area_ft2    165.0
+despmtr   wing_area_m2     15.33
 despmtr   wing_AR            8.0
 
-set       wing_span        sqrt(wing_AR*wing_area_ft2)
+set       wing_span        sqrt(wing_AR*wing_area_m2)
 set       wing_semispan    wing_span/2
-set       wing_chord       wing_area_ft2/wing_span   # stowed-chord ref
+set       wing_chord       wing_area_m2/wing_span   # stowed-chord ref
 set       MAC              wing_chord
 
 # ----- Vane / aft-flap rigid assembly pivot --------------------------
