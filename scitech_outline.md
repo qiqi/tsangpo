@@ -56,37 +56,60 @@ This table is the spine of the paper. Every section maps to one row.
 
 ## 2. Configuration & Parameter Set
 
-2.1 Wing planform — Hershey bar, $S = 165$ ft², $\text{AR} = 8.0$,
-    deployed chord $c = 4.54$ ft (slat LE → flap TE). Chordwise section
-    is the McDonnell-Douglas **30P30N** 3-element validation airfoil
-    (30° slat, 30° flap), so the wing is built as three disjoint
-    Hershey-bar elements (slat, main, outboard flap).
+2.1 Wing planform — Hershey bar, $S = 15.33$ m² ($\approx 165$ ft²),
+    $\text{AR} = 8.0$, chord $c = 1.385$ m. Chordwise section is a
+    3-element high-lift system: a **coved LS(1)-0417 main element**
+    (Selig contour with a lower-cove cutout and filleted vertex), a
+    **NACA 9621 vane**, and a **NACA 6311 aft flap**. The vane and
+    aft flap move together as a rigid **Fowler assembly** about a
+    pivot at $(0.55, -0.048)\,c$ (vane LE in stowed coordinates) — see
+    `geometry/airfoils/estol_config.yaml`.
 2.2 The 10-prop array. Spanwise stations at $y/b/2 \in \{0.1, 0.3, 0.5,
     0.7, 0.9\}$ per semi-span, disk loading at $T/W = 0.5$.
-2.3 The H-tail family — Hershey bar, $b_\text{ht} = 0.35\,b$,
-    $\text{AR}_\text{ht} = 4.5$, NACA 0010, swept $Z_\text{tail}$.
+2.3 The H-tail — Hershey bar, $b_\text{ht} = 0.35\,b$,
+    $\text{AR}_\text{ht} = 4.5$, **inverted LS(1)-0417** (negative
+    camber gives down-force at $\alpha = 0$ without baking in an
+    incidence angle), swept $Z_\text{tail}$.
 2.4 The `gap_fraction` and $Z_\text{tail}$ parameters and their physical
-    interpretation.
-2.5 All numbers cross-referenced to `params.py`.
+    interpretation. `gap_fraction` is applied to the **vane + aft-flap
+    assembly only**; the main element is continuous across the span.
+2.5 All numbers cross-referenced to `params.py` (SI: m, kg, N, s, rad).
 
-*Figure 2.1.* The 2x2 geometry matrix (top + side + zoomed-airfoil), as
-emitted by `geometry/render.py`.
+*Figure 2.1.* The per-phase geometry montage (planform + side section
+× stowed / takeoff / landing), as emitted by `geometry/render.py`.
 
 ---
 
 ## 3. Method
 
-3.1 ESP parametric geometry (`geometry/tsangpo.csm`). The 30P30N slat,
-    main, and flap are each fit by `udpFitcurve` from the validation
-    coordinate files, swung into the XZ plane via `rotatex 90` so
-    thickness is in $Z$, and ruled root-to-tip into Hershey-bar bodies.
-    Slat and flap deflections are part of the coordinates (no runtime
-    rotation). The H-tail is a NACA 0010 Hershey bar.
-3.2 Mesh: vortex-refinement streamtubes from each prop disk to past the
-    H-tail; y+ ≤ 1 on the H-tail. See `flow360/mesh_strategy.md`.
-3.3 Flow360 setup: steady-state RANS (SA), 10 actuator-disk models per
-    case sized for $T/W = 0.5$ at 12,000 ft (1,300 lbf total thrust, evenly
-    distributed). See `flow360/run_matrix.py`.
+3.1 Geometry pipeline. `geometry/airfoils/build_estol_geometry.py`
+    reads `estol_config.yaml` and emits four OpenCSM UDC sketches
+    (`main_wing`, `vane`, `flap`, `tail`) as smooth-spline closed
+    planar contours, plus Selig `.dat` exports for plotting. ESP's
+    `tsangpo.csm` ingests each UDC via `udprim $/airfoils/<name>`,
+    swings it into the XZ plane (`rotatex 90`), applies the Fowler
+    kinematics (`rotatez flap_rot_deg pivot_x pivot_y` then
+    `translate flap_dx flap_dy`) in the normalized chord frame
+    *before* chord scaling, then extrudes spanwise. Phase is a
+    despmtr (`phase 0/1/2` = stowed / takeoff / landing).
+3.2 Mesh: the live SI mesh strategy is encoded directly in the
+    `submit_*.py` drivers, not in a separate document. Each prop
+    disk gets a `fl.UniformRefinement` cylinder, the whole-aircraft
+    pitch volume gets a `fl.RotationVolume` so $\alpha_\text{eff}$ is
+    set by an active body rotation, and the H-tail gets a nested
+    rotation zone for $\theta_\text{ht}$. y+ ≤ 1 on all walls
+    (`boundary_layer_first_layer_thickness = 7.62 \times 10^{-6}$ m at
+    cruise scale). The beta mesher is mandatory because the legacy
+    mesher silently ignores `curvature_resolution_angle` and produces
+    a poor LE on spline contours (see `flow360/LESSONS.md` and
+    `CLAUDE.md`).
+3.3 Flow360 setup: unsteady RANS with $\Delta t \gg c/V$ so each
+    physical step is a quasi-steady solve at whatever rotation /
+    thrust state is active (`fl.Steady` no-ops `Rotation` models —
+    verified empirically; see `flow360/LESSONS.md`). 10 actuator-disk
+    models per case sized for $T/W = 0.5$ at 12,000 ft. Parent case
+    setup is in `flow360/submit_cruise.py`; the Study-1 2×2 driver
+    will be modelled on it.
 3.4 The Study 1 matrix (`params.study1_matrix`) — four cases:
 
     | Tag | label              | gap_fraction | $Z_\text{tail}/c$ | Role                                  |

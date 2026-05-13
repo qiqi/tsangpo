@@ -1,140 +1,201 @@
-# Tsangpo eSTOL — CFD Campaign & SciTech Paper Repo
+# གཙང་པོ་ eSTOL — CFD ལས་གཞི་དང་ SciTech ཡིག་ཚགས་ཀྱི་མཛོད།
 
-A 10-prop, 2,600 lb, 165 ft² wing eSTOL configuration whose Phase-1 design
-question is: *what happens when you remove the inboard flaps and lower the
-H-tail into the inboard propellers' wake?*
+སྒྱུར་ཆས་ 10, ལྗིད་ཚད་ 11,565 N (≈ 2,600 lb), འདབ་མའི་ཁྱོན་ 15.33 m²
+(≈ 165 ft²) ཡོད་པའི་ eSTOL བཀོད་པ་ཞིག་ཡིན། སྐབས་དང་པོའི་བཀོད་པའི་
+གནད་དོན་ནི། *ནང་ཕྱོགས་ཀྱི་ཅིན་ཡི་ (flap) རྣམས་ཕྱིར་བཤིག་ནས་ H-མཇུག་དེ་
+ནང་ཕྱོགས་སྒྱུར་ཆས་ཀྱི་འགྲིམ་རླབས་ནང་དུ་ཕབ་ཚེ་ཅི་ཞིག་འབྱུང་ངམ་ཞེས་པ་
+འདི་ཡིན།*
 
-The answer this project is built to defend, with Flow360 RANS at the
-SciTech-paper level of rigor, is the **Stability Paradox**:
+ལས་གཞི་འདིས་ Flow360 RANS གྱིས་ SciTech ཡིག་ཚགས་ཀྱི་གཟབ་ཚད་ལ་སྲུང་
+སྐྱོབ་བྱེད་འདོད་པའི་ལན་ནི། **བརྟན་ལྷིང་གི་འགལ་གཏམ་** (Stability Paradox)
+ཞེས་པ་འདི་ཡིན།
 
-> A gap in the flap is not a leak in lift. It is the channel through which
-> the inboard propulsors feed the empennage. Sacrificing ~10 % of total $C_L$
-> buys a large gain in low-speed pitch authority — enough to enable the
-> Ramp takeoff and Whip-Stall landing profiles.
+> ཅིན་ཡི་ནང་གི་བར་སྟོང་ཞིག་ནི་ ཤེང་ལི་ (lift) ཡི་འཛག་ས་མིན། དེ་ནི་
+> ནང་ཕྱོགས་སྒྱུར་ཆས་ཀྱིས་མཇུག་གི་ཡན་ལག་རྣམས་ལ་གསོ་སྐྱོང་གཏོང་སའི་
+> ལམ་ཁ་ཡིན། $C_L$ ཡོངས་ཀྱི་ ~10 % བཏང་སྙོམས་སུ་སྤྱད་ནས། དལ་འགྲོས་ངང་
+> ཁ་ཕྱོགས་འཛིན་པའི་སྟོབས་ཤུགས་ཆེན་པོ་ཐོབ་ཐུབ་ལ། འདི་ནི་ ཤེ་ཕོ་ (Ramp)
+> ཡར་འཕུར་དང་ པན་ཤི་ཤི་སུ་ (Whip-Stall) མར་འབབ་ཀྱི་ཡུལ་སྐོར་གཉིས་
+> ཀའི་སྒྲུབ་ཐུབ་པར་འདང་གི་ཡོད།
 
-The full plot, parameter list, and paper outline live in the three
-source-of-truth files at the repo root.
+ཡོངས་ཁྱབ་ཀྱི་གསལ་ཁ་དང་། ཚད་འཇོག་གི་ཐོ་གཞུང་། ཡིག་ཚགས་ཀྱི་གཞི་རྩ་
+བཅས་ལས་གཞིའི་རྩ་བར་ཡོད་པའི་ཁུངས་ལྡན་ཡིག་ཆ་གསུམ་པོའི་ནང་དུ་གནས་ཡོད།
 
 ---
 
-## Repo layout
+## གནས་མཛོད་ཀྱི་བཀོད་པ།
 
 ```
 .
-├── plan.md                 Technical Nuggets ledger
-├── params.py               Central dimension repository (the only source of truth)
-├── scitech_outline.md      Paper outline w/ Form / Formless mapping
-├── wu-wei.mdc              Rule: optimize for the minimum required for correctness
+├── plan.md                 ལག་རྩལ་གྱི་གནད་གལ་གྱི་ཐོ་གཞུང་།
+├── params.py               ཚད་འཇོག་གི་མཛོད་ཁང་གཙོ་བོ (SI: m, kg, N, s, rad)
+├── scitech_outline.md      ཡིག་ཚགས་ཀྱི་གཞི་རྩ།
+├── wu-wei.mdc              གནས་ལུགས། ཡང་དག་པར་བྱེད་པའི་ཆ་ཉུང་ཤོས་ལ་སྦྱོར་བ།
+├── CLAUDE.md               ལས་གཞིའི་ཚུལ་ལུགས་སྡོམ་བསྒྲིགས།
 ├── geometry/
-│   ├── tsangpo.csm        ESP parametric model: 30P30N slat + main + outboard flap, Hershey H-tail
-│   ├── airfoils/           30P30N coordinate files (Slat / Main / Flap, normalized)
-│   ├── render.py           STL -> 2x2 matrix PNG (top + side + zoomed 30P30N contour per case)
-│   ├── README.md           ESP parameter table + invocation cheat-sheet
-│   └── out/<case>/         per-case STL bodies + airframe.step + airfoils symlink (generated)
+│   ├── airfoils/
+│   │   ├── estol_config.yaml       3-ཡན་ལག་མཁའ་འདབ་སྦྱོར་སྒྲིག་གི་ཁུངས་ལྡན།
+│   │   ├── build_estol_geometry.py UDC ཡང་ཐའོ་ (spline) + Selig .dat སྦྱོར་བྱེད།
+│   │   └── *.udc / *.dat            main_wing / vane / aft_flap / tail
+│   ├── tsangpo.csm                  ESP ཚད་འཛིན་གྱི་དཔེ་མཚོན། phase 0/1/2 → ཡུ་འདུག/ཡར་འཕུར/མར་འབབ།
+│   ├── render.py                    STL → 2 × 3 PNG (སྐབས་གསུམ་གྱི་སྟེང་ངོས་ + ངོས་སྒོ)
+│   ├── README.md                    ESP ཚད་འཇོག་གི་ཐོ་གཞུང་དང་འགུལ་སློང་གི་ཟུར་མིང་།
+│   └── out/{stowed,takeoff,landing}/ སྐབས་རེ་རེའི་ STL + ཡན་ལག་རེ་རེའི་ STEP (རང་འགུལ)
 ├── flow360/
-│   ├── mesh_strategy.md    Vortex-refinement + actuator-disk meshing strategy
-│   ├── case_template.json  Flow360 RANS case JSON template
-│   ├── run_matrix.py       Expands study1_matrix() -> per-case Flow360 JSONs (--submit to send)
-│   └── build_geometry.py   Drives serveCSM -batch for each case
+│   ├── submit_cruise.py             cruise གི་ parent གནད་དོན་གཙོ་བོ།
+│   ├── submit_alpha_sweep.py        α ཀྱི་ སའོ་མེའོ་ (sweep)
+│   ├── submit_htail_sweep.py        θ_htail ཀྱི་སའོ་མེའོ།
+│   ├── submit_thrust_sweep.py       ཤེད་ (thrust) ཀྱི་སའོ་མེའོ།
+│   ├── submit_gai_trim_campaign.py  GAI དྲ་མིག་གིས་ ཕེ་ཕིང་ (trim) ལ་གཞན།
+│   ├── submit_takeoff_coarse_campaign.py phase 1 ཡར་འཕུར་ལས་གཞི།
+│   ├── submit_rotation_test.py      སྐྱོར་སྒྱུར་ཁྱམས་ཀྱི་ཚོད་ལྟ།
+│   ├── generate_surface_mesh_gai.py GAI ངོས་གཟུགས་དྲ་མིག་གི་ཚོད་ལྟ།
+│   └── LESSONS.md                   Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས།
 └── post/
-    └── extract_stability.py  C_m(alpha), neutral-point shift + headline contrast table
+    ├── plot_sweep_sensitivities.py  སའོ་མེའོ་ནས་ མིན་ཀན་ (sensitivity) གི་ཐིག་གཞི།
+    ├── SENSITIVITIES.md             ཐིག་གཞིའི་ཕབ་གཞུང་།
+    ├── TAKEOFF_PLAN.md              ཡར་འཕུར་ལས་གཞིའི་ཕྱོགས་ལས།
+    └── extract_stability.py         C_m(α) + ཙོང་ཤིང་ཏན་ (neutral point) གི་གཡོ་འགུལ།
 ```
 
 ---
 
-## Quick start
+## མགྱོགས་པོར་འགོ་འཛུགས་པ།
 
 ```bash
-# Parameter set + the 4-case run matrix summary:
+# ཚད་འཇོག་ཡོངས་ཀྱི་མདོར་བསྡུས་སྔོན་ལྟ
 python params.py
 
-# Emit Flow360 case JSONs for all 4 cases:
-python flow360/run_matrix.py
-
-# Preview the stability table + non-linear-coupling decomposition
-# (synthetic until forces.csv is populated by the real CFD runs):
-python post/extract_stability.py
+# UDC / .dat / sketch PNG སྦྱོར་བ
+python geometry/airfoils/build_estol_geometry.py
 ```
 
-When ESP is sourced and the Flow360 SDK is installed:
+ESP ཁུངས་སུ་བཀོད་ཟིན་ལ་ Flow360 SDK བཙུགས་ཟིན་པའི་སྐབས།
 
 ```bash
 source ~/esp/ESP129/EngSketchPad/ESPenv.sh
 
-# Build per-case STL bodies + airframe.step:
-python flow360/build_geometry.py
+# phase 0/1/2 རེ་རེའི་གཟུགས་སྦྱོར་བ
+for p in 0 1 2; do
+    name=$(printf "stowed\ntakeoff\nlanding\n" | sed -n "$((p+1))p")
+    mkdir -p geometry/out/$name
+    echo "phase $p" > geometry/out/$name/phase.despmtrs
+    ln -snf "$PWD/geometry/airfoils" geometry/out/$name/airfoils
+    (cd geometry/out/$name && \
+     serveCSM ../../tsangpo.csm -batch -despmtrs phase.despmtrs -outLevel 0)
+done
 
-# Submit the run matrix to Flow360:
-python flow360/run_matrix.py --submit
-
-# Render the 2x2 geometry PNG. ESPenv.sh exports a PYTHONPATH pointing at
-# ESP's Python 3.12 site-packages; we have to strip it so the system Python
-# 3.10 sees its own numpy/scipy/trimesh:
+# 2 × 3 ས་གཞིའི་ PNG
 env -u PYTHONPATH python3 geometry/render.py
+
+# parent cruise གནད་དོན་ Flow360 ལ་ཕུལ་བ
+python flow360/submit_cruise.py
+
+# སའོ་མེའོ་གསུམ་ (fork-based)
+TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_alpha_sweep.py
+TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_htail_sweep.py
+TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_thrust_sweep.py
+
+# མིན་ཀན་གྱི་སྒྲིག་སྦྱོར་དང་ཐིག་གཞི་སྦྱོར་བ
+python post/plot_sweep_sensitivities.py
 ```
 
 ---
 
-## Study 1 — the 2x2 matrix
+## ལས་གཞིའི་ད་ལྟའི་གནས་སྟངས།
 
-Steady-state RANS at $\alpha = 10^\circ$, $T/W = 0.5$, 12,000 ft density
-altitude. The matrix isolates the **non-linear coupling** between two
-configuration knobs: the inboard flap gap and the H-tail vertical position.
-
-|                       | continuous flap (gap = 0.00)         | inboard gap (gap = 0.35)              |
-|-----------------------|--------------------------------------|---------------------------------------|
-| **high T-tail**       | C1 **Industry Baseline**             | C3 **Bad Trade-off**                  |
-| ($Z_{tail} = +2.5\,c$)| stable, heavy                        | stable, heavy, lift penalty           |
-| **low H-tail**        | C2 **Downwash Failure**              | C4 **Proposed Synthesis**             |
-| ($Z_{tail} = 0\,c$)   | unstable (low tail in downwash)      | stable, lightweight, agile            |
-
-The headline test of the paper is C2 vs. C4: switching the inboard flap to
-a gap takes the low H-tail from *unstable* to *more strongly stable than
-the heavy T-tail baseline.* Linear superposition of the two effects (Z and
-gap, measured alone) cannot reproduce this — the non-linearity is the
-result.
+- **Phase 3a — cruise calibration** — *ལེགས་གྲུབ།* α, θ_htail, ཤེད་
+  ཀྱི་སའོ་མེའོ་ 30 (parent + fork 10×3) ཁྲོམ་འདུས་ལ་སྦྲུབ་ཟིན། ཕབ་
+  གཞུང་ནི་ `post/SENSITIVITIES.md`-ནང་ཡོད། ངོས་ཟིན་པའི་ངོ་སྦྱོར་གཙོ་བོ་
+  རྣམས་ — α=+7°-ལ་ $C_L$=0.868, L/W=1.02, $dC_L/d\alpha$=+5.08/rad,
+  $dC_{m_y}/d\alpha$=−0.0318/° (གཏན་ཚད་ 35.8 % MAC),
+  $dC_{m_y}/d\theta_{ht}$=−0.0480/°.
+- **Phase 3b — GAI ཕེ་ཕིང** — *གྲ་སྒྲིག།* ཕེ་ཕིང་ (trim) གི་གནས་སྟངས་
+  གཙོ་བོ་ (α=+6.78°, θ_ht=−0.54°, T_mult=+2.13) ལ་ `submit_gai_trim_campaign.py`
+  གིས་ GAI དྲ་མིག་གསར་པོ་ལ་འཕུར་འགྲོ།
+- **Phase 3c — ཡར་འཕུར་ལས་གཞི** — *ཕྱོགས་ལས་ཟིན།* phase 1 ཀྱི་གཟུགས་
+  ཐོག་ལ་སའོ་མེའོ་གསུམ་ངེས་པར་གཏོང་འཆར། ཕབ་གཞུང་ནི་
+  `post/TAKEOFF_PLAN.md`-ནང་ཡོད།
+- **Phase 3d — ཞིབ་འཇུག་དང་པོ་ — 2x2 རྩིས་སྒྲིག** — *མ་གཏོང་།*
+  `params.study1_matrix()`-གི་གནད་དོན་བཞི། འདིར་འདྲིལ་འཕུར་སའོ་མེའོ་
+  མིན་པར། geometry 4 ལན་སྦྱོར་དགོས་ལ། SI-units submit_* driver
+  ཞིག་གསར་སྦྱོར་དགོས།
 
 ---
 
-## Conventions
+## ཞིབ་འཇུག་དང་པོ་ — 2x2 རྩིས་སྒྲིག །
 
-- Units: ft / slug / lbf / s.
-- Origin at wing root c/4 on the symmetry plane; +X aft, +Y starboard, +Z up.
-- Numbers live in `params.py`. Hard-coded dimensions anywhere else are a bug.
+བརྟན་པོའི་གནས་སྟངས་སུ་ RANS, $\alpha = 10^\circ$, $T/W = 0.5$, དྭངས་
+ཚད་ཀྱི་མཐོ་ཚད་ 3,658 m (≈ 12,000 ft)། རྩིས་སྒྲིག་འདིས་བཀོད་པའི་ཕྱིན་
+ཆོད་གཉིས་ (ནང་ཕྱོགས་ ཅིན་ཡི་ གི་བར་སྟོང་དང་ H-མཇུག་གི་ས་མཐོ) བར་གྱི་
+**དྲང་མིན་ཟུང་འབྲེལ་** (non-linear coupling) གསལ་པོར་སྟོན་གི་ཡོད།
 
-### Wing section — 30P30N validation airfoil
+|                              | ཅིན་ཡི་རྒྱུན་མཐུད (gap = 0.00)    | ནང་ཕྱོགས་བར་སྟོང (gap = 0.35)         |
+|------------------------------|-------------------------------------|----------------------------------------|
+| **T-མཇུག་མཐོན་པོ**           | C1 **བཟོ་ལས་ཀྱི་གཞི་མ།**           | C3 **མི་ཕན་པའི་བསྒྱུར་སྒྲིག །**       |
+| ($Z_{tail} = +2.5\,c$)       | བརྟན་ལྷིང་། ལྗིད་ཆེ།               | བརྟན་ལྷིང་། ལྗིད་ཆེ། ཤེང་ལི་ཆག །     |
+| **H-མཇུག་དམའ་པོ**            | C2 **མར་རླབས་ཀྱི་ཕམ་ཁ།**          | C4 **སྒྲིགས་སྦྱོར་གྱི་འཆར་གཞི།**     |
+| ($Z_{tail} = 0\,c$)          | མི་བརྟན (མཇུག་དམའ་མར་རླབས་ནང)     | བརྟན་ལྷིང་། ལྗིད་ཡང་། སྟོབས་ཆེ།     |
 
-The wing's chordwise section is the McDonnell-Douglas **30P30N** 3-element
-high-lift airfoil (30° slat, 30° flap), the canonical RANS validation case
-for high-lift CFD. The three element contours live in
-`geometry/airfoils/30P30N_{Slat,Main,Flap}.dat3` and are fit by ESP's
-`udpFitcurve` into B-spline faces, then ruled root-to-tip into Hershey-bar
-3D bodies. The `gap_fraction` design parameter suppresses the inboard
-portion of the **flap** only — slat and main element remain continuous
-across the full span.
+ཡིག་ཚགས་ཀྱི་ངོ་སྦྱོར་གཙོ་བོའི་ཚོད་ལྟ་ནི་ C2 དང་ C4 བསྡུར་བ་ཡིན།
+ནང་ཕྱོགས་ ཅིན་ཡི་ ཞིག་གི་ཚབ་ཏུ་བར་སྟོང་ཞིག་བཞག་པས། མཇུག་དམའ་པོ་དེ་
+*མི་བརྟན་པའི་གནས་ནས་* ལྗིད་ཆེ་བའི་ T-མཇུག་གཞི་མ་ལས་ཀྱང་ *བརྟན་ལྷིང་
+ཆེ་བར་* འགྱུར་བ་ཡིན། ནུས་པ་གཉིས་ (Z དང་ gap, སོ་སོར་ཚད་འཇལ་བ)
+ཕྱོགས་མཚུངས་ཀྱི་སྟེང་འདྲིལ་ནས་འདི་འགྲེལ་མི་ཐུབ་ལ། དྲང་མིན་གྱི་གནས་
+སྟངས་འདི་ནི་ཟུང་འབྲེལ་ལས་འབྱུང་བའི་གྲུབ་འབྲས་ཡིན།
 
-### ESP / OpenCSM gotchas (discovered the hard way)
+---
 
-These bite when reading or editing `geometry/tsangpo.csm`:
+## གོམས་སྲོལ།
 
-- **NACA UDP plane.** `udprim naca Series NNNN` (used for the H-tail)
-  draws the airfoil in the XY plane with thickness in Y. Wings need
-  thickness in Z, so every NACA sketch is followed by `rotatex 90 0 0`
-  before `scale` / `translate`. The same convention is used for the
-  `udpFitcurve` sheet bodies that build the 30P30N elements.
-- **`udpFitcurve` needs a `split` index** for closed contours, otherwise
-  it errors with "wraparound geometry with only one Edge". We split each
-  30P30N element at its leading-edge (min-x) point; the indices are
-  baked into `tsangpo.csm` (`slat_LE_idx`, `main_LE_idx`, `flap_LE_idx`).
-- **`udpFitcurve` filename arg** is a string, addressed as
-  `$airfoils/30P30N_*.dat3` in CSM. `flow360/build_geometry.py` drops a
-  symlink `case_dir/airfoils -> geometry/airfoils` so the relative path
-  resolves from the per-case build cwd.
-- **ROTATEY pivot args.** The signature is `rotatey angDeg zaxis xaxis`
-  (z-pivot first, x-pivot second), per `OpenCSM.c`. Bites you the moment
-  you try to rotate something about an axis that is not the y-axis.
-- **MARK / RULE.** `MARK` blocks are closed by the subsequent `RULE`,
-  `BLEND`, or `LOFT`; do not put a stray `END` inside one.
-- **`-despmtrs`, not `-despmtr`.** `serveCSM -batch` takes a single file
-  argument `-despmtrs FILE` with `param value` pairs. `flow360/build_geometry.py`
-  writes a tiny tempfile per case.
+- ཚད་གཞི། SI: m / kg / N / s / rad.
+- ཐིག་ཁུངས་ནི་ ཡུ་འདུག་གི་ 3-ཡན་ལག་ ཤན་ (chord) གི་འདབ་མའི་རྩ་བའི་
+  c/4 ཡིན། +X རྒྱབ། +Y གཡས། +Z སྟེང་།
+- གྲངས་ཐོ་རྣམས་ `params.py` ནང་དུ་ཡོད། གཞན་ས་གང་དུ་ཡང་ཚད་འཇོག་འཁོད་
+  ཡོད་ན་སྐྱོན་ཆ་ཡིན།
+
+### 3-ཡན་ལག་མཁའ་འདབ་ཀྱི་མཛོད།
+
+ད་ལྟའི་མཁའ་འདབ་ཀྱི་འགྲིགས་སྦྱོར་ནི་ 3-ཡན་ལག་ ཀའོ་ཤེང་ལི་ (high-lift)
+མཁའ་འདབ་གསར་པོ་ཞིག་ཡིན། (སྔོན་གྱི་ McDonnell-Douglas 30P30N ལ་ཚབ་
+བརྗེས་ཟིན།)
+
+| ཡན་ལག        | མཁའ་འདབ                                | སྦྱོར་ལམ                                  |
+|--------------|------------------------------------------|---------------------------------------------|
+| `main_wing`  | LS(1)-0417 ལ་ ཨའོ་ཚའོ་ (cove) བཀར་པ      | འདབ་མ་ཡོངས་ལ་རྒྱུན་མཐུད, B-spline ཡང་ཐའོ |
+| `vane`       | NACA 9621                                | ཕུ་ལེ་ (Fowler) གཞན་སྦྱོར་གྱི་ཡན་ལག །       |
+| `aft_flap`   | NACA 6311                                | vane དང་མཉམ་དུ་གཞན་སྦྱོར།                  |
+| `htail`      | LS(1)-0417 ལྡོག་པ                        | $\alpha = 0$ ལ་མར་ཤེད་ (downforce) སྟེར།   |
+
+vane དང་ aft_flap གཉིས་ནི་ ཕུ་ལེ་ཀྱི་ཡན་ལག་གཅིག་ལྟར་སྐྱོར་སྒྱུར་དང་
+ས་སྤོ་བྱེད་པ་ཡིན། ཕུ་ལེའི་ phase ནི་ `phase` despmtr-ཀྱིས་ངེས་པ་
+(0=ཡུ་འདུག, 1=ཡར་འཕུར, 2=མར་འབབ); ངེས་ཚད་རྣམས་
+`estol_config.yaml`-ནང་གནས་ཡོད།
+
+### ESP / OpenCSM གི་གྱོང་གུད (ཉམས་མྱོང་ངན་པ་ལས་ཤེས་པ)
+
+འདི་རྣམས་ `geometry/tsangpo.csm` ལ་ཀློག་པའམ་ཞུ་བཅོས་བྱེད་སྐབས་སུ་
+སོ་རྒྱག་པ་ཡིན།
+
+- **`capsGroup` ངེས་པར་སྦྱོར།** ཡན་ལག་རེ་རེའི་ `extrude` རྗེས་སུ་
+  `select face / attribute capsGroup $<name>` ངེས་པར་གཏོགས་དགོས།
+  body0000N གི་གོ་རིམ་ནི་བརྟན་པོ་མིན། Flow360 ངོས་ནས་
+  `geo.group_faces_by_tag("capsGroup")` གིས་ ངོས་གཟུགས་སུ་འགོད།
+- **MARK / RULE།** `MARK` གི་སྡེབ་སྒྲོམ་ནི་རྗེས་སུ་འབྱུང་བའི་ `RULE`,
+  `BLEND` ཡང་ན་ `LOFT` གིས་མཇུག་སྒྲིལ་བ་ཡིན། དེའི་ནང་དུ་ `END`
+  སོ་རྐྱང་གཅིག་ཀྱང་མི་འགོད།
+- **`rotatey angDeg zaxis xaxis`** — pivot ཀྱི་ཡིག་སྡེབ་ནི་ (z, x),
+  (x, z) མིན་པར་ `OpenCSM.c` ནང་འཁོད་པ་བཞིན་ཡིན།
+- **ཕུ་ལེ་སྦྱོར་གྱི་གོ་རིམ།** vane + aft_flap ལ་སྐྱོར་སྒྱུར་
+  (`rotatez`) དང་ས་སྤོ་ (`translate`) ནི་ ཤན་ཚད་མཐུན་ (normalized)
+  ངོས་སུ་ངེས་པར་སྦྱོར་དགོས་ལ། `scale wing_chord` སྔོན་ལ་སྦྱོར།
+  ཤན་ཚད་སྒྱུར་རྗེས་ལ་སྦྱོར་ཚེ་ ས་སྤོའི་ཚད་ལོག་ཟློས་འགྱུར།
+- **beta mesher ངེས་པར་སྤྱོད།** Flow360 ལ་ `use_beta_mesher=True`
+  ངེས་པར་སྦྱོར་དགོས། legacy mesher ཡིས་
+  `curvature_resolution_angle` ལ་ལན་མི་གཏོང་ལ། LS(1)-0417 / NACA
+  ཡང་ཐའོ་ངོས་ལ་ ཆན་ཡུན་ (leading edge) གི་ངོས་གཟུགས་སུ་ཁྱད་པར་
+  ཆེན་པོ་འབྱུང་། (`CLAUDE.md` ནང་འཁོད།)
+- **ཡིག་ཆ་གཅིག་ཁོ་ནའི་ inlined CSM ཕུལ་དགོས།** Flow360 ལ་ STEP
+  ཡིག་ཆ་མང་པོ་ཕུལ་ཚེ་ `body00001` ཁོ་ན་ལ་དྲ་མིག་སྦྱོར་གི།
+  ངེས་པའི་སྦྱོར་ལམ་ནི། UDC རྣམས་ `tsangpo.csm` ནང་དུ་ inline སྦྱོར་
+  ནས་ `.csm` ཡིག་ཆ་གཅིག་པོ་ཕུལ་བ་ཡིན (`submit_cruise.py`-ནང་
+  `inline_udcs()` གི་སྒྲིག་སྦྱོར།)

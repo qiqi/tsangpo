@@ -4,9 +4,9 @@ __pycache__/
 .env
 
 geometry/out/
-flow360/cases/
+geometry/*.stl
+geometry/*.step
 flow360/results/
-flow360/manifest.json
 post/out/
 
 # ESP / OpenCSM intermediates
