@@ -135,18 +135,20 @@ with fl.imperial_unit_system:
 
     # ── UDD #1: aircraft pitch → CL = CL_target ────────────────────────
     # state[0] = θ_ac (rad), clamped to ±0.2 rad ≈ ±11.5°.
-    # +θ = aircraft nose up → α↑ → CL↑.
+    # Flow360's Rotation is a passive transform: +θ about Y rotates the
+    # frame, so the body sees the freestream rotated +θ → effective α = -θ
+    # for the wing. Hence state must decrease when CL < CL_target.
     ac_alpha_udd = fl.UserDefinedDynamic(
         name="ac_alpha_trim",
         input_vars=["CL"],
         constants={"CL_target": float(CL_target),
-                   "gain": 1e-4,
+                   "gain": 5e-4,
                    "theta_max": 0.2},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
         update_law=[
             "min(theta_max, max(-theta_max, "
-            "state[0] + gain * (CL_target - CL)));"
+            "state[0] - gain * (CL_target - CL)));"
         ],
         input_boundary_patches=all_surfs,
         output_target=ac_pitch_cyl,
@@ -154,16 +156,18 @@ with fl.imperial_unit_system:
 
     # ── UDD #2: H-tail pitch → momentY = 0 ─────────────────────────────
     # state[0] = θ_htail (rad, relative to airframe), clamped to ±0.2 rad.
-    # +θ_htail = htail nose up → less downforce → smaller +CMy.
+    # Same passive-rotation sign convention as ac_alpha: +θ_htail decreases
+    # the htail's effective α → for inverted camber, MORE downforce → MORE
+    # nose-up CMy. Hence state must decrease when momentY > 0.
     htail_udd = fl.UserDefinedDynamic(
         name="htail_trim",
         input_vars=["momentY"],
-        constants={"gain": 5e-4, "theta_max": 0.2},
+        constants={"gain": 2e-3, "theta_max": 0.2},
         output_vars={"theta": "state[0];"},
         state_vars_initial_value=["0.0"],
         update_law=[
             "min(theta_max, max(-theta_max, "
-            "state[0] + gain * momentY));"
+            "state[0] - gain * momentY));"
         ],
         input_boundary_patches=all_surfs,
         output_target=htail_pitch_cyl,
