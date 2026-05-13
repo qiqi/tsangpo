@@ -1,0 +1,176 @@
+# =====================================================================
+# Tsangpo eSTOL — airframe geometric & operating summary
+# =====================================================================
+# Single-page back-of-envelope reference.  Numbers are taken straight
+# from params.py (the live source of truth), with derived ratios
+# pre-computed for convenience.  SI units throughout.  Distances in
+# metres, angles in degrees, forces in newtons, pressures in pascals.
+# Last refreshed: 2026-05-13.
+# =====================================================================
+
+aircraft:
+  class:         distributed-electric STOL (eSTOL)
+  config:        "1: continuous flap, low htail"   # of 4 planned configs
+  airframe_origin: wing-root c/4 (stowed 3-element chord) on symmetry plane
+  axes:          +X aft, +Y starboard, +Z up
+
+weight:
+  gross_N:        11565        # ≈ 2,600 lbf ≈ 1,180 kgf
+  wing_loading_Nm2: 754.5
+
+wing:
+  airfoil:        coved LS(1)-0417 (main element of 3-element high-lift wing)
+  planform:       Hershey bar (no taper, no sweep, no twist, no dihedral)
+  area_m2:        15.33        # ≈ 165 ft²
+  aspect_ratio:   8.0
+  span_m:         11.074
+  semispan_m:     5.537
+  chord_m:        1.384        # stowed-3-element reference chord; MAC = chord
+  mac_m:          1.384
+
+high_lift_system:
+  description: "3-element wing — main + vane + aft flap, Fowler kinematics
+                applied to the vane+flap rigid assembly via rotation about
+                pivot and translation in chord-normalised coordinates."
+  pivot_point_norm_chord: [0.550, -0.048]   # vane LE in stowed coords
+  blunt_te_thickness_m:    0.00415   # = 0.003 × c_wing, applied uniformly to
+                                      # main_wing, vane, aft_flap, AND htail
+                                      # (absolute thickness, not chord-fraction)
+  main_wing:
+    airfoil:       LS(1)-0417 with cove cutout + filleted vertex
+    cove:
+      lower_cut_x_norm_chord:   0.510
+      upper_lip_cut_x_norm_chord: 0.850
+      cove_vertex_xy:            [0.620, 0.055]
+      cove_fillet_radius_norm_chord: 0.2
+  vane:
+    airfoil:       NACA 9621
+    stowed_le_norm_chord: [0.550, -0.048]
+    stowed_te_norm_chord: [0.730,  0.035]
+  aft_flap:
+    airfoil:       NACA 6311
+    stowed_le_norm_chord: [0.690, -0.011]
+    stowed_te_norm_chord: [1.000,  0.000]
+  phases:
+    "0_stowed":  { dx_norm_chord: 0.000, dy_norm_chord: 0.000, rotation_deg:  0.0 }
+    "1_takeoff": { dx_norm_chord: 0.280, dy_norm_chord: 0.045, rotation_deg: -40.0 }
+    "2_landing": { dx_norm_chord: 0.300, dy_norm_chord: 0.050, rotation_deg: -65.0 }
+  # The inboard flap gap (gap_fraction) is 0.0 here (continuous flap).
+  # In configs 3 & 4 we will set gap_fraction = 0.35 (gap inboard of flap,
+  # upstream of the htail).
+
+htail:
+  airfoil:           inverted LS(1)-0417 (negative camber ⇒ download at α=0)
+  planform:          Hershey bar
+  span_frac_of_wing: 0.35
+  span_m:            3.876
+  aspect_ratio:      4.5
+  area_m2:           3.337
+  chord_m:           0.861
+  position:
+    x_ac_m:          4.844    # = 3.5 × c_wing aft of wing root c/4
+    z_low_chords:    0.0      # config 1/3 — htail in wing wake plane
+    z_high_chords:   2.5      # config 2/4 — htail above wake (≈ 3.46 m up)
+  Sh_over_Sw:        0.2178
+  tail_volume_coef:  0.7625   # V_H = S_h · ℓ_h / (S_w · c_w)
+  # blunt TE matched to wing's absolute 4.15 mm (= 0.00482 c_htail)
+
+propulsion:
+  type:            10 distributed actuator-disk props (in CFD model)
+  n_props:         10
+  diameter_m:      1.067     # ≈ 3.5 ft
+  radius_m:        0.5335
+  disk_area_per_prop_m2: 0.8941
+  total_disk_area_m2:    8.941
+  spanwise_positions_eta: [0.1, 0.3, 0.5, 0.7, 0.9]   # each side of symmetry
+  spanwise_positions_m:   [0.554, 1.661, 2.769, 3.876, 4.984]
+  x_position_m:    -0.623   # = -0.45 × c_wing  (= 0.2 c ahead of wing LE)
+  z_position_m:    -0.415   # = -0.30 × c_wing  (below wing chord plane)
+  thrust_line_z_chord_fraction: -0.30   # 0.3 c below LE chord plane
+  height_modeled_m: 0.138   # disk thickness used in the actuator-disk model
+  cruise_design_per_prop_N: 54.4
+  cruise_total_thrust_N:    544
+  cruise_design_disk_loading_Nm2: 60.86
+  # Cruise refined trim (from cruise sweep — see post/SENSITIVITIES.md):
+  # required cruise thrust is ≈ 2.13× the cruise_design value, so
+  # actual cruise commanded thrust per prop ≈ 116 N.
+
+assumed_cg:
+  x_m: 0.0            # at wing-root c/4 (= geometric origin)
+  z_m: -0.554         # = -0.4 × c_wing → 0.1 c below the thrust line
+  # See post/SENSITIVITIES.md for the moment-transform convention.
+
+atmosphere:
+  altitude_m:       3658              # ≈ 12,000 ft (high-altitude STOL)
+  density_kg_m3:    0.8491
+  sound_speed_m_s:  325.95
+  viscosity_Pa_s:   1.6928e-5
+
+operating_points:
+  cruise:
+    velocity_m_s:   45.72             # ≈ 150 ft/s ≈ 89 kt
+    mach:           0.140
+    q_Pa:           887.4
+    qS_N:           13604
+    Re_MAC:         3.17e6
+    target_CL:      0.85              # = W/(qS) at level flight
+    flap_phase:     0
+  takeoff_climbout:
+    velocity_m_s:   18.0              # 35 kt
+    mach:           0.0552
+    q_Pa:           137.6
+    qS_N:           2109
+    Re_MAC:         1.25e6
+    climb_angle_deg:  +30.0
+    L_needed_N:     10015             # = W·cos(30°)
+    target_CL_aero: 4.75              # = (W·cos γ - T·sin α)/qS; depends on α/T
+    flap_phase:     1
+  landing_descent:
+    velocity_m_s:   12.86             # 25 kt
+    mach:           0.0395
+    q_Pa:           70.2
+    qS_N:           1076
+    Re_MAC:         8.93e5
+    descent_angle_deg: -30.0
+    L_needed_N:     10015             # = W·cos(30°)
+    target_CL_aero: 9.31              # roughly 2× takeoff because q is half
+    flap_phase:     2
+
+# ---------------------------------------------------------------------
+# Quick back-of-envelope sanity numbers (derived from the above)
+# ---------------------------------------------------------------------
+
+handy_ratios:
+  S_htail_over_S_wing:            0.2178
+  tail_volume_coefficient_VH:     0.7625
+  disk_area_total_over_S_wing:    0.5832   # 10·A_disk / S_w
+  prop_x_chord_fraction_ahead_LE: 0.20    # disk plane 0.2 c forward of wing LE
+  prop_z_chord_fraction_below_LE: 0.30
+  CG_z_chord_fraction_below_LE:   0.40
+  thrust_line_to_CG_chord_fraction: 0.10   # CG 0.1 c below the thrust line
+
+# ---------------------------------------------------------------------
+# Theory-vs-CFD comparison anchors (for sanity-checking CFD sweeps)
+# ---------------------------------------------------------------------
+
+theoretical_lifting_line:
+  wing_CLalpha_3d_per_rad:   5.03    # = 2π · AR/(AR+2) for AR=8
+  wing_CLalpha_3d_per_deg:   0.0878
+  htail_CLalpha_3d_per_rad:  4.35    # = 2π · AR/(AR+2) for AR=4.5
+  htail_CLalpha_3d_per_deg:  0.0759
+  # Cruise measurement (clean, low-CL): dCL/dα = 0.0886/deg ≈ matches theory
+  # Takeoff measurement (heavy blow):  dCL/dα = 0.203 /deg ≈ 2.3× theory
+  #   (slipstream effective q is higher than q_∞)
+
+# ---------------------------------------------------------------------
+# Source-of-truth pointers — change params.py if any of these need to
+# move; this file is a snapshot and may drift if not refreshed.
+# ---------------------------------------------------------------------
+
+source_files:
+  numerical_constants:    params.py
+  airfoil_geometry:       geometry/airfoils/estol_config.yaml
+  csm_construction:       geometry/tsangpo.csm
+  cruise_sensitivities:   post/SENSITIVITIES.md
+  takeoff_sensitivities:  post/TAKEOFF_PLAN.md
+  landing_sensitivities:  post/LANDING_PLAN.md
