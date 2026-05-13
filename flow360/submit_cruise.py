@@ -233,8 +233,18 @@ with fl.SI_unit_system:
             htail_rotation,
             *ad_models,
         ],
-        time_stepping=fl.Steady(
-            max_steps=3000,
+        # Unsteady time-stepping because `fl.Steady` silently no-ops the
+        # `Rotation` model's `thetaRadians` (verified by case-0b6a7162 /
+        # -2647042c / -83caa967 — three forks at θ_ac ∈ {-7, -1, +0.5}
+        # produced identical CL = 0.2428).  Step size 1 s ≫ chord/V ≈
+        # 0.03 s and aircraft-length/V ≈ 0.13 s, so each physical step is
+        # well into the asymptotic regime; 10 steps × 1000 pseudo-iters
+        # gives a steady-like converged answer with the body actually
+        # rotated.
+        time_stepping=fl.Unsteady(
+            step_size=1.0 * fl.u.s,
+            steps=10,
+            max_pseudo_steps=1000,
             CFL=fl.AdaptiveCFL(max=1e4, convergence_limiting_factor=0.25),
         ),
         outputs=[
