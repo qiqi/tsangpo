@@ -35,8 +35,9 @@ T_PER_PROP_LBF = TW_DESIGN * W_GROSS_LBF / N_PROPS
 # 5 props per semi-span at the centers of 5 equal bays: 0.1, 0.3, 0.5, 0.7, 0.9
 PROP_Y_NONDIM = (0.1, 0.3, 0.5, 0.7, 0.9)
 PROP_Y_FT     = tuple(eta * WING_SEMI_SPAN_FT for eta in PROP_Y_NONDIM)
-PROP_X_FT     = -0.30 * WING_MAC_FT
-PROP_Z_FT     = -0.05 * WING_MAC_FT      # Electra-style: just below wing chord plane
+PROP_X_FT     = -0.45 * WING_MAC_FT      # 0.2 c ahead of LE (LE @ x = -0.25 c)
+PROP_Z_FT     = -0.30 * WING_MAC_FT      # 0.3 c below LE chord plane
+PROP_HEIGHT_FT = 0.10 * WING_MAC_FT      # thickness, set wide enough to resolve
 
 # Flap / inboard gap ---------------------------------------------------
 GAP_FRACTION_BASELINE = 0.0

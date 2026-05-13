@@ -1,12 +1,15 @@
 """
 Submit the Tsangpo cruise case to Flow360.
 
-Uploads the stowed-phase airframe (4 bodies: main_wing, vane, aft_flap,
-htail) as a fresh geometry project, configures steady RANS at the cruise
-operating point with 10 actuator-disk propellers along the LE, and wraps
-the H-tail in a rotational zone whose angle will be driven by user-defined
-dynamics in a follow-up case to find the trim point.
+Steady RANS at α_freestream = 0; effective AoA is controlled by an
+aircraft-wide rotation volume centered at the wing-root quarter-chord
+(taken as the CG). The H-tail sits inside a smaller nested rotation
+volume so it can pitch relative to the aircraft. Both rotations are
+held fixed at 0° in this script — a follow-up `submit_trim.py` will
+fork from this run with `FromUserDefinedDynamics()` driving them to
+L = W and ΣM = 0.
 
+Run:
     python flow360/submit_cruise.py
 """
 from __future__ import annotations
@@ -32,10 +35,8 @@ AIRFOILS = REPO / "geometry" / "airfoils"
 
 
 def inline_udcs(csm_path: Path, airfoils_dir: Path) -> str:
-    """Return tsangpo.csm contents with every `udprim $/airfoils/<name>`
-    replaced by the body of <name>.udc (minus the trailing `end`). Flow360's
-    cloud-side ESP can then run the .csm without needing separate UDC files,
-    which `from_geometry` won't accept as inputs."""
+    """Return tsangpo.csm with each `udprim $/airfoils/<name>` replaced by
+    the body of <name>.udc (minus the trailing `end`)."""
     pat = re.compile(r"^\s*udprim\s+\$/airfoils/(\w+)\s*$")
     out = []
     for line in csm_path.read_text().splitlines():
@@ -44,7 +45,6 @@ def inline_udcs(csm_path: Path, airfoils_dir: Path) -> str:
             out.append(line)
             continue
         udc = (airfoils_dir / f"{m.group(1)}.udc").read_text().splitlines()
-        # Strip trailing `end` and surrounding blank lines; keep the sketch body.
         udc = [l for l in udc if l.strip() != "end"]
         while udc and udc[-1].strip() == "":
             udc.pop()
@@ -53,9 +53,6 @@ def inline_udcs(csm_path: Path, airfoils_dir: Path) -> str:
     return "\n".join(out) + "\n"
 
 
-# Reuse an existing Flow360 project by exporting TSANGPO_PROJECT_ID; otherwise
-# inline the UDCs into tsangpo.csm and upload as a self-contained .csm so
-# Flow360's server-side ESP rebuilds the four bodies natively.
 project_id = os.environ.get("TSANGPO_PROJECT_ID")
 if project_id:
     print(f"Reusing Flow360 project {project_id} …")
@@ -74,9 +71,6 @@ else:
     )
 
 geo = project.geometry
-# Group faces by the `capsGroup` attribute set per-element in tsangpo.csm
-# via `select face / attribute capsGroup $<name>`. Surface names come
-# directly from the .csm, so no body0000N dump-order coupling.
 geo.group_faces_by_tag("capsGroup")
 main_wing_surf = geo["main_wing"]
 vane_surf      = geo["vane"]
@@ -85,59 +79,88 @@ htail_surf     = geo["htail"]
 all_surfs = [main_wing_surf, vane_surf, aft_flap_surf, htail_surf]
 print(f"  Surfaces: {[s.name for s in all_surfs]}")
 
-# ── Actuator-disk loading (cruise; uniform across each disk) ───────────
+# ── Disk loading (cruise, uniform across each disk) ────────────────────
 FPA_CRUISE   = P.T_CRUISE_PER_PROP_LBF / P.A_DISK_PER_PROP_FT2
 SWIRL_CRUISE = 0.012 * FPA_CRUISE
-print(f"  Cruise thrust:  {P.T_CRUISE_PER_PROP_LBF:.2f} lbf/prop, "
-      f"force per area = {FPA_CRUISE:.3f} psf")
+print(f"  Cruise thrust:  {P.T_CRUISE_PER_PROP_LBF:.2f} lbf/prop  "
+      f"(FPA = {FPA_CRUISE:.3f} psf)")
 
-# ── H-tail rotation zone (centered at htail quarter-chord) ─────────────
-HTAIL_QC_X = P.X_TAIL_DEFAULT_FT          # despmtr X_tail in .csm; that IS the quarter-chord
-HTAIL_QC_Z = P.Z_TAIL_LOW_CHORDS * P.WING_MAC_FT
-HTAIL_ZONE_HEIGHT = 1.3 * P.HTAIL_SPAN_FT
-HTAIL_ZONE_RADIUS = 1.5 * P.HTAIL_CHORD_FT
+# ── Rotation-volume geometry ───────────────────────────────────────────
+# Aircraft volume: centered at CG (= wing-root quarter-chord = origin),
+# axis = Y (pitch). Big enough to enclose every wall + the H-tail
+# rotation cylinder + all 10 prop disks. Cylinder radius is measured in
+# the X-Z plane, so we just need to cover max(|x|, |z|) of every
+# enclosed entity. H-tail aft tip sits ~18.3 ft from origin in X;
+# prop cylinders dip to z ≈ −2.1 ft; 20 ft outer radius leaves margin.
+AC_ZONE_HEIGHT       = 1.25 * P.WING_SPAN_FT          # span + 12.5% margin
+AC_ZONE_OUTER_RADIUS = 1.10 * (P.X_TAIL_DEFAULT_FT
+                               + 1.5 * P.HTAIL_CHORD_FT)
+HTAIL_ZONE_HEIGHT    = 1.3  * P.HTAIL_SPAN_FT
+HTAIL_ZONE_RADIUS    = 1.5  * P.HTAIL_CHORD_FT
+PROP_REFINE_SPACING  = 0.05 * P.WING_MAC_FT
 
 farfield = fl.AutomatedFarfield()
 
 with fl.imperial_unit_system:
 
-    # Cylinder shared by the mesher (RotationVolume) and the solver (Rotation
-    # model). Centered on the H-tail quarter-chord; height & radius leave
-    # clearance for the sliding-interface mesh on both sides of the surface.
-    htail_rot_cylinder = fl.Cylinder(
+    ac_pitch_cyl = fl.Cylinder(
+        name="ac_pitch_zone",
+        center=(0, 0, 0) * fl.u.ft,
+        axis=(0, 1, 0),
+        height=AC_ZONE_HEIGHT * fl.u.ft,
+        outer_radius=AC_ZONE_OUTER_RADIUS * fl.u.ft,
+    )
+
+    htail_pitch_cyl = fl.Cylinder(
         name="htail_pitch_zone",
-        center=(HTAIL_QC_X, 0.0, HTAIL_QC_Z) * fl.u.ft,
+        center=(P.X_TAIL_DEFAULT_FT, 0.0,
+                P.Z_TAIL_LOW_CHORDS * P.WING_MAC_FT) * fl.u.ft,
         axis=(0, 1, 0),
         height=HTAIL_ZONE_HEIGHT * fl.u.ft,
         outer_radius=HTAIL_ZONE_RADIUS * fl.u.ft,
     )
 
-    ad_models = []
+    # Per-prop cylinders (reused as ActuatorDisk volumes, UniformRefinement
+    # entities, and enclosed entities of the aircraft rotation volume).
+    prop_cyls = []
     for side, side_sign in (("R", +1), ("L", -1)):
         for i, eta in enumerate(P.PROP_Y_NONDIM, start=1):
             y = side_sign * eta * P.WING_SEMI_SPAN_FT
-            ad_models.append(fl.ActuatorDisk(
-                name=f"prop_{side}{i}",
-                entities=fl.Cylinder(
-                    name=f"disk_{side}{i}",
-                    center=(P.PROP_X_FT, y, P.PROP_Z_FT) * fl.u.ft,
-                    axis=(-1, 0, 0),
-                    height=(0.05 * P.PROP_RADIUS_FT) * fl.u.ft,
-                    outer_radius=P.PROP_RADIUS_FT * fl.u.ft,
-                ),
-                force_per_area=fl.ForcePerArea(
-                    radius=np.array([0.15 * P.PROP_RADIUS_FT, P.PROP_RADIUS_FT])
-                           * fl.u.ft,
-                    thrust=np.array([FPA_CRUISE, FPA_CRUISE]) * fl.u.lbf / fl.u.ft ** 2,
-                    circumferential=np.array([SWIRL_CRUISE, SWIRL_CRUISE])
-                                    * fl.u.lbf / fl.u.ft ** 2,
-                ),
+            prop_cyls.append(fl.Cylinder(
+                name=f"disk_{side}{i}",
+                center=(P.PROP_X_FT, y, P.PROP_Z_FT) * fl.u.ft,
+                axis=(-1, 0, 0),
+                height=P.PROP_HEIGHT_FT * fl.u.ft,
+                outer_radius=P.PROP_RADIUS_FT * fl.u.ft,
             ))
 
+    ad_models = [
+        fl.ActuatorDisk(
+            name=cyl.name.replace("disk_", "prop_"),
+            entities=cyl,
+            force_per_area=fl.ForcePerArea(
+                radius=np.array([0.15 * P.PROP_RADIUS_FT, P.PROP_RADIUS_FT])
+                       * fl.u.ft,
+                thrust=np.array([FPA_CRUISE, FPA_CRUISE]) * fl.u.lbf / fl.u.ft ** 2,
+                circumferential=np.array([SWIRL_CRUISE, SWIRL_CRUISE])
+                                * fl.u.lbf / fl.u.ft ** 2,
+            ),
+        )
+        for cyl in prop_cyls
+    ]
+
+    # Both rotations held at 0° in this run — fork with FromUserDefinedDynamics
+    # for the trim search.
+    ac_rotation = fl.Rotation(
+        name="ac_pitch",
+        volumes=[ac_pitch_cyl],
+        spec=fl.AngleExpression("0"),
+    )
     htail_rotation = fl.Rotation(
-        name="htail_pitch_for_trim",
-        volumes=[htail_rot_cylinder],
-        spec=fl.FromUserDefinedDynamics(),
+        name="htail_pitch",
+        volumes=[htail_pitch_cyl],
+        spec=fl.AngleExpression("0"),
+        parent_volume=ac_pitch_cyl,
     )
 
     params = fl.SimulationParams(
@@ -145,12 +168,27 @@ with fl.imperial_unit_system:
             volume_zones=[
                 farfield,
                 fl.RotationVolume(
-                    name="htail_rotation_volume",
-                    entities=htail_rot_cylinder,
+                    name="ac_rotation",
+                    entities=ac_pitch_cyl,
+                    enclosed_entities=[main_wing_surf, vane_surf, aft_flap_surf,
+                                       htail_surf, htail_pitch_cyl, *prop_cyls],
+                    spacing_axial=1.0 * fl.u.ft,
+                    spacing_radial=0.5 * fl.u.ft,
+                    spacing_circumferential=0.5 * fl.u.ft,
+                ),
+                fl.RotationVolume(
+                    name="htail_rotation",
+                    entities=htail_pitch_cyl,
                     enclosed_entities=[htail_surf],
                     spacing_axial=0.5 * fl.u.ft,
                     spacing_radial=0.2 * fl.u.ft,
                     spacing_circumferential=0.2 * fl.u.ft,
+                ),
+            ],
+            refinements=[
+                fl.UniformRefinement(
+                    entities=prop_cyls,
+                    spacing=PROP_REFINE_SPACING * fl.u.ft,
                 ),
             ],
             defaults=fl.MeshingDefaults(
@@ -163,12 +201,12 @@ with fl.imperial_unit_system:
         ),
         reference_geometry=fl.ReferenceGeometry(
             area=P.WING_AREA_FT2 * fl.u.ft ** 2,
-            moment_center=(0, 0, 0) * fl.u.ft,
+            moment_center=(0, 0, 0) * fl.u.ft,           # CG = wing-root c/4
             moment_length=P.WING_MAC_FT * fl.u.ft,
         ),
         operating_condition=fl.AerospaceCondition(
             velocity_magnitude=P.V_CRUISE_FT_S * fl.u.ft / fl.u.s,
-            alpha=P.ALPHA_CRUISE_DEG * fl.u.deg,
+            alpha=0 * fl.u.deg,                          # α controlled by ac_pitch
             thermal_state=fl.ThermalState.from_standard_atmosphere(
                 altitude=P.ALT_CRUISE_FT * fl.u.ft,
             ),
@@ -187,6 +225,7 @@ with fl.imperial_unit_system:
             ),
             fl.Wall(name="aircraft", entities=all_surfs),
             fl.Freestream(name="freestream", entities=[farfield.farfield]),
+            ac_rotation,
             htail_rotation,
             *ad_models,
         ],
@@ -209,13 +248,10 @@ with fl.imperial_unit_system:
 print("Submitting cruise case (mesh → solve) …")
 case = project.run_case(
     params=params,
-    name="cruise_v1",
+    name="cruise_v2_refined",
     run_async=True,
-    tags=["cruise", "stowed", "htail_rotational_zone"],
-    use_beta_mesher=True,   # in-house mesher: curvature-based refinement
-                            # at LEs without needing an explicit split line.
-                            # MANDATORY for the whole Tsangpo project — see
-                            # CLAUDE.md.
+    tags=["cruise", "stowed", "ac_rotation_zone", "refined_props"],
+    use_beta_mesher=True,
 )
 print(f"Case submitted: {case.id}")
 print(f"Project:        {project.id}")
