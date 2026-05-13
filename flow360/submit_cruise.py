@@ -12,7 +12,9 @@ dynamics in a follow-up case to find the trim point.
 from __future__ import annotations
 
 import os
+import re
 import sys
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -25,22 +27,47 @@ import params as P
 sys.path = [p for p in sys.path if str(REPO / "flow360") not in p]
 import flow360 as fl
 
-STOWED = REPO / "geometry" / "out" / "stowed"
+CSM      = REPO / "geometry" / "tsangpo.csm"
+AIRFOILS = REPO / "geometry" / "airfoils"
+
+
+def inline_udcs(csm_path: Path, airfoils_dir: Path) -> str:
+    """Return tsangpo.csm contents with every `udprim $/airfoils/<name>`
+    replaced by the body of <name>.udc (minus the trailing `end`). Flow360's
+    cloud-side ESP can then run the .csm without needing separate UDC files,
+    which `from_geometry` won't accept as inputs."""
+    pat = re.compile(r"^\s*udprim\s+\$/airfoils/(\w+)\s*$")
+    out = []
+    for line in csm_path.read_text().splitlines():
+        m = pat.match(line)
+        if not m:
+            out.append(line)
+            continue
+        udc = (airfoils_dir / f"{m.group(1)}.udc").read_text().splitlines()
+        # Strip trailing `end` and surrounding blank lines; keep the sketch body.
+        udc = [l for l in udc if l.strip() != "end"]
+        while udc and udc[-1].strip() == "":
+            udc.pop()
+        out.append(f"# inlined from airfoils/{m.group(1)}.udc")
+        out.extend(udc)
+    return "\n".join(out) + "\n"
+
 
 # Reuse an existing Flow360 project by exporting TSANGPO_PROJECT_ID; otherwise
-# upload the four stowed-phase STEPs into a fresh project.
+# inline the UDCs into tsangpo.csm and upload as a self-contained .csm so
+# Flow360's server-side ESP rebuilds the four bodies natively.
 project_id = os.environ.get("TSANGPO_PROJECT_ID")
 if project_id:
     print(f"Reusing Flow360 project {project_id} …")
     project = fl.Project.from_cloud(project_id)
 else:
-    # Upload order fixes the body00001..body00004 mapping.
-    STEPS = [STOWED / f"{n}.step" for n in ("main_wing", "vane", "aft_flap", "htail")]
-    for s in STEPS:
-        assert s.exists(), f"{s} not found; run serveCSM tsangpo.csm first"
-    print("Uploading 4 per-body STEPs as a new Flow360 project …")
+    inlined = inline_udcs(CSM, AIRFOILS)
+    with tempfile.NamedTemporaryFile("w", suffix=".csm", delete=False) as f:
+        f.write(inlined)
+        tmp_csm = f.name
+    print(f"Uploading inlined tsangpo.csm ({len(inlined.splitlines())} lines) …")
     project = fl.Project.from_geometry(
-        [str(s) for s in STEPS],
+        tmp_csm,
         name="tsangpo_cruise",
         length_unit="ft",
         tags=["tsangpo", "cruise", "stowed"],
