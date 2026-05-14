@@ -48,7 +48,10 @@ T_MULT_GUESS       = +16.0
 
 # === Sweep ranges centred on the guess ===
 ALPHA_SWEEP_DEG = (-2.0, +2.0, +5.0, +8.0, +11.0, +14.0, +17.0, +20.0, +25.0, +30.0)
-HTAIL_SWEEP_DEG = (-12.0, -9.0, -6.0, -4.0, -2.0, 0.0, +2.0, +4.0, +6.0, +9.0)
+# Extended htail sweep covering both stalled-negative AND positive-deflection
+# regions — the wing downwash in heavy slipstream pushes the htail-frame flow
+# very negative, so positive θ_ht is needed to unstall the htail.
+HTAIL_SWEEP_DEG = (-15.0, -10.0, -5.0, 0.0, +5.0, +10.0, +15.0, +20.0, +25.0, +30.0)
 THRUST_SWEEP    = (6.0, 9.0, 12.0, 14.0, 16.0, 18.0, 20.0, 22.0, 25.0, 30.0)
 
 # === Time stepping (see header for derivation) ===
@@ -75,10 +78,10 @@ else:
         tmp_csm = f.name
     print(f"Uploading takeoff geometry (phase=1, {len(inlined.splitlines())} lines)…")
     project = fl.Project.from_geometry(
-        tmp_csm, name="tsangpo_takeoff_coarse_phaseA",
-        length_unit="m", tags=["tsangpo", "takeoff", "SI", "phase1", "coarse"],
+        tmp_csm, name="tsangpo_v2_takeoff_coarse",
+        length_unit="m", tags=["tsangpo", "v2", "takeoff", "SI", "phase1", "coarse"],
     )
-    C.move_project_to_folder(project, "1_continuous_flap_low_htail")
+    C.move_project_to_folder(project, "5_v2_low_htail_bigger_tail")
     parent_case = None
 print(f"Project: {project.id} ({project.metadata.name})")
 

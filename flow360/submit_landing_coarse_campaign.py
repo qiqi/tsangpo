@@ -39,7 +39,11 @@ THETA_HT_GUESS_DEG = -6.0
 T_MULT_GUESS       = +12.0
 
 ALPHA_SWEEP_DEG = (-2.0, +2.0, +5.0, +8.0, +11.0, +14.0, +17.0, +20.0, +25.0, +30.0)
-HTAIL_SWEEP_DEG = (-15.0, -12.0, -9.0, -6.0, -3.0, 0.0, +3.0, +6.0, +9.0, +12.0)
+# v2 landing htail sweep: extend well into positive θ_ht.  The wing+flap at
+# phase-2 (-65°) pumps the htail-frame flow down by ~45°, so the v1 sweep
+# (max +12°) was entirely inside the stalled-htail region.  Go to +50° to
+# bracket the unstalled regime and the positive-side stall.
+HTAIL_SWEEP_DEG = (-10.0, 0.0, +10.0, +15.0, +20.0, +25.0, +30.0, +35.0, +40.0, +50.0)
 THRUST_SWEEP    = (4.0, 7.0, 10.0, 12.0, 14.0, 16.0, 18.0, 21.0, 25.0, 30.0)
 
 N_PARENT_STEPS = 20
@@ -65,10 +69,10 @@ else:
         tmp_csm = f.name
     print(f"Uploading landing geometry (phase=2, {len(inlined.splitlines())} lines)…")
     project = fl.Project.from_geometry(
-        tmp_csm, name="tsangpo_landing_coarse_phaseA",
-        length_unit="m", tags=["tsangpo", "landing", "SI", "phase2", "coarse"],
+        tmp_csm, name="tsangpo_v2_landing_coarse",
+        length_unit="m", tags=["tsangpo", "v2", "landing", "SI", "phase2", "coarse"],
     )
-    C.move_project_to_folder(project, "1_continuous_flap_low_htail")
+    C.move_project_to_folder(project, "5_v2_low_htail_bigger_tail")
     parent_case = None
 print(f"Project: {project.id} ({project.metadata.name})")
 
