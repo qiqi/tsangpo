@@ -63,40 +63,13 @@ set       wing_z           +0.4*wing_chord             # wing chord plane above 
 despmtr   pivot_x          0.550
 despmtr   pivot_y         -0.048
 
-# ----- Inboard gap (applied to the vane + aft-flap assembly AND the
-#       main wing when gap_fraction > 0) -----------------------------
-# gap_fraction is in SEMISPAN units: gap_fraction = 0.40 → inboard 40%
-# of the semispan (on each side of centerline) has no flap.  In the
-# gapped-flap config, the main wing in that inboard region is replaced
-# by a single middle wing piece made of (main_wing.udc JOIN
-# main_wing_tail.udc) — a complete LS(1)-0417 cross-section with no
-# cove.
-#
-# All derived spans are accepted as SEPARATE despmtrs (not computed
-# from each other inside `set`), because OpenCSM's `set` parser
-# silently mis-evaluates binary `-`/`+` between two NAMED variables
-# (LESSONS.md).  The submit script MUST keep these consistent:
-#   mid_outer_semispan = gap_fraction - wing_split_clearance_semispan
-#   flap_panel_frac    = flap_outboard_eta - gap_fraction
-#   side_span_frac     = 1 - gap_fraction
-# Typical for the 40%-gapped-flap config:
-#   gap_fraction=0.40, mid_outer_semispan=0.39  (1% semispan air gap)
-#   flap_panel_frac=0.55,  side_span_frac=0.60
-despmtr   gap_fraction         0.0    # SEMISPAN frac; 0.0 = full-span flap
-despmtr   mid_outer_semispan   0.0    # SEMISPAN frac; middle wing outer edge
-despmtr   flap_outboard_eta    0.95   # SEMISPAN frac; outer edge of flap (tip ailerons start)
-despmtr   flap_panel_frac      0.95   # SEMISPAN frac; flap panel width (= flap_outboard_eta - gap_fraction)
-despmtr   side_span_frac       1.0    # SEMISPAN frac; side wing-panel width (= 1 - gap_fraction)
+# ----- Inboard gap (applied to the vane + aft-flap assembly) ---------
+despmtr   gap_fraction      0.0      # 0.0 = baseline, 0.35 = proposed
+despmtr   flap_outboard_eta 0.95
 
-# All derived `set` lines below are single multiplications (named * named
-# or constant * named); none combine two named vars with +/-.
 set       flap_y_in        gap_fraction*wing_semispan
 set       flap_y_out       flap_outboard_eta*wing_semispan
-set       flap_panel       flap_panel_frac*wing_semispan
-set       mid_y_outer      mid_outer_semispan*wing_semispan
-set       mid_span         mid_outer_semispan*wing_span         # = 2 * mid_y_outer
-set       side_y_inner     gap_fraction*wing_semispan
-set       side_span        side_span_frac*wing_semispan
+set       flap_panel       flap_y_out-flap_y_in
 
 # ----- H-tail (v2: bigger, longer arm) -------------------------------
 despmtr   htail_span_frac   0.40        # was 0.35
@@ -128,84 +101,16 @@ set       htail_z_root     htail_z_chords*MAC
 # then extruded along +Y for the spanwise length.
 # =====================================================================
 
-# --- Main wing -------------------------------------------------------
-# gap_fraction = 0:  one full-span coved main_wing solid.
-# gap_fraction > 0:  three SEPARATE solids (no spanwise JOIN; small
-# physical air gaps between them at +/- gap_fraction*semispan):
-#   * main_wing_left  : coved main_wing.udc, y ∈ [-semispan, -side_y_inner]
-#   * main_wing_mid   : (main_wing.udc) JOIN (main_wing_tail.udc) →
-#                       complete LS(1)-0417 cross-section,
-#                       y ∈ [-mid_y_outer, +mid_y_outer]
-#   * main_wing_right : coved main_wing.udc, y ∈ [+side_y_inner, +semispan]
-# Each side panel keeps the cove cutout so its associated vane+flap
-# (vane_left/right, aft_flap_left/right) slots in behind it.
-
-ifthen    gap_fraction LE 0
-   udprim    $/airfoils/main_wing
-   rotatex   90  0  0
-   scale     wing_chord
-   translate wing_x_LE   -wing_semispan   wing_z
-   extrude   0   wing_span   0
-      attribute _name $main_wing
-   select face
-      attribute capsGroup $main_wing
-   store     main_wing
-else
-   # Right side panel (coved): inboard at +side_y_inner, outboard at +semispan
-   udprim    $/airfoils/main_wing
-   rotatex   90  0  0
-   scale     wing_chord
-   translate wing_x_LE   side_y_inner   wing_z
-   extrude   0   side_span   0
-      attribute _name $main_wing_right
-   select face
-      attribute capsGroup $main_wing_right
-   store     main_wing_right
-
-   # Left side panel (coved): inboard at -side_y_inner, outboard at -semispan
-   udprim    $/airfoils/main_wing
-   rotatex   90  0  0
-   scale     wing_chord
-   translate wing_x_LE   -wing_semispan   wing_z
-   extrude   0   side_span   0
-      attribute _name $main_wing_left
-   select face
-      attribute capsGroup $main_wing_left
-   store     main_wing_left
-
-   # Middle wing: two extrudes sharing the SAME 4 cove-cut faces
-   # (lower edge, fillet arc, upper edge, blunt edge).  After JOIN the
-   # cove disappears and the resulting solid has a complete LS(1)-0417
-   # cross-section.  build_estol_geometry.build_main_wing_tail()
-   # re-uses the IDENTICAL fillet_corner() output as build_main_wing()
-   # so the two splines/linsegs are point-for-point coincident — a
-   # hard requirement for ESP join to find matching faces.
-   udprim    $/airfoils/main_wing
-   rotatex   90  0  0
-   scale     wing_chord
-   translate wing_x_LE   -mid_y_outer   wing_z
-   extrude   0   mid_span   0
-      attribute _name $main_wing_mid_coved
-   select face
-      attribute capsGroup $main_wing_mid
-   store     main_wing_mid_a
-
-   udprim    $/airfoils/main_wing_tail
-   rotatex   90  0  0
-   scale     wing_chord
-   translate wing_x_LE   -mid_y_outer   wing_z
-   extrude   0   mid_span   0
-      attribute _name $main_wing_mid_tailcap
-   select face
-      attribute capsGroup $main_wing_mid
-   store     main_wing_mid_b
-
-   restore   main_wing_mid_a
-   restore   main_wing_mid_b
-   join
-      attribute _name $main_wing_mid
-   store     main_wing_mid
-endif
+# --- Main wing (full-span solid; cove is upstream of the gap study) --
+udprim    $/airfoils/main_wing
+rotatex   90  0  0
+scale     wing_chord
+translate wing_x_LE   -wing_semispan   wing_z
+extrude   0   wing_span   0
+   attribute _name $main_wing
+select face
+   attribute capsGroup $main_wing
+store     main_wing
 
 # --- Vane + aft-flap rigid assembly ----------------------------------
 # Kinematics (rotatez about pivot, then translate dx/dy) execute in the
@@ -303,11 +208,11 @@ store     htail
 # DUMP: one STL + one STEP per body. submit_*.py scripts inline the
 # UDC contours into a single .csm and upload that.
 # =====================================================================
-ifthen    gap_fraction LE 0
-   restore   main_wing
-   dump      main_wing.stl
-   dump      main_wing.step
+restore   main_wing
+dump      main_wing.stl
+dump      main_wing.step
 
+ifthen    gap_fraction LE 0
    restore   vane
    dump      vane.stl
    dump      vane.step
@@ -315,16 +220,6 @@ ifthen    gap_fraction LE 0
    dump      aft_flap.stl
    dump      aft_flap.step
 elseif    gap_fraction LT flap_outboard_eta
-   restore   main_wing_right
-   dump      main_wing_right.stl
-   dump      main_wing_right.step
-   restore   main_wing_left
-   dump      main_wing_left.stl
-   dump      main_wing_left.step
-   restore   main_wing_mid
-   dump      main_wing_mid.stl
-   dump      main_wing_mid.step
-
    restore   vane_right
    dump      vane_right.stl
    dump      vane_right.step

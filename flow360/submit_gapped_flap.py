@@ -4,17 +4,15 @@ Submit a Tsangpo v2 cruise parent on the GAPPED-FLAP configuration
 main wing in that region is replaced by a complete LS(1)-0417 cross-
 section made by ESP-joining main_wing.udc with main_wing_tail.udc).
 
-Geometry comes from tsangpo.csm with these despmtrs overridden:
-
-    phase              = 0     # cruise (stowed flap)
-    gap_fraction       = 0.40  # SEMISPAN fraction
-    mid_outer_semispan = 0.39  # SEMISPAN fraction (= gap_fraction - 0.01)
-    flap_panel_frac    = 0.55  # = flap_outboard_eta - gap_fraction
-    side_span_frac     = 0.60  # = 1 - gap_fraction
-
-The three derived fractions are passed as separate despmtrs because
-OpenCSM's `set` parser silently mis-evaluates binary +/- between two
-named variables (see flow360/LESSONS.md).
+Geometry comes from `geometry/tsangpo_gapped.csm` (sister file of the
+continuous-flap `tsangpo.csm`; defaults already set to the 40 %-gapped
+configuration).  The only despmtr this script overrides is `phase=0`
+for the stowed cruise flap; if you want to vary the gap geometry,
+override gap_fraction / mid_outer_semispan / flap_panel_frac /
+side_span_frac (keeping them mutually consistent per the file header).
+The derived fractions are separate despmtrs because OpenCSM's `set`
+parser silently mis-evaluates binary +/- between two named variables
+(see flow360/LESSONS.md).
 
 This script submits ONE parent case at the v2 cruise BO estimate point
 (α=+7°, θ_ht=0°, T_mult=+1).  No sweeps yet — once the parent's mesh
@@ -40,7 +38,7 @@ import cfd_setup as C
 import params as P
 import flow360 as fl
 
-CSM      = REPO / "geometry" / "tsangpo.csm"
+CSM      = REPO / "geometry" / "tsangpo_gapped.csm"
 AIRFOILS = REPO / "geometry" / "airfoils"
 
 # v2 cruise BO estimate point (same as case-e30a9610 parent on the
@@ -84,7 +82,7 @@ else:
     with tempfile.NamedTemporaryFile("w", suffix=".csm", delete=False) as f:
         f.write(inlined)
         tmp_csm = f.name
-    print(f"\nUploading inlined tsangpo.csm ({len(inlined.splitlines())} lines) …")
+    print(f"\nUploading inlined {CSM.name} ({len(inlined.splitlines())} lines) …")
     project = fl.Project.from_geometry(
         tmp_csm,
         name="tsangpo_v2_cruise_gapped40",
