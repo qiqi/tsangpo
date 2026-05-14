@@ -105,7 +105,7 @@ plots land in `post/out/`, per the user's pipeline order.
 
 ### Phase A — coarse landing sweep (submitted 2026-05-13)
 
-- **Project**: `prj-17a37c9d-fe5d-4454-88b6-b8c6c45f4721` (`tsangpo_landing_coarse_phaseA`, in `Tsangpo/1_continuous_flap_low_htail/`)
+- **Project**: `prj-17a37c9d-fe5d-4454-88b6-b8c6c45f4721` (`tsangpo_landing_coarse_phaseA`, in `Tsangpo/1_v1_historical/`)
 - **Parent (BO estimate, α=+8°, θ_ht=−6°, T_mult=+12)**: `case-9f8147fa-2872-4f0c-b41a-7aa1fe7318bb`
 - Forks use tight-iter settings (`N_FORK_NEW=6`, `PSEUDO_FORK=500`) inherited from the takeoff post-mortem.
 

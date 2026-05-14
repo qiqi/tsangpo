@@ -14,7 +14,7 @@ projects `prj-16082511`, `prj-9cd3ad10`, `prj-e7dc7d6d`) so the gapped
 geometry comparison is at the same conditions.
 
 Each parent lands in its own Flow360 project under
-`Tsangpo/3_gapped_flap_low_htail/`.  No sweep forks are submitted —
+`Tsangpo/3_v2_gapped_low_htail/`.  No sweep forks are submitted —
 once mesh + per-surface forces look sane, sweeps can be added via the
 existing `submit_alpha_sweep.py` / `_htail_sweep.py` / `_thrust_sweep.py`
 by exporting `TSANGPO_PARENT_CASE_ID`.
@@ -124,8 +124,8 @@ def submit_one(phase_key: str) -> tuple[str, str]:
             tags=["tsangpo", "v2", "gapped40", "low_htail", *spec["tags_phase"]],
         )
         print(f"  → project {project.id}")
-        folder_id = C.move_project_to_folder(project, "3_gapped_flap_low_htail")
-        print(f"  Moved into folder 3_gapped_flap_low_htail ({folder_id[:24]}…)")
+        folder_id = C.move_project_to_folder(project, "3_v2_gapped_low_htail")
+        print(f"  Moved into folder 3_v2_gapped_low_htail ({folder_id[:24]}…)")
 
     surfaces = C.get_gapped_geometry_surfaces(project)
     print(f"  Surfaces: main_wing={surfaces.wing_main_surfs[0].name}, "

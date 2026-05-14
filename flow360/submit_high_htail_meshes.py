@@ -7,9 +7,9 @@ and parks the project in the appropriate Tsangpo folder.  NO solver run
 is submitted — the user wants to inspect meshes first.
 
 Configs
-  * continuous_high_htail → folder `2_continuous_flap_high_htail`
+  * continuous_high_htail → folder `2_v2_continuous_high_htail`
        CSM: geometry/tsangpo_high_htail.csm
-  * gapped_high_htail     → folder `4_gapped_flap_high_htail`
+  * gapped_high_htail     → folder `4_v2_gapped_high_htail`
        CSM: geometry/tsangpo_gapped_high_htail.csm
 
 For each config, three phases (0=stowed/cruise, 1=takeoff, 2=landing).
@@ -46,14 +46,14 @@ WING_SIDE_FRAC       = 0.61
 CONFIGS = {
     "continuous_high_htail": dict(
         csm        = REPO / "geometry" / "tsangpo_high_htail.csm",
-        folder     = "2_continuous_flap_high_htail",
+        folder     = "2_v2_continuous_high_htail",
         get_surfs  = C.get_geometry_surfaces,
         project_tag= "continuous",
         despmtr_override = lambda inlined, phase: C.set_csm_despmtrs(inlined, phase=phase),
     ),
     "gapped_high_htail": dict(
         csm        = REPO / "geometry" / "tsangpo_gapped_high_htail.csm",
-        folder     = "4_gapped_flap_high_htail",
+        folder     = "4_v2_gapped_high_htail",
         get_surfs  = C.get_gapped_geometry_surfaces,
         project_tag= "gapped40",
         despmtr_override = lambda inlined, phase: C.set_csm_despmtrs(

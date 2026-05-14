@@ -124,20 +124,21 @@ def get_gapped_geometry_surfaces(project):
 
 
 # Tsangpo folder hierarchy on Flow360 (`Tsangpo/<config_num>_<descr>/`).
-# Configurations:
-#   1  continuous flap, low htail            (v1 geometry — cruise + takeoff + landing v1 campaigns)
-#   2  continuous flap, high htail           (Electra-style; future)
-#   3  gapped flap,     low htail            (future)
-#   4  gapped flap,     high htail           (future)
-#   5  v2 low_htail with bigger tail         (post-revision: CG-origin, half-chord-over-CG, c_h=c_w,
-#                                             span 0.40 b_w, htail LE 4 c aft of wing LE)
+# Folder 1 holds v1 historical runs (blunt-htail era).  All other folders
+# are v2: CG-origin layout with the bigger htail (chord = wing chord,
+# span = 40 % b_w, LE 4 c aft of wing LE).  The differentiator across
+# folders 2-5 is flap-type × htail-z:
+#   2  v2 continuous high-htail  (htail 1.5 c above wing chord plane)
+#   3  v2 gapped     low-htail   (htail in wing chord plane)
+#   4  v2 gapped     high-htail
+#   5  v2 continuous low-htail
 TSANGPO_FOLDER_IDS = {
-    "Tsangpo":                       "folder-4ba7bf56-581f-4b41-b8ee-af8d80c27d11",
-    "1_continuous_flap_low_htail":   "folder-8375dac1-f190-48af-82f2-1cfa0dd054f2",
-    "2_continuous_flap_high_htail":  "folder-503c0720-2d4b-4a26-859d-9aa949264944",
-    "3_gapped_flap_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
-    "4_gapped_flap_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
-    "5_v2_low_htail_bigger_tail":    "folder-2c582dd7-918a-430f-a0f8-e28e036451ad",
+    "Tsangpo":                     "folder-4ba7bf56-581f-4b41-b8ee-af8d80c27d11",
+    "1_v1_historical":             "folder-8375dac1-f190-48af-82f2-1cfa0dd054f2",
+    "2_v2_continuous_high_htail":  "folder-503c0720-2d4b-4a26-859d-9aa949264944",
+    "3_v2_gapped_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
+    "4_v2_gapped_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
+    "5_v2_continuous_low_htail":   "folder-2c582dd7-918a-430f-a0f8-e28e036451ad",
 }
 
 

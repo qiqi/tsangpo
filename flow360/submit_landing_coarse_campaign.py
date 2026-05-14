@@ -72,7 +72,7 @@ else:
         tmp_csm, name="tsangpo_v2_landing_coarse",
         length_unit="m", tags=["tsangpo", "v2", "landing", "SI", "phase2", "coarse"],
     )
-    C.move_project_to_folder(project, "5_v2_low_htail_bigger_tail")
+    C.move_project_to_folder(project, "5_v2_continuous_low_htail")
     parent_case = None
 print(f"Project: {project.id} ({project.metadata.name})")
 

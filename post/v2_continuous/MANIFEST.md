@@ -1,7 +1,7 @@
 # v2 geometry — campaign manifest
 
 This is the case-id manifest for the v2 campaigns submitted on the
-revised geometry (`Tsangpo/5_v2_low_htail_bigger_tail/`).  v2 is
+revised geometry (`Tsangpo/5_v2_continuous_low_htail/`).  v2 is
 defined by **commit `a3b1d86`** (params.py, tsangpo.csm, airframe.yaml,
 cfd_setup.py).  v1 reference commit is `e10892f`.
 
