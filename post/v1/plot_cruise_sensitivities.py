@@ -22,11 +22,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import params as P
 
-OUT = REPO / "post" / "out"
+OUT = REPO / "post" / "out" / "v1"
 OUT.mkdir(exist_ok=True)
 
 PROJECT_ID     = "prj-3e8b1ed8-0109-4f1f-8738-fef0c55a573b"  # tsangpo_blunt_htail_active
