@@ -216,14 +216,19 @@ def build_params(
                     ),
                     fl.RotationVolume(
                         name="htail_rotation", entities=ht_cyl,
-                        # GAI volume mesher errors with ERROR 7221 when
-                        # the inner RotationVolume's `enclosed_entities`
-                        # lists a surface by its original capsGroup name
-                        # (the surface mesher has renamed it with the
-                        # zone hierarchy suffix).  Drop the explicit
-                        # hint — the htail surface is geometrically
-                        # inside `ht_cyl`, so spatial inclusion suffices
-                        # for both meshers.  See post/FLOW360_GAI_BUG_REPORT.md.
+                        # The legacy beta mesher NEEDS `enclosed_entities`
+                        # to map the htail capsGroup-tagged surface into
+                        # the htail_pitch_zone rotation volume.  Without
+                        # it, the mesher leaves the htail attached to
+                        # `farfield/htail` (verified on v2 vm-a55869c0:
+                        # geometry correct but htail surface missing from
+                        # the htail_pitch_zone).  This is the inverse of
+                        # the GAI workaround discussed in
+                        # post/FLOW360_GAI_BUG_REPORT.md — GAI rejects
+                        # this listing but legacy requires it.  Since
+                        # GAI is blocked on this geometry anyway, list
+                        # the htail surface explicitly.
+                        enclosed_entities=[htail_surf],
                         spacing_axial=0.15 * fl.u.m,
                         spacing_radial=0.06 * fl.u.m,
                         spacing_circumferential=0.06 * fl.u.m,
