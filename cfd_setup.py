@@ -108,15 +108,15 @@ class SurfaceBundle:
 
 
 def get_gapped_geometry_surfaces(project):
-    """SurfaceBundle for the gapped-flap config (gap_fraction>0 in tsangpo.csm).
-    The main wing is three pieces (left/mid/right); vane and aft_flap are
-    each two pieces (left/right); htail is unchanged."""
+    """SurfaceBundle for the gapped-flap config (tsangpo_gapped.csm).
+    The main wing is ONE continuous solid (three coved pieces JOINed
+    spanwise + the middle tail-cap JOINed chord-wise; all under one
+    `main_wing` capsGroup).  Vane and aft_flap are each two pieces
+    (left/right) with the 0.5%-of-span gap.  Htail unchanged."""
     geo = project.geometry
     geo.group_faces_by_tag("capsGroup")
     return SurfaceBundle(
-        wing_main_surfs=[geo["main_wing_left"],
-                         geo["main_wing_mid"],
-                         geo["main_wing_right"]],
+        wing_main_surfs=[geo["main_wing"]],
         wing_vane_surfs=[geo["vane_left"],  geo["vane_right"]],
         wing_flap_surfs=[geo["aft_flap_left"], geo["aft_flap_right"]],
         htail_surf=geo["htail"],
