@@ -98,3 +98,58 @@ because the BO baseline thrust setting (T_mult=16 / 12) far over-thrusts
 the actually-required level/climb thrust at those slow flapped flight
 speeds; a 2-step nonlinear refine would tighten the numbers but won't
 change the static-margin verdict.
+
+## CG-shift study — aft CG to bring cruise SM down to 10 % MAC
+
+Question: what happens to all three phase trims if we move the CG AFT
+(only Δx_CG > 0, no z change) until cruise static margin drops to a
+"normal" 10 % MAC?
+
+Transfer to the new CG (CMy_CG is about the new moment_center;
+parallel-axis with CFz ≈ CL valid for the small body-rotations here):
+
+    CMy_CG_new  = CMy_CG_old  + (Δx/c) · CFz_at_origin
+    dCMy_new/d• = dCMy_old/d• + (Δx/c) · dCL/d•
+
+So SM_new = SM_old − Δx/c.  Target SM_cruise = +0.10 with SM_cruise_old
+= +0.4715 requires:
+
+**Δx/c = +0.3715**, i.e., move CG aft by 0.514 m ≈ 37 % MAC.
+
+Reproduce: `python3 post/cg_shift_trim.py`.
+
+Re-solving the 3×3 with the same Δx/c applied to all three phases:
+
+| phase    | SM old → new        | α trim   | θ_htail trim | T_mult trim |
+|----------|----------------------|----------|--------------|-------------|
+| cruise   | +47.1 % → **+10.0 %** | +4.92°   | +6.40°       | +1.96       |
+| takeoff  | −12.5 % → **−49.6 %** | +2.81°   | +27.99°      | **−0.12**   |
+| landing  | −28.7 % → **−65.9 %** | +9.63°   | +55.16°      | **−0.73**   |
+
+Cruise: SM lands at the target +10 % and the trim deflections are
+reasonable (α down 1.1°, more positive elevator to balance the larger
+nose-up CMy from CG aft, T_mult barely changes).
+
+**Takeoff and landing become massively more unstable.**  The reason is
+mechanical: the aft CG shift's effect on dCMy/dα is (Δx/c)·dCL/dα.  In
+cruise that's 0.371 × 0.095 = +0.035 — small enough to tip a +47 % SM
+down to +10 %.  In takeoff the wing+flap is making CL ≈ 8 and
+dCL/dα = 0.20, so the same shift adds 0.371 × 0.20 = +0.074 to dCMy/dα
+— roughly doubling the destabilizing aerodynamic term.  Landing is
+worse still: dCL/dα = 0.148 and CL_base = 13.6, so the BASELINE
+CMy_CG balloons from +0.60 to +5.67, demanding huge htail deflection
+to zero it out.
+
+The negative T_mult values (−0.12 in takeoff, −0.73 in landing) and
+55° elevator on landing are physically infeasible — the linearized
+trim is just telling us that the trim point doesn't exist at all in
+the realistic flight envelope.  In practice an aft CG that buys
+cruise neutrality at the cost of catastrophic flapped-flight stability
+is not a viable design — the wing+flap CMy.CG-vs-CG sensitivity in
+those configurations is dominated by the high CL × dx-shift product.
+
+Implication for the design: the gapped-flap configuration is the more
+promising lever, since it reduces flap chord-wise loading inboard and
+should weaken the wing+flap forward-CP shift that creates the high
+CMy.CG slopes in takeoff and landing.  Numbers TBD from the launched
+gap40 parents (`prj-59c27343`, `prj-e0e11ed5`, `prj-0cd29981`).
