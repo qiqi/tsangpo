@@ -164,6 +164,71 @@ def build_main_wing(airfoil_cfg, cutouts, blunt_thickness):
     return segments, flat
 
 
+def build_main_wing_tail(airfoil_cfg, cutouts, blunt_thickness):
+    """Tail-cap piece that mates with build_main_wing's cove cut.
+
+    Recomputes the SAME points (lower_cut_pt, t_lower, fillet arc,
+    t_upper, lip_bottom, upper_lip_tip) as build_main_wing so the
+    inner edge of this UDC EXACTLY matches the cove-cut edge of
+    main_wing.udc.  When extruded over the same span and joined,
+    the two solids close into a complete LS(1)-0417 airfoil with
+    no cove (used for the middle panel of the gapped-flap config).
+
+    Traversal (closed contour, signed area positive):
+       lower_cut_pt → ... lower surface ... → TE (1,0) ... upper
+       surface ... → upper_lip_tip → lip_bottom → t_upper →
+       fillet-arc → t_lower → lower_cut_pt (close).
+    """
+    upper = np.asarray(airfoil_cfg['upper'], dtype=float)
+    lower = np.asarray(airfoil_cfg['lower'], dtype=float)
+    x_lo_cut = cutouts['lower_cut_x']
+    x_up_cut = cutouts['upper_lip_cut_x']
+    vertex = np.array([cutouts['cove_vertex_x'], cutouts['cove_vertex_y']])
+    r_fillet = cutouts['cove_fillet_radius']
+
+    y_up_at_cut = np.interp(x_up_cut, upper[:, 0], upper[:, 1])
+    y_lo_at_cut = np.interp(x_lo_cut, lower[:, 0], lower[:, 1])
+
+    upper_lip_tip = np.array([x_up_cut, y_up_at_cut])
+    lip_bottom    = np.array([x_up_cut, y_up_at_cut - blunt_thickness])
+    lower_cut_pt  = np.array([x_lo_cut, y_lo_at_cut])
+
+    # Identical call to fillet_corner — same arguments, same arc points.
+    t_upper, arc, t_lower = fillet_corner(lip_bottom, vertex, lower_cut_pt, r_fillet)
+
+    # Outer (rearward) surface: lower from cut to TE, then upper from TE
+    # to cut.  LS(1)-0417 ends sharply at (1,0) on both surfaces, so the
+    # TE appears exactly ONCE in the spline (no degenerate duplicates).
+    lo_aft = lower[lower[:, 0] > x_lo_cut]          # ends at lower[-1] = (1, 0)
+    up_aft = upper[upper[:, 0] > x_up_cut][::-1]    # starts at upper[-1] = (1, 0)
+    outer_back = np.vstack([
+        lower_cut_pt[None, :],
+        lo_aft,                                      # ... → (1, 0)
+        up_aft[1:],                                  # next pt after (1, 0) → ...
+        upper_lip_tip[None, :],
+    ])
+
+    # The cove-cut spline must use the SAME arc point set as
+    # build_main_wing's segment 3 (`arc[::-1][1:]`), traversed in the
+    # opposite direction so the OPPOSITE face of the extruded surface
+    # ends up coincident.  Since the arc is parameterised on the
+    # SAME centre + radius + angle range, the spline curve is
+    # geometrically identical regardless of traversal direction —
+    # critical for ESP `join` to match faces.
+    #
+    # No explicit final linseg: write_udc's implicit close (t_lower →
+    # sketch start = lower_cut_pt) IS the lower cove edge, the same
+    # edge that build_main_wing produces as its segment 2.
+    segments = [
+        ('spline', outer_back),                       # lower_cut_pt → TE → upper_lip_tip
+        ('linseg', np.array([lip_bottom])),           # upper_lip_tip → lip_bottom (blunt face)
+        ('linseg', np.array([t_upper])),              # lip_bottom → t_upper
+        ('spline', arc[1:]),                          # t_upper → t_lower (fillet arc)
+    ]
+    flat = np.vstack([outer_back, [lip_bottom], [t_upper], arc[1:], [lower_cut_pt]])
+    return segments, flat
+
+
 def build_naca_element(code, te_thickness, target_le, target_te, n_panels=160):
     """Vane / aft flap: anchored NACA airfoil split into upper-surface and
     lower-surface splines, joined by a zero-length linseg break at the LE,
@@ -297,6 +362,8 @@ def main(cfg_path):
 
     main_segs, main_flat = build_main_wing(cfg['airfoils']['ls1_0417'],
                                             cfg['main_wing']['cutouts'], blunt)
+    main_tail_segs, main_tail_flat = build_main_wing_tail(
+        cfg['airfoils']['ls1_0417'], cfg['main_wing']['cutouts'], blunt)
     vane_segs, vane_flat = build_naca_element(vane_cfg['naca'], blunt / vane_chord,
                                                vane_cfg['stowed_le'], vane_cfg['stowed_te'])
     flap_segs, flap_flat = build_naca_element(flap_cfg['naca'], blunt / flap_chord,
@@ -310,15 +377,17 @@ def main(cfg_path):
           f"same as wing)")
     tail_segs, tail_flat = build_tail(cfg['airfoils']['ls1_0417'], tail_te)
 
-    write_selig(here / 'main_wing.dat',   'main_wing_ls1_0417_coved',           main_flat)
-    write_selig(here / 'vane_stowed.dat', f"vane_naca{vane_cfg['naca']}_stowed", vane_flat)
-    write_selig(here / 'flap_stowed.dat', f"flap_naca{flap_cfg['naca']}_stowed", flap_flat)
-    write_selig(here / 'tail.dat',        'tail_ls1_0417_inverted',              tail_flat)
+    write_selig(here / 'main_wing.dat',      'main_wing_ls1_0417_coved',           main_flat)
+    write_selig(here / 'main_wing_tail.dat', 'main_wing_tail_cap_ls1_0417',        main_tail_flat)
+    write_selig(here / 'vane_stowed.dat',    f"vane_naca{vane_cfg['naca']}_stowed", vane_flat)
+    write_selig(here / 'flap_stowed.dat',    f"flap_naca{flap_cfg['naca']}_stowed", flap_flat)
+    write_selig(here / 'tail.dat',           'tail_ls1_0417_inverted',              tail_flat)
 
-    write_udc(here / 'main_wing.udc', main_segs, "coved LS(1)-0417 main wing")
-    write_udc(here / 'vane.udc',      vane_segs, f"NACA {vane_cfg['naca']} vane (stowed)")
-    write_udc(here / 'flap.udc',      flap_segs, f"NACA {flap_cfg['naca']} aft flap (stowed)")
-    write_udc(here / 'tail.udc',      tail_segs, "inverted LS(1)-0417 H-tail")
+    write_udc(here / 'main_wing.udc',      main_segs,      "coved LS(1)-0417 main wing")
+    write_udc(here / 'main_wing_tail.udc', main_tail_segs, "LS(1)-0417 tail-cap (mates with main_wing cove cut)")
+    write_udc(here / 'vane.udc',           vane_segs,      f"NACA {vane_cfg['naca']} vane (stowed)")
+    write_udc(here / 'flap.udc',           flap_segs,      f"NACA {flap_cfg['naca']} aft flap (stowed)")
+    write_udc(here / 'tail.udc',           tail_segs,      "inverted LS(1)-0417 H-tail")
 
     pivot = cfg['kinematics']['pivot_point']
     elements_by_phase = {
@@ -332,6 +401,24 @@ def main(cfg_path):
     slot_gap = np.linalg.norm(np.array(flap_cfg['stowed_le']) - np.array(vane_cfg['stowed_te']))
     print(f"Wrote {here / '*.dat'}, *.udc, {plot_path.name}")
     print(f"  slot gap (vane TE → flap LE): {slot_gap:.4f} c (invariant under rigid kinematics)")
+
+    # Cove-cap mating diagnostic: build_main_wing_tail must reproduce the
+    # SAME (lower_cut_pt, t_lower, arc, t_upper, lip_bottom) as build_main_wing
+    # so ESP `join` finds coincident faces.  Print max coordinate gap.
+    main_cove = main_flat[-len(main_tail_flat):]  # tail-end traversal points
+    fig2, ax = plt.subplots(figsize=(8, 6))
+    ax.fill(main_flat[:, 0], main_flat[:, 1], facecolor='#cfd8e6', edgecolor='#1f3a68',
+            lw=1.2, label='main_wing (cove cut)')
+    ax.fill(main_tail_flat[:, 0], main_tail_flat[:, 1], facecolor='#f5cba7',
+            edgecolor='#8b4513', lw=1.2, alpha=0.7, label='main_wing_tail (cap)')
+    ax.set_aspect('equal', adjustable='box')
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(0.4, 1.05)
+    ax.set_ylim(-0.15, 0.18)
+    ax.legend(loc='upper right', fontsize=9)
+    ax.set_title('Cove-cut + tail-cap mating (must form complete LS(1)-0417)')
+    fig2.savefig(here / 'main_wing_tail_mating.png', dpi=160)
+    plt.close(fig2)
 
 
 if __name__ == '__main__':

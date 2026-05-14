@@ -15,8 +15,16 @@ Tight-iter settings inherited from v1: parent gets 1000 pseudo iters
 
 ## Cruise v2
 
-- **Project**: `prj-ee96bbf8-0d42-442b-ab25-c16e64a618c0` (`tsangpo_v2_cruise`)
-- **Parent** (α=+7°, θ_ht=0°, T_mult=+1, V=45.72 m/s, level flight): `case-14183aea-be39-4982-ac36-507a1eeb6c39`
+- **Project**: `prj-16082511-6d6a-447e-8c54-828d476c0a85` (`tsangpo_v2_cruise`) — LIVE.
+  (`prj-ee96bbf8…` was BROKEN_CSM (binary-+ in CSM `set`).  `prj-d90a26cf…` was
+  BROKEN2_plus_op (renaming attempt).  `prj-29352296…` was BROKEN3_enclosed_missing
+  (legacy mesher needed `enclosed_entities=[htail_surf]`). All three are tagged
+  `*_BROKEN*` in the 5_v2 folder and kept for forensics.)
+- **Parent** (α=+7°, θ_ht=0°, T_mult=+1, V=45.72 m/s, level flight): `case-e30a9610-248f-40af-aa9f-9f30846c419d`
+  - Verified: htail surface = `htail_pitch_zone/htail` (not `farfield/htail`).
+    main_wing CL=+0.929, htail CL=+0.0004, htail CMy_CG=+0.029 (θ_ht=0).
+
+_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
 
 | sweep | values | case IDs |
 |---|---|---|
@@ -29,9 +37,13 @@ by all three sweeps via Flow360 dedup.
 
 ## Takeoff v2
 
-- **Project**: `prj-fd35217f-4135-4062-84d7-9bf55b8d6222` (`tsangpo_v2_takeoff_coarse`)
-- **Parent** (α=+8°, θ_ht=−5°, T_mult=+16, V=18 m/s, γ=+30°, phase-1 flap): `case-b196ff81-630c-4d2d-aab7-ce6a2753b1ec`
+- **Project**: `prj-9cd3ad10-ea47-41d9-9e33-0096fc30d6c1` (`tsangpo_v2_takeoff_coarse`) — LIVE
+  (BROKEN siblings: `prj-fd35217f…`, `prj-2e8dff30…`, `prj-efe82f5a…`).
+- **Parent** (α=+8°, θ_ht=−5°, T_mult=+16, V=18 m/s, γ=+30°, phase-1 flap): `case-118aced8-e380-45a5-b374-04a303f1802a`
+  - Verified: htail CL=−0.517, htail CMy_CG=+1.995 (big pitch-up at θ_ht=−5°).
 - **Note**: htail sweep extended from v1's (−12..+9) to **(−15..+30)** to bracket positive-deflection unstall territory.
+
+_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
 
 | sweep | values | case IDs |
 |---|---|---|
@@ -43,9 +55,12 @@ by all three sweeps via Flow360 dedup.
 
 ## Landing v2
 
-- **Project**: `prj-c5e371dc-fc34-448e-8953-9785f3d218f4` (`tsangpo_v2_landing_coarse`)
-- **Parent** (α=+8°, θ_ht=−6°, T_mult=+12, V=12.86 m/s, γ=−30°, phase-2 flap): `case-bc31e4f2-890b-4827-88eb-08d142c76d9a`
+- **Project**: `prj-e7dc7d6d-4baf-4101-8818-1173da5a359a` (`tsangpo_v2_landing_coarse`) — LIVE
+  (BROKEN siblings: `prj-c5e371dc…`, `prj-7db5be94…`, `prj-619b0dbf…`).
+- **Parent** (α=+8°, θ_ht=−6°, T_mult=+12, V=12.86 m/s, γ=−30°, phase-2 flap): `case-fed9edf1-681b…` (RUNNING as of 2026-05-14)
 - **Note**: htail sweep extended dramatically from v1's (−15..+12) to **(−10..+50)** to find the unstalled region; v1 analysis showed the entire sweep range was inside the stalled regime due to ~−45° downwash from wing+flap.
+
+_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
 
 | sweep | values | case IDs |
 |---|---|---|
