@@ -56,11 +56,71 @@ def set_csm_phase(inlined: str, phase: int) -> str:
     return new
 
 
+def set_csm_despmtrs(inlined: str, **kwargs) -> str:
+    """Override one or more `despmtr <name> <value>` defaults in an
+    inlined .csm string.  Each name must already exist as a despmtr in
+    the .csm; raises if any name has zero or multiple matches.  Use for
+    gapped-flap config:
+        set_csm_despmtrs(inlined, gap_fraction=0.40,
+                         mid_outer_semispan=0.39,
+                         flap_panel_frac=0.55,
+                         side_span_frac=0.60)
+    """
+    for name, value in kwargs.items():
+        pat = rf"(despmtr\s+{re.escape(name)}\s+)[-\d.eE+]+\b"
+        inlined, n = re.subn(pat, rf"\g<1>{value}", inlined, count=1)
+        if n != 1:
+            raise ValueError(
+                f"expected exactly 1 substitution for despmtr {name!r}, got {n}"
+            )
+    return inlined
+
+
 def get_geometry_surfaces(project):
-    """Return (main_wing, vane, aft_flap, htail) Surface objects."""
+    """Return (main_wing, vane, aft_flap, htail) Surface objects.
+    Continuous-flap (gap_fraction=0) geometry."""
     geo = project.geometry
     geo.group_faces_by_tag("capsGroup")
     return geo["main_wing"], geo["vane"], geo["aft_flap"], geo["htail"]
+
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class SurfaceBundle:
+    """All capsGroup-tagged aircraft surfaces, grouped by role.  Each
+    `wing_*_surfs` is a list of length 1 (continuous-flap config) or 2-3
+    (gapped-flap config).  `build_params` accepts EITHER a SurfaceBundle
+    or the legacy 4-tuple."""
+    wing_main_surfs: list
+    wing_vane_surfs: list
+    wing_flap_surfs: list
+    htail_surf:      object
+
+    @property
+    def wing_system_surfs(self):
+        return self.wing_main_surfs + self.wing_vane_surfs + self.wing_flap_surfs
+
+    @property
+    def all_surfs(self):
+        return self.wing_system_surfs + [self.htail_surf]
+
+
+def get_gapped_geometry_surfaces(project):
+    """SurfaceBundle for the gapped-flap config (gap_fraction>0 in tsangpo.csm).
+    The main wing is three pieces (left/mid/right); vane and aft_flap are
+    each two pieces (left/right); htail is unchanged."""
+    geo = project.geometry
+    geo.group_faces_by_tag("capsGroup")
+    return SurfaceBundle(
+        wing_main_surfs=[geo["main_wing_left"],
+                         geo["main_wing_mid"],
+                         geo["main_wing_right"]],
+        wing_vane_surfs=[geo["vane_left"],  geo["vane_right"]],
+        wing_flap_surfs=[geo["aft_flap_left"], geo["aft_flap_right"]],
+        htail_surf=geo["htail"],
+    )
 
 
 # Tsangpo folder hierarchy on Flow360 (`Tsangpo/<config_num>_<descr>/`).
@@ -128,8 +188,14 @@ def build_params(
     Thrust is clamped to a tiny positive value when `thrust_mult=0`,
     because `fl.ForcePerArea.thrust` rejects exact zero.
     """
-    main_wing_surf, vane_surf, aft_flap_surf, htail_surf = surfaces
-    all_surfs = list(surfaces)
+    if isinstance(surfaces, SurfaceBundle):
+        wing_system_surfs = surfaces.wing_system_surfs
+        htail_surf = surfaces.htail_surf
+        all_surfs = surfaces.all_surfs
+    else:
+        main_wing_surf, vane_surf, aft_flap_surf, htail_surf = surfaces
+        wing_system_surfs = [main_wing_surf, vane_surf, aft_flap_surf]
+        all_surfs = list(surfaces)
 
     mult  = max(thrust_mult, 1e-4)
     fpa   = mult * FPA_CRUISE_PA
@@ -208,8 +274,7 @@ def build_params(
                     farfield,
                     fl.RotationVolume(
                         name="ac_rotation", entities=ac_cyl,
-                        enclosed_entities=[main_wing_surf, vane_surf,
-                                           aft_flap_surf, ht_cyl],
+                        enclosed_entities=wing_system_surfs + [ht_cyl],
                         spacing_axial=0.30 * fl.u.m,
                         spacing_radial=0.15 * fl.u.m,
                         spacing_circumferential=0.15 * fl.u.m,
