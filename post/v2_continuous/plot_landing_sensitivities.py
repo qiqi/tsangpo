@@ -31,11 +31,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import params as P
 
-OUT = REPO / "post" / "out"
+OUT = REPO / "post" / "out" / "v2_continuous"
 OUT.mkdir(exist_ok=True)
 
 PROJECT_ID     = "prj-e7dc7d6d-4baf-4101-8818-1173da5a359a"   # tsangpo_v2_landing_coarse
@@ -83,7 +83,7 @@ THRUST_CASES = [
     (30.0,"case-d1077fe0-7c79-47cc-8a05-d1049285132b"),
 ]
 
-CSV_PATH = OUT / "landing_v2_sweep_data.csv"
+CSV_PATH = OUT / "landing_sweep_data.csv"
 
 qS         = P.Q_LANDING_PA * P.WING_AREA_M2
 qSc        = qS * P.WING_MAC_M
@@ -245,9 +245,9 @@ def main():
                  f"— BO baseline α=+8°, θ_ht=−6°, T_mult=+12 — "
                  f"V={P.V_LANDING_M_S} m/s, γ={P.DESCENT_ANGLE_DEG:+.0f}°",
                  fontsize=11, y=0.995)
-    fig.savefig(OUT / "landing_v2_sensitivities.png", dpi=160)
+    fig.savefig(OUT / "landing_sensitivities.png", dpi=160)
     plt.close(fig)
-    print(f"Wrote {OUT / 'landing_v2_sensitivities.png'}")
+    print(f"Wrote {OUT / 'landing_sensitivities.png'}")
 
     # Thrust-balance plot --------------------------------------------------
     fig2, ax = plt.subplots(1, 1, figsize=(7, 5))
@@ -279,9 +279,9 @@ def main():
                         xytext=(8, 0), textcoords="offset points",
                         fontsize=9, color="C2")
     fig2.tight_layout()
-    fig2.savefig(OUT / "landing_v2_thrust_balance.png", dpi=160)
+    fig2.savefig(OUT / "landing_thrust_balance.png", dpi=160)
     plt.close(fig2)
-    print(f"Wrote {OUT / 'landing_v2_thrust_balance.png'}")
+    print(f"Wrote {OUT / 'landing_thrust_balance.png'}")
 
     # 3×3 trim solve -------------------------------------------------------
     def baseline_of(arr, x, x0):

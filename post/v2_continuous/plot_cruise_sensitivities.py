@@ -9,8 +9,8 @@ to `plot_sweep_sensitivities.py`.  Same structure; differences:
     and we had to translate down to the assumed CG at z=-0.4c).
   • KEEPS the `-0.1·CT_delivered` thrust contribution (thrust line is
     0.1 c above CG in v2, same as v1's assumed CG).
-  • Outputs to `cruise_v2_sweep_data.csv` / `cruise_v2_sensitivities.png`
-    / `cruise_v2_thrust_balance.png` so v1 outputs stay intact.
+  • Outputs to `cruise_sweep_data.csv` / `cruise_sensitivities.png`
+    / `cruise_thrust_balance.png` so v1 outputs stay intact.
 
 Geometry-v2 reference commit: a3b1d86.
 
@@ -27,11 +27,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import params as P
 
-OUT = REPO / "post" / "out"
+OUT = REPO / "post" / "out" / "v2_continuous"
 OUT.mkdir(exist_ok=True)
 
 # Live v2 cruise project — commit e8d7c63 (legacy mesher + enclosed_entities fix).
@@ -75,7 +75,7 @@ THRUST_CASES = [
     (3.00, "case-cbcf5285-6fdb-4680-8af3-84a039ab95f4"),
 ]
 
-CSV_PATH = OUT / "cruise_v2_sweep_data.csv"
+CSV_PATH = OUT / "cruise_sweep_data.csv"
 qS        = 0.5 * P.RHO_CRUISE_KG_M3 * P.V_CRUISE_M_S ** 2 * P.WING_AREA_M2
 rho_a2_L2 = P.RHO_CRUISE_KG_M3 * P.A_SOUND_CRUISE_M_S ** 2 * 1.0 ** 2
 
@@ -221,9 +221,9 @@ def main():
     fig.suptitle("Tsangpo v2 CRUISE calibration sweeps (geometry commit a3b1d86)  "
                  "— BO α=+7°, V=45.72 m/s, level flight",
                  fontsize=11, y=0.995)
-    fig.savefig(OUT / "cruise_v2_sensitivities.png", dpi=160)
+    fig.savefig(OUT / "cruise_sensitivities.png", dpi=160)
     plt.close(fig)
-    print(f"Wrote {OUT / 'cruise_v2_sensitivities.png'}")
+    print(f"Wrote {OUT / 'cruise_sensitivities.png'}")
 
     # Thrust-balance plot --------------------------------------------------
     fig2, ax = plt.subplots(1, 1, figsize=(7, 5))
@@ -251,9 +251,9 @@ def main():
                         xytext=(8, 0), textcoords="offset points",
                         fontsize=9, color="C2")
     fig2.tight_layout()
-    fig2.savefig(OUT / "cruise_v2_thrust_balance.png", dpi=160)
+    fig2.savefig(OUT / "cruise_thrust_balance.png", dpi=160)
     plt.close(fig2)
-    print(f"Wrote {OUT / 'cruise_v2_thrust_balance.png'}")
+    print(f"Wrote {OUT / 'cruise_thrust_balance.png'}")
 
     # Trim solve -----------------------------------------------------------
     # Cruise (γ=0): CL = W/qS, CMy_CG = 0, CFx = CT_delivered

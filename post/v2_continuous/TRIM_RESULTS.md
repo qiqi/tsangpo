@@ -8,11 +8,11 @@ moment_center is at the CG in v2 geometry, so the v1 `+0.4·CFx` shift
 is dropped.
 
 Reproduce:
-    python3 post/plot_cruise_v2_sensitivities.py
-    python3 post/plot_takeoff_v2_sensitivities.py
-    python3 post/plot_landing_v2_sensitivities.py
+    python3 post/v2_continuous/plot_cruise_sensitivities.py
+    python3 post/v2_continuous/plot_takeoff_sensitivities.py
+    python3 post/v2_continuous/plot_landing_sensitivities.py
 
-Source data: `post/out/{cruise,takeoff,landing}_v2_sweep_data.csv`.
+Source data: `post/out/v2_continuous/{cruise,takeoff,landing}_sweep_data.csv`.
 
 ## Cruise v2 (V=45.72 m/s, level, ρ=cruise)
 

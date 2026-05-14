@@ -34,11 +34,11 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 import params as P
 
-OUT = REPO / "post" / "out"
+OUT = REPO / "post" / "out" / "v2_continuous"   # this study uses continuous-flap CSVs
 
 
 def load_rows(phase: str) -> list[dict]:
-    csvp = OUT / f"{phase}_v2_sweep_data.csv"
+    csvp = OUT / f"{phase}_sweep_data.csv"
     with csvp.open() as f:
         rows = []
         for r in csv.DictReader(f):

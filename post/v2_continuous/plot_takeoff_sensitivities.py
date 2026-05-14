@@ -12,8 +12,8 @@ v2 differences from v1:
     (commit e8d7c63 — legacy mesher + enclosed_entities fix).
   * DROPS the `+0.4·CFx` CMy_CG shift (v2 origin IS the CG).
   * KEEPS the `-0.1·CT_delivered` thrust contribution.
-  * Outputs to `takeoff_v2_sweep_data.csv` / `takeoff_v2_sensitivities.png` /
-    `takeoff_v2_thrust_balance.png` so v1 outputs stay intact.
+  * Outputs to `takeoff_sweep_data.csv` / `takeoff_sensitivities.png` /
+    `takeoff_thrust_balance.png` so v1 outputs stay intact.
 
 Geometry-v2 reference commit: a3b1d86.
 
@@ -31,11 +31,11 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import params as P
 
-OUT = REPO / "post" / "out"
+OUT = REPO / "post" / "out" / "v2_continuous"
 OUT.mkdir(exist_ok=True)
 
 PROJECT_ID     = "prj-9cd3ad10-ea47-41d9-9e33-0096fc30d6c1"   # tsangpo_v2_takeoff_coarse
@@ -82,7 +82,7 @@ THRUST_CASES = [
     (30.0,"case-58ef4498-23a8-4f6a-b57e-939374ac2ff1"),
 ]
 
-CSV_PATH = OUT / "takeoff_v2_sweep_data.csv"
+CSV_PATH = OUT / "takeoff_sweep_data.csv"
 
 qS         = P.Q_TAKEOFF_PA * P.WING_AREA_M2          # 2109 N
 qSc        = qS * P.WING_MAC_M
@@ -246,9 +246,9 @@ def main():
     fig.suptitle("Tsangpo v2 TAKEOFF (phase-1 flap) calibration sweeps  "
                  "— BO baseline α=+8°, θ_ht=−5°, T_mult=+16 — V=18 m/s, γ=+30°",
                  fontsize=11, y=0.995)
-    fig.savefig(OUT / "takeoff_v2_sensitivities.png", dpi=160)
+    fig.savefig(OUT / "takeoff_sensitivities.png", dpi=160)
     plt.close(fig)
-    print(f"Wrote {OUT / 'takeoff_v2_sensitivities.png'}")
+    print(f"Wrote {OUT / 'takeoff_sensitivities.png'}")
 
     # Thrust-balance plot --------------------------------------------------
     fig2, ax = plt.subplots(1, 1, figsize=(7, 5))
@@ -280,9 +280,9 @@ def main():
                         xytext=(8, 0), textcoords="offset points",
                         fontsize=9, color="C2")
     fig2.tight_layout()
-    fig2.savefig(OUT / "takeoff_v2_thrust_balance.png", dpi=160)
+    fig2.savefig(OUT / "takeoff_thrust_balance.png", dpi=160)
     plt.close(fig2)
-    print(f"Wrote {OUT / 'takeoff_v2_thrust_balance.png'}")
+    print(f"Wrote {OUT / 'takeoff_thrust_balance.png'}")
 
     # 3×3 trim solve -------------------------------------------------------
     def baseline_of(arr, x, x0):
