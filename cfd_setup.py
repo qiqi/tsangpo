@@ -177,6 +177,7 @@ def build_params(
     geometry_accuracy_m:       float | None = None,
     surface_max_edge_length_m: float = 0.075,
     curvature_resolution_deg:  float | None = None,
+    htail_z_m:                 float = P.Z_TAIL_LOW_M,
 ):
     """Build a SimulationParams for one (α_body, θ_htail, T_mult) point.
 
@@ -184,6 +185,11 @@ def build_params(
     `geometry_accuracy_m=None`  → regular beta mesher.
     `geometry_accuracy_m=value` → GAI mesh at that resolution with
     preserve_thin_geometry + resolve_face_boundaries.
+    `htail_z_m` MUST match the htail's vertical position in the .csm
+    (e.g. P.Z_TAIL_LOW_M for the default low-htail geometry,
+    P.Z_TAIL_HIGH_M for the high-htail geometry).  The cylinder's z
+    centre lines up with the htail span so the rotation zone wraps the
+    htail correctly.
 
     Thrust is clamped to a tiny positive value when `thrust_mult=0`,
     because `fl.ForcePerArea.thrust` rejects exact zero.
@@ -210,10 +216,13 @@ def build_params(
             height=AC_HEIGHT_M * fl.u.m, outer_radius=AC_RADIUS_M * fl.u.m,
         )
         # In v2 geometry the origin is the CG and the htail's absolute z is
-        # P.WING_Z_M + P.Z_TAIL_LOW_CHORDS · MAC (= +0.4 c for low, +2.9 c for high).
+        # P.WING_Z_M + Z_TAIL_*_CHORDS · MAC.  For low-htail = +0.4 c (in the
+        # wing chord plane), high-htail = +1.9 c (1.5 c above the wing).
+        # The submit script passes the appropriate htail_z_m so the rotation
+        # cylinder follows the geometry's htail.
         ht_cyl = fl.Cylinder(
             name="htail_pitch_zone",
-            center=(P.X_TAIL_DEFAULT_M, 0, P.Z_TAIL_LOW_M) * fl.u.m,
+            center=(P.X_TAIL_DEFAULT_M, 0, htail_z_m) * fl.u.m,
             axis=(0, 1, 0),
             height=HT_HEIGHT_M * fl.u.m, outer_radius=HT_RADIUS_M * fl.u.m,
         )

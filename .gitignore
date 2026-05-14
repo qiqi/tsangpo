@@ -21,3 +21,5 @@ serveCSM.log
 .DS_Store
 .idea/
 .vscode/
+geometry/out_high_htail/
+geometry/out_gapped_high_htail/

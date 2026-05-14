@@ -76,12 +76,12 @@ HTAIL_AR          = HTAIL_SPAN_M / HTAIL_CHORD_M       # ≈ 3.2 (was 4.5)
 HTAIL_MAC_M       = HTAIL_CHORD_M
 
 # H-tail position: LE at 4 c_wing aft of wing LE; low htail in the wing
-# chord plane, high htail 2.5 c above the wing chord plane.
+# chord plane, high htail 1.5 c above the wing chord plane.
 X_TAIL_LE_M       = WING_X_LE_M + 4.0 * WING_MAC_M      # = +3.5 c_w
 X_TAIL_CQUARTER_M = X_TAIL_LE_M + 0.25 * HTAIL_CHORD_M  # = +3.75 c_w
 X_TAIL_DEFAULT_M  = X_TAIL_CQUARTER_M                   # for CFD use
 Z_TAIL_LOW_CHORDS = 0.0                                 # offset above wing plane (= absolute +0.4 c)
-Z_TAIL_HIGH_CHORDS = 2.5                                # offset above wing plane (= absolute +2.9 c)
+Z_TAIL_HIGH_CHORDS = 1.5                                # offset above wing plane (= absolute +1.9 c)
 Z_TAIL_LOW_M      = WING_Z_M + Z_TAIL_LOW_CHORDS  * WING_MAC_M
 Z_TAIL_HIGH_M     = WING_Z_M + Z_TAIL_HIGH_CHORDS * WING_MAC_M
 
