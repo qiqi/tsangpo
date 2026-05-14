@@ -140,6 +140,8 @@ def by_sweep(rows: list[dict], name: str, qS: float):
 
 
 def fit_linear(x, y, mask):
+    if mask.sum() < 2:
+        return float("nan"), float("nan")
     slope, intercept = np.polyfit(x[mask], y[mask], 1)
     return float(slope), float(intercept)
 
@@ -208,12 +210,12 @@ def _plot_sensitivities(spec: PhaseSpec, a, da, h, dh, t, dt,
                 ax.plot(x[~mask], y[~mask], "x", color="C7", ms=7,
                         label="stalled/saturated")
             ax.set(xlabel=xlabel, ylabel=ylabel); ax.grid(True, alpha=0.3)
-            if mask.sum() >= 2:
-                slope, icpt = fit_linear(x, y, mask)
+            slope, icpt = fit_linear(x, y, mask)
+            if np.isfinite(slope):
                 xx = np.linspace(x[mask].min(), x[mask].max(), 50)
                 ax.plot(xx, icpt + slope * xx, "--", color="C3", lw=0.9,
                         alpha=0.7, label=f"slope = {slope:+.4f}")
-                ax.legend(fontsize=7, loc="best", framealpha=0.85)
+            ax.legend(fontsize=7, loc="best", framealpha=0.85)
             if col == 0:
                 ax.set_title(title, loc="left", fontsize=9, pad=8)
     fig.suptitle(spec.title, fontsize=11, y=0.995)
@@ -284,12 +286,13 @@ def run(spec: PhaseSpec, refresh: bool = False):
     h, dh = by_sweep(rows, "htail",  spec.qS)
     t, dt = by_sweep(rows, "thrust", spec.qS)
     Ma, Mh, Mt = spec.mask_alpha(a), spec.mask_htail(h), spec.mask_thrust(t)
-    for label, mask in (("alpha", Ma), ("htail", Mh), ("thrust", Mt)):
-        if mask.sum() < 2:
-            print(f"Insufficient {label} data in fit range "
-                  f"({mask.sum()} point{'s' if mask.sum()!=1 else ''} after mask). "
-                  f"Re-run with --refresh once more sweep cases complete.")
-            return
+    fittable = {label: mask.sum() >= 2
+                for label, mask in (("alpha", Ma), ("htail", Mh), ("thrust", Mt))}
+    for label, ok in fittable.items():
+        if not ok:
+            print(f"Skipping {label} fit — only "
+                  f"{ {'alpha':Ma,'htail':Mh,'thrust':Mt}[label].sum()} "
+                  f"point in fit range; plot will show data only.")
 
     sens = {
         "dCL/dα":     fit_linear(a, da["CL"],     Ma)[0],
@@ -313,4 +316,8 @@ def run(spec: PhaseSpec, refresh: bool = False):
                         spec.out_dir / f"{spec.phase_name}_sensitivities.png")
     _plot_thrust_balance(spec, t, dt,
                          spec.out_dir / f"{spec.phase_name}_thrust_balance.png")
-    _solve_trim(spec, a, da, t, dt, sens)
+    if all(fittable.values()) and all(np.isfinite(v) for v in sens.values()):
+        _solve_trim(spec, a, da, t, dt, sens)
+    else:
+        print("\nTrim solve skipped — one or more sensitivity slopes is NaN "
+              "(sparse data).  Re-run with --refresh once more forks land.")
