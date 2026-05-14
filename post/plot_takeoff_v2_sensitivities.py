@@ -186,19 +186,25 @@ def main():
     h, dh = by_sweep(rows, "htail")
     t, dt = by_sweep(rows, "thrust")
 
-    # Pre-stall mask for the alpha fit — CL flattens after ~+14° in v1; check.
-    mask_lin = a <= 11.0
+    # Linear-regime masks — exclude stalled/saturated points.
+    #  * Wing: CL flattens past α ≈ +11° (peak at α ≈ +25°, then drops).
+    #  * H-tail: wing+flap downwash ≈ -45° puts the htail into stall for
+    #    θ_ht ≤ -5°; over-the-top stall around θ_ht > +25°.
+    #  * Thrust: CMy slope reverses sign past T_mult > +22.
+    mask_a = a <= 11.0
+    mask_h = (h >= 0.0) & (h <= 25.0)
+    mask_t = t <= 22.0
     sens = {
-        "dCL/dα   [/deg]":   fit_linear(a, da["CL"],     mask_lin)[0],
-        "dCD/dα   [/deg]":   fit_linear(a, da["CD"],     mask_lin)[0],
-        "dCMy/dα  [/deg]":   fit_linear(a, da["CMy_CG"], mask_lin)[0],
-        "dCL/dθ_h [/deg]":   fit_linear(h, dh["CL"])[0],
-        "dCD/dθ_h [/deg]":   fit_linear(h, dh["CD"])[0],
-        "dCMy/dθ_h [/deg]":  fit_linear(h, dh["CMy_CG"])[0],
-        "dCL/dT_m  [/unit]": fit_linear(t, dt["CL"])[0],
-        "dCD/dT_m  [/unit]": fit_linear(t, dt["CD"])[0],
-        "dCMy/dT_m [/unit]": fit_linear(t, dt["CMy_CG"])[0],
-        "dCT_del/dT_m [/unit]": fit_linear(t, dt["CT_delivered"])[0],
+        "dCL/dα   [/deg]":   fit_linear(a, da["CL"],     mask_a)[0],
+        "dCD/dα   [/deg]":   fit_linear(a, da["CD"],     mask_a)[0],
+        "dCMy/dα  [/deg]":   fit_linear(a, da["CMy_CG"], mask_a)[0],
+        "dCL/dθ_h [/deg]":   fit_linear(h, dh["CL"],     mask_h)[0],
+        "dCD/dθ_h [/deg]":   fit_linear(h, dh["CD"],     mask_h)[0],
+        "dCMy/dθ_h [/deg]":  fit_linear(h, dh["CMy_CG"], mask_h)[0],
+        "dCL/dT_m  [/unit]": fit_linear(t, dt["CL"],     mask_t)[0],
+        "dCD/dT_m  [/unit]": fit_linear(t, dt["CD"],     mask_t)[0],
+        "dCMy/dT_m [/unit]": fit_linear(t, dt["CMy_CG"], mask_t)[0],
+        "dCT_del/dT_m [/unit]": fit_linear(t, dt["CT_delivered"], mask_t)[0],
     }
     print('\n=== Takeoff v2 sensitivities (about α=+8°, θ_ht=-5°, T_mult=+16) ===')
     for k, v in sens.items():
@@ -218,17 +224,20 @@ def main():
     ]
     cols = [("CL", r"$C_L$"), ("CD", r"$C_D$"),
             ("CMy_CG", r"$C_{m,y}$  (about CG, incl. thrust)")]
+    sweep_masks = {"alpha": mask_a, "htail": mask_h, "thrust": mask_t}
     for row, (name, x, data, xlabel, title) in enumerate(sweeps):
         for col, (key, ylabel) in enumerate(cols):
             ax = axes[row, col]
             y = data[key]
-            ax.plot(x, y, "o-", color="C0", lw=1.4, mfc="white", ms=6)
+            mask = sweep_masks[name]
+            ax.plot(x[ mask], y[ mask], "o-", color="C0", lw=1.4, mfc="white", ms=6, label="fit pts")
+            if (~mask).any():
+                ax.plot(x[~mask], y[~mask], "x", color="C7", ms=7, label="stalled / saturated")
             ax.set_xlabel(xlabel); ax.set_ylabel(ylabel)
             ax.grid(True, alpha=0.3)
-            mask = x <= 11.0 if name == "alpha" else np.ones_like(x, dtype=bool)
             if mask.sum() >= 2:
                 slope, icpt = fit_linear(x, y, mask)
-                xx = np.linspace(x.min(), x.max(), 50)
+                xx = np.linspace(x[mask].min(), x[mask].max(), 50)
                 ax.plot(xx, icpt + slope * xx, "--", color="C3", lw=0.9, alpha=0.7,
                         label=f"slope = {slope:+.4f}")
                 ax.legend(fontsize=7, loc="best", framealpha=0.85)
