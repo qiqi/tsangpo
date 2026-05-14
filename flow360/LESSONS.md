@@ -185,33 +185,44 @@ Last reviewed: 2026-05-13 — SDK v25.9.x.
   cruise campaign was re-submitted as a non-GAI run
   (`submit_cruise_trim_campaign.py`).
 
-- **OpenCSM (.csm) `set` expressions misparse when a 3-operand RHS
-  mentions an identifier sharing a *prefix* with the LHS.**
-  Reproduced in the v2 geometry first cut (commit a3b1d86): the line
+- **OpenCSM (.csm) `set` expressions silently produce wrong values
+  when binary `+` connects two NAMED variables on the RHS.**
+
+  Discovered while building the v2 geometry.  First the line
 
       set X_tail_LE  wing_x_LE + X_tail_LE_chords*MAC
 
-  silently collapsed to `wing_x_LE` (i.e., the `X_tail_LE_chords*MAC`
-  term evaluated to 0).  Hypothesis: the parser greedy-matches
-  `X_tail_LE` as the LHS identifier when it appears inside `X_tail_LE_chords`,
-  treats the LHS as not-yet-defined → 0, and then stops the
-  identifier scan at `_chords*MAC`.  Result: the htail body was
-  meshed at the WING position (vm-893503b7, x ∈ [-0.692, +0.641]
-  instead of [+4.844, +6.228]).  Caught via the per-surface bounding
-  box check on the volume mesh; `farfield/htail` instead of
-  `htail_pitch_zone/htail` in surface_forces was the smoking gun.
-
-  Workaround (sibling commit, see git log for details): rename the
-  set variable so its name is not a prefix of any despmtr — AND
-  split the 3-operand RHS into two 2-operand `set` lines.  Both
-  prevent the misparse.  Pseudocode:
+  silently evaluated to `wing_x_LE` (= -0.692 m).  Both renaming
+  (to `htail_x_LE` to remove the prefix-overlap with the despmtr
+  `X_tail_LE_chords`) AND splitting into two 2-operand `set` lines
 
       set htail_x_offset  X_tail_LE_chords*MAC
       set htail_x_LE      wing_x_LE + htail_x_offset
 
-  Lesson: when authoring `.csm` files, never let a `set` LHS identifier
-  share a leading substring with any other identifier on the RHS,
-  and prefer 2-operand steps over multi-operand expressions.
+  still produced the same wrong answer.  Diagnostic: the htail body
+  was meshed AT THE WING X-RANGE (vm-893503b7 and again vm-30344586,
+  x ∈ [-0.692, +0.641] instead of [+4.844, +6.228]); the htail
+  appeared as `farfield/htail` in surface_forces instead of
+  `htail_pitch_zone/htail` — the latter is the smoking gun.
+
+  Eliminating the binary `+` entirely cleared it.  Final form
+  (commit-sibling — see git log):
+
+      despmtr   htail_LE_chords   3.5        # absolute x from CG in chord units
+      set       htail_x_LE        htail_LE_chords * MAC
+
+  i.e., express the htail position as a single multiplication
+  rather than a sum of two named values.
+
+  The original v1 CSM had a `set flap_panel  flap_y_out - flap_y_in`
+  line that LOOKS like binary `-` between two named vars and would
+  hit the same parser issue — but that branch (`gap_fraction > 0`)
+  was never exercised in any v1 case, so the bug stayed latent.
+
+  **Lesson: in `.csm` files, never combine two NAMED variables with
+  binary `+` or `-` inside a `set` expression.  Pre-fold the
+  arithmetic into despmtr defaults or restructure to a single
+  multiplication.**
 
 ## Open / unverified
 

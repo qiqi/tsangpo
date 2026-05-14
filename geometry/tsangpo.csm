@@ -74,26 +74,25 @@ set       flap_panel       flap_y_out-flap_y_in
 # ----- H-tail (v2: bigger, longer arm) -------------------------------
 despmtr   htail_span_frac   0.40        # was 0.35
 despmtr   htail_chord_frac  1.00        # c_htail = c_wing  (was ~0.62)
-despmtr   X_tail_LE_chords  4.0         # htail LE 4 c_wing aft of wing LE
-despmtr   Z_tail_chords     0.0         # 0 = low (in wing chord plane), 2.5 = high
+# Htail LE position is expressed as ABSOLUTE chord-fractional offsets
+# from the CG (origin), NOT as "wing-LE plus a delta".  An earlier
+# version of this file expressed it as `wing_x_LE + X_tail_LE_chords*MAC`,
+# but OpenCSM's `set` expression parser silently mis-evaluates binary
+# `+` between two named variables — the wing-frame expression
+# collapsed to `wing_x_LE` (= -0.692 m) and the htail body ended up
+# meshed ON TOP OF the wing.  See flow360/LESSONS.md.  Using absolute
+# chord positions sidesteps the parser issue (only `*` remains).
+# 3.5 = -0.5 (wing LE relative to CG) + 4.0 (htail LE aft of wing LE).
+# 0.4 = wing z relative to CG (low htail in wing plane); +2.5 for high.
+despmtr   htail_LE_chords   3.5         # htail LE absolute x in CG frame
+despmtr   htail_z_chords    0.4         # htail z absolute in CG frame
 
 set       htail_span       htail_span_frac*wing_span
 set       htail_semispan   htail_span/2
 set       htail_chord      htail_chord_frac*wing_chord
 set       htail_area       htail_span*htail_chord
-# OpenCSM gotcha: a `set` whose RHS combines THREE operands plus
-# happens to mention an identifier sharing a prefix with the LHS
-# silently produces wrong values.  In the first cut of this file the
-# set var was `X_tail_LE` and the despmtr was `X_tail_LE_chords`; the
-# expression `wing_x_LE + X_tail_LE_chords*MAC` collapsed to wing_x_LE
-# (= -0.692 m) — htail ended up MESHED ON TOP OF THE WING (verified on
-# vm-893503b7 — htail x range [-0.692, +0.641]).  Fix: rename the set
-# variables to break the prefix overlap AND split the expression into
-# two 2-operand steps.
-set       htail_x_offset   X_tail_LE_chords*MAC
-set       htail_z_offset   Z_tail_chords*MAC
-set       htail_x_LE       wing_x_LE + htail_x_offset
-set       htail_z_root     wing_z    + htail_z_offset
+set       htail_x_LE       htail_LE_chords*MAC
+set       htail_z_root     htail_z_chords*MAC
 
 # =====================================================================
 # BUILD — each lifting element is built from a closed planar sketch
