@@ -81,8 +81,19 @@ set       htail_span       htail_span_frac*wing_span
 set       htail_semispan   htail_span/2
 set       htail_chord      htail_chord_frac*wing_chord
 set       htail_area       htail_span*htail_chord
-set       X_tail_LE        wing_x_LE + X_tail_LE_chords*MAC
-set       Z_tail           wing_z    + Z_tail_chords*MAC
+# OpenCSM gotcha: a `set` whose RHS combines THREE operands plus
+# happens to mention an identifier sharing a prefix with the LHS
+# silently produces wrong values.  In the first cut of this file the
+# set var was `X_tail_LE` and the despmtr was `X_tail_LE_chords`; the
+# expression `wing_x_LE + X_tail_LE_chords*MAC` collapsed to wing_x_LE
+# (= -0.692 m) — htail ended up MESHED ON TOP OF THE WING (verified on
+# vm-893503b7 — htail x range [-0.692, +0.641]).  Fix: rename the set
+# variables to break the prefix overlap AND split the expression into
+# two 2-operand steps.
+set       htail_x_offset   X_tail_LE_chords*MAC
+set       htail_z_offset   Z_tail_chords*MAC
+set       htail_x_LE       wing_x_LE + htail_x_offset
+set       htail_z_root     wing_z    + htail_z_offset
 
 # =====================================================================
 # BUILD — each lifting element is built from a closed planar sketch
@@ -187,7 +198,7 @@ endif
 udprim    $/airfoils/tail
 rotatex   90  0  0
 scale     htail_chord
-translate X_tail_LE   -htail_semispan   Z_tail
+translate htail_x_LE   -htail_semispan   htail_z_root
 extrude   0   htail_span   0
    attribute _name $htail
 select face
