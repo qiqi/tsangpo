@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 
+import numpy as np
+
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "post"))
@@ -21,8 +23,11 @@ SPEC = PhaseSpec(
     velocity    = P.V_TAKEOFF_M_S,
     rho         = P.RHO_TAKEOFF_KG_M3,
     gamma_deg   = P.CLIMB_ANGLE_DEG,
+    # gap40 takeoff: gapped flap weakens the wing+flap downwash blanket,
+    # so the entire htail rotation sweep stays usable (continuous-flap
+    # needed θ_ht ≥ 0 to escape the downwash blanket — not so here).
     mask_alpha  = lambda a: a <= 11.0,
-    mask_htail  = lambda h: (h >= 0.0) & (h <= 25.0),
+    mask_htail  = lambda h: np.ones_like(h, dtype=bool),
     mask_thrust = lambda t: t <= 22.0,
     title       = "Tsangpo v2 TAKEOFF (gapped-flap) — BO α=+8°, θ_ht=-5°, T=+16, "
                   "V=18 m/s, γ=+30°",

@@ -21,8 +21,11 @@ SPEC = PhaseSpec(
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
     gamma_deg   = P.DESCENT_ANGLE_DEG,
-    mask_alpha  = lambda a: a <= 8.0,
-    mask_htail  = lambda h: (h >= 10.0) & (h <= 40.0),
+    # gap40 landing: α unstalled out to +20°.  Htail is unstalled across
+    # the entire negative range up through +20°; above +20° the htail
+    # stalls (over-the-top).
+    mask_alpha  = lambda a: a <= 20.0,
+    mask_htail  = lambda h: h <= 20.0,
     mask_thrust = lambda t: t <= 25.0,
     title       = "Tsangpo v2 LANDING (gapped-flap) — BO α=+8°, θ_ht=-6°, T=+12, "
                   "V=12.86 m/s, γ=-30°",
