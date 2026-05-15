@@ -52,10 +52,12 @@ def load_spec(phase: str) -> PhaseSpec:
 
 # Grids per the user's spec.
 GRIDS = {
-    "cruise":  dict(alphas=(5.0, 7.0, 9.0),  Ts=(0.5,  1.0,  1.5)),
-    "takeoff": dict(alphas=(6.0, 9.0, 12.0), Ts=(12.0, 16.0, 20.0)),
-    "landing": dict(alphas=(8.0, 14.0, 20.0), Ts=(8.0,  12.0, 16.0)),
+    "cruise":  dict(alphas=(5.0, 7.0, 9.0),  Ts=( 1.0,  2.0,  3.0)),
+    "takeoff": dict(alphas=(6.0, 9.0, 12.0), Ts=(10.0, 20.0, 30.0)),
+    "landing": dict(alphas=(8.0, 14.0, 20.0), Ts=( 8.0, 16.0, 24.0)),
 }
+
+KNOTS_PER_M_S = 1.0 / 0.5144
 
 
 def compute_sensitivities(spec: PhaseSpec) -> tuple[dict, dict]:
@@ -119,7 +121,9 @@ def solve_equilibrium(spec: PhaseSpec, slopes: dict, baselines: dict,
     if disc < 0:
         return dict(alpha=alpha_deg, T_mult=T_mult, theta_ht=theta_ht_deg,
                     CL=CL, CD=CD, CT_del=CT,
-                    V_m_s=float("nan"), gamma_deg=float("nan"),
+                    V_m_s=float("nan"), V_kt=float("nan"),
+                    gamma_deg=float("nan"),
+                    F_thrust_N=float("nan"), T_over_W=float("nan"),
                     note="no real positive root for V — design infeasible")
     x = (-B + sqrt(disc)) / (2.0 * A)   # x = (V/V_b)^2; want the positive root
     if x <= 0:
@@ -128,10 +132,18 @@ def solve_equilibrium(spec: PhaseSpec, slopes: dict, baselines: dict,
     cos_g = K * (CL * x + CT * sin(a_rad))
     sin_g = K * (CT * cos(a_rad) - CD * x)
     gamma_deg = degrees(atan2(sin_g, cos_g))
+    # AD thrust is F = CT_del · q_b · S (constant in V at fixed T_mult, per
+    # the cfd_setup actuator-disk model).  T/W is the combined-prop thrust
+    # over aircraft weight.
+    F_thrust_N = CT * spec.qS
+    T_over_W   = F_thrust_N / P.W_GROSS_N
     return dict(
         alpha=alpha_deg, T_mult=T_mult, theta_ht=theta_ht_deg,
         CL=CL, CD=CD, CT_del=CT,
-        V_m_s=V, gamma_deg=gamma_deg, note="",
+        V_m_s=V, V_kt=V * KNOTS_PER_M_S,
+        gamma_deg=gamma_deg,
+        F_thrust_N=F_thrust_N, T_over_W=T_over_W,
+        note="",
     )
 
 
@@ -159,7 +171,8 @@ def main():
 
     # CSV
     fields = ["phase", "alpha", "T_mult", "theta_ht", "CL", "CD", "CT_del",
-              "V_m_s", "gamma_deg", "V_b", "alpha_b", "theta_ht_b", "T_b", "note"]
+              "V_m_s", "V_kt", "gamma_deg", "F_thrust_N", "T_over_W",
+              "V_b", "alpha_b", "theta_ht_b", "T_b", "note"]
     with out_csv.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields); w.writeheader()
         for r in rows: w.writerow({k: r.get(k, "") for k in fields})
@@ -194,16 +207,18 @@ def main():
             lines.append(f"| `{k}` | {v:+.5f} |")
         lines += [
             "",
-            "| α [deg] | T_mult | θ_htail [deg] | CL | CD | CT_del | V [m/s] | γ [deg] | note |",
-            "|---------|--------|---------------|----|----|--------|---------|---------|------|",
+            "| α [deg] | T_mult | θ_htail [deg] | CL | CD | CT_del | V [kt] | γ [deg] | F_thrust [N] | T/W | note |",
+            "|---------|--------|---------------|----|----|--------|--------|---------|--------------|-----|------|",
         ]
         for r in [r for r in rows if r["phase"] == phase]:
-            v = "{:6.2f}".format(r["V_m_s"]) if not isnan(r["V_m_s"]) else "  nan "
-            g = "{:+6.2f}".format(r["gamma_deg"]) if not isnan(r["gamma_deg"]) else " nan "
+            vkt = "{:6.2f}".format(r["V_kt"])     if not isnan(r["V_kt"])     else "  nan "
+            g   = "{:+6.2f}".format(r["gamma_deg"]) if not isnan(r["gamma_deg"]) else " nan  "
+            F   = "{:7.1f}".format(r["F_thrust_N"]) if not isnan(r["F_thrust_N"]) else " nan   "
+            tw  = "{:5.3f}".format(r["T_over_W"]) if not isnan(r["T_over_W"]) else " nan "
             lines.append(
                 f"| {r['alpha']:+5.1f} | {r['T_mult']:+5.1f} | {r['theta_ht']:+6.2f}        |"
                 f" {r['CL']:+.3f} | {r['CD']:+.3f} | {r['CT_del']:+.3f} |"
-                f" {v} | {g} | {r['note']} |"
+                f" {vkt} | {g} | {F} | {tw} | {r['note']} |"
             )
         lines.append("")
     out_md.write_text("\n".join(lines))
