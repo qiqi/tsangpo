@@ -167,11 +167,13 @@ def process_phase(phase: str):
     spec = load_spec(phase)
     project = fl.Project.from_cloud(project_id=spec.project_id)
     print(f"\n=== {phase} (project {project.id[:18]}) ===")
-    if not all_sweeps_done(project):
-        print("  sweeps not all done — skipping")
-        return
+    # Check refined-already first — refined-case PENDING/RUNNING would
+    # otherwise make all_sweeps_done() falsely report incomplete.
     if refined_already(project, phase):
         print("  refined nominal already submitted — skipping")
+        return
+    if not all_sweeps_done(project):
+        print("  sweeps not all done — skipping")
         return
     rows = fetch_rows(
         discover_sweeps(spec.project_id, spec.alpha_b, spec.theta_ht_b, spec.T_b),
