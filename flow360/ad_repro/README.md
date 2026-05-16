@@ -1,68 +1,90 @@
 # Flow360 actuator-disk delivery — minimal reproducer
 
-Self-contained reproducer for the discrepancy described in
-`paper/figures/FLOW360_AD_BUG_REPORT.md`.
+A single script that submits **two** Flow360 cases at the same trim
+point with the same `force_per_area` AD specification — the only
+difference is the `UniformRefinement` spacing on the prop cylinders.
+Pulls `Disk_i_Force` from each completed case and prints
+commanded vs delivered thrust.
 
-## What's in this folder
+## What the two cases do
 
-- `tsangpo_gapped.csm` — exact OpenCSM geometry used in the gap-low
-  campaign.  Inlining of the airfoil UDCs has already been done.
-- `submit_repro.py` — minimal Python script that:
-  1. uploads the .csm as a Flow360 project,
-  2. submits ONE case at the gap-low landing BO trim point
-     ($\alpha=+8^\circ$, $\theta_{ht}=-6^\circ$, $T_{\mathrm{mult}}=12$,
-     $V_\infty=12.86\,$m/s, ISA 12,000 ft),
-  3. once the case completes, pulls `Disk_i_Force` from the actuator-
-     disk output, multiplies by $\rho_\infty a_\infty^2 \approx 90250\,$N/m²,
-     and prints commanded vs delivered thrust.
+| case | `PROP_REFINE` | octree-cast | ~ cells across disk Ø | observed `F_AD/commanded` |
+|------|---------------|-------------|------------------------|---------------------------|
+| A (coarse) | `0.05 c_wing` ≈ 0.069 m | **0.0625 m** | ~17 | **1.10** |
+| B (fine)   | `0.025 c_wing` ≈ 0.035 m | **0.03125 m** | ~34 | **0.65** |
+
+Same trim ($\alpha=+8^\circ$, $\theta_{ht}=-5^\circ$,
+$T_{\mathrm{mult}}=16$, $V_\infty=18\,$m/s, ISA 12,000 ft), same
+geometry (10-prop / 11.07 m / 165 ft² distributed-electric uSTOL),
+same constant-pressure-jump `force_per_area.thrust = 973.74 N/m²` over
+annular radius `[0.080, 0.534] m`.  Commanded thrust =
+`fpa × π·(R² − r²) = 851.1 N/disk → 8511 N total`.
+
+## Get the geometry
+
+The .csm lives in our public-ish repo:
+
+```
+https://github.com/qiqi/tsangpo
+```
+
+The single file you need is at:
+
+```
+https://raw.githubusercontent.com/qiqi/tsangpo/main/geometry/tsangpo.csm
+```
+
+```bash
+wget -O tsangpo.csm \
+   https://raw.githubusercontent.com/qiqi/tsangpo/main/geometry/tsangpo.csm
+```
+
+(If that 404s because the repo is private, ping Qiqi and we'll either
+flip it public or paste a Drive link.)
 
 ## Run
 
 ```bash
 pip install flow360 numpy
-python3 submit_repro.py                # submit + measure once complete
-python3 submit_repro.py <case-id>      # skip submission, just measure
-                                       # an existing case
+python3 submit_repro.py                       # submits BOTH cases
+# (~30 min meshing + solver per case; can run in parallel on cloud)
 ```
 
-Each case takes ~30 min on a single GPU node (release-25.9, beta
-mesher).  The mesh refinement at the prop cylinders is
-`PROP_REFINE_M = 0.025 c_wing = 0.0346 m` → octree-cast to 0.03125 m
-(~34 cells across the disk diameter, ~4 cells axially through the
-0.139 m cylinder thickness).
+Once both cases are COMPLETED, re-invoke with the two case IDs to
+print just the comparison:
+
+```bash
+python3 submit_repro.py <case-coarse> <case-fine>
+```
 
 ## Expected output
 
-For the gap-low landing BO trim ($T_{\mathrm{mult}}=12$, fine mesh):
-
 ```
-  commanded thrust per disk =   638.3 N       (730.31 N/m² × 0.874 m² annular)
-                       total=  6383.2 N
-  delivered thrust per disk ≈   415   N       (~ 65 % of commanded)
-                       total≈  4150   N
-  delivered / commanded     ≈ 0.65
+Reference: commanded thrust per disk = 851.1 N → total 8511 N
+
+  --- COARSE (PROP_REFINE = 0.05 c_w): ad_repro_coarse_case  status=COMPLETED ---
+    commanded total =  8511.0 N
+    delivered total =  9370.0 N
+    delivered / commanded = 1.100
+
+  --- FINE   (PROP_REFINE = 0.025 c_w): ad_repro_fine_case  status=COMPLETED ---
+    commanded total =  8511.0 N
+    delivered total =  5500.0 N
+    delivered / commanded = 0.646
 ```
 
-The full delivered-vs-commanded matrix across all 4 configs × 3 phases
-(both coarse 0.0625 m and fine 0.03125 m AD refinement) is in
-`../../paper/figures/FLOW360_AD_BUG_REPORT.md` together with the case
-IDs the original observations were taken from.
+So with the same constant-pressure-jump spec, refining the prop mesh
+swings the integrated `Disk_i_Force` from 110 % to 65 % of the
+commanded $p \times A_{\mathrm{annular}}$.
 
-## What we're asking
+## Companion documents
 
-In short:
-
-1. Is `force_per_area.thrust` a face pressure jump (Pa)?  A body-force
-   density?  A normalised coefficient?
-2. What is `Disk_i_Force` (in the `actuator_disks` output) — integrated
-   normal force, normalised force, or something else?
-3. Does the solver apply a momentum-theory induced-velocity correction
-   at high disk loading?  If so, what's the closed-form mapping from
-   commanded to delivered?
-4. Recommended practice to make delivered ≈ commanded for blown-lift
-   applications.  Should we use `BETDisk` instead?  A different
-   cylinder thickness : refinement ratio?
-
-Happy to participate in a screen-share / debug call.
+- `paper/figures/FLOW360_AD_BUG_REPORT.md` — full 12-case (4 configs × 3
+  phases) delivered-vs-commanded matrix on coarse vs fine mesh,
+  including all project + case IDs, hypotheses ruled in / out, and
+  the specific questions we'd like guidance on.
+- `flow360/AGENT_USABILITY_REPORT_v2.md` — Flow360 SDK pain points that
+  bit us while investigating this (case-ID mutation, no public mesh-
+  log accessor, etc.).
 
 — Qiqi Wang
