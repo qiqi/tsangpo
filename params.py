@@ -77,7 +77,8 @@ HTAIL_MAC_M       = HTAIL_CHORD_M
 
 # H-tail position: LE at 4 c_wing aft of wing LE; low htail in the wing
 # chord plane, high htail 1.5 c above the wing chord plane.
-X_TAIL_LE_M       = WING_X_LE_M + 4.0 * WING_MAC_M      # = +3.5 c_w
+X_TAIL_LE_M       = WING_X_LE_M + 4.0 * WING_MAC_M      # = +3.5 c_w  (v2)
+X_TAIL_LE_V3_M    = WING_X_LE_M + 2.0 * WING_MAC_M      # = +1.5 c_w  (v3: 1c gap behind wing TE)
 X_TAIL_CQUARTER_M = X_TAIL_LE_M + 0.25 * HTAIL_CHORD_M  # = +3.75 c_w
 X_TAIL_DEFAULT_M  = X_TAIL_CQUARTER_M                   # for CFD use
 Z_TAIL_LOW_CHORDS = 0.0                                 # offset above wing plane (= absolute +0.4 c)

@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 
+import numpy as np
+
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "post"))
@@ -25,7 +27,7 @@ SPEC = PhaseSpec(
     # over-the-top stall past +40°; thrust CMy flattens past +25.
     mask_alpha  = lambda a: a <= 8.0,
     mask_htail  = lambda h: (h >= 10.0) & (h <= 40.0),
-    mask_thrust = lambda t: t <= 25.0,
+    mask_thrust = lambda t: np.ones_like(t, dtype=bool),
     title       = "Tsangpo v2 LANDING (continuous flap) — BO α=+8°, θ_ht=-6°, T=+12, "
                   "V=12.86 m/s, γ=-30°",
 )

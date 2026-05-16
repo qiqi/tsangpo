@@ -23,8 +23,8 @@ SPEC = PhaseSpec(
     gamma_deg   = P.DESCENT_ANGLE_DEG,
     # Inherit low-htail landing masks; refine when data lands.
     mask_alpha  = lambda a: a <= 8.0,
-    mask_htail  = lambda h: (h >= 10.0) & (h <= 40.0),
-    mask_thrust = lambda t: t <= 25.0,
+    mask_htail  = lambda h: (h >= 0.0) & (h <= 30.0),
+    mask_thrust = lambda t: t >= 7.0,
     title       = "Tsangpo v2 LANDING (continuous flap, HIGH htail) — BO α=+8°, θ_ht=-6°, "
                   "T=+12, V=12.86 m/s, γ=-30°",
 )

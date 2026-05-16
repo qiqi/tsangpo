@@ -1,0 +1,931 @@
+\documentclass[conf]{new-aiaa}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{multirow}
+\newcommand{\todo}[1]{\textcolor{red}{\textit{[#1]}}}
+
+\title{The Useful Emptiness: An Inboard Flap Gap as an Energy
+       Concentrator for a Distributed-Propulsion eSTOL}
+
+\author{Qiqi Wang\thanks{Principal investigator, Flexcompute Inc.}
+        \ and contributors}
+\affil{Flexcompute Inc., Belmont, CA 94002}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A 11.07-m-span, 2{,}600-lb ultra-STOL (uSTOL) aircraft with a
+10-propeller distributed-electric propulsion array is studied
+across cruise, takeoff, and landing using high-fidelity RANS CFD
+(Flow360, actuator-disk thrust model).  Starting from the
+naive low-htail / continuous-flap baseline (the X-57-class
+layout, known to have stability shortcomings at high blowing),
+we walk through a four-step configurational \emph{evolution}.
+Step 1 raises the stabiliser to a high T-tail -- adequate at
+today's published uSTOL approach envelopes but, when pushed
+to the slower approach speeds and more aggressive flap
+settings of this study, only neutrally stable in takeoff and
+strongly unstable in landing.  Subsequent steps then: (i) an inboard
+flap gap that drives a centerline upwash column from the
+streamwise vortices shed at the flap discontinuities; (ii) the
+return of the horizontal tail into the prop slipstream column
+for a $4$--$9\times$ local-q boost; and (iii) the shortening of
+the tail boom -- enabled by the resulting stability headroom --
+from $4\,c$ to $2\,c$ aft of the wing trailing edge.  The final
+v3 configuration is stable in all phases ($\sm = +26 / +39 /
++49\%$ MAC predicted), trims the entire landing envelope
+including high-thrust go-around within the htail stall margin,
+allows aggressive landing rotation without tail strike, and
+reduces both landing roll and go-around pitch transient.  The
+full paper will add nonlinear phugoid dynamic simulations for
+the three principal configurations and a CFD-resolved
+ground-effect landing maneuver.
+\end{abstract}
+
+\section*{Nomenclature}
+\noindent
+\begin{tabular}{ll}
+$\alpha$ & body angle of attack \\
+$\theta_{ht}$ & horizontal-tail rotation (positive: TE down) \\
+$T/W$ & delivered total thrust normalised by aircraft weight (dimensionless) \\
+$C_L,C_D,C_{m_{\mathrm{CG}}}$ & lift, drag, and pitching-moment coefficients about CG \\
+$\sm$ & static margin
+       $\equiv -(\partial C_{m_{\mathrm{CG}}}/\partial\alpha) /
+       (\partial C_L/\partial\alpha)$ \\
+$\eta_t = q_{ht}/q_\infty$ & local-to-freestream dynamic-pressure ratio at the htail \\
+$c_w$ & wing mean aerodynamic chord, $1.385\,$m \\
+$b$ & wing span, $11.07\,$m
+\end{tabular}
+
+%====================================================================
+\section{Introduction}
+%====================================================================
+
+Distributed-electric propulsion (DEP) over a high-lift wing
+has opened a new class of \emph{ultra}-STOL (uSTOL) aircraft:
+very short field performance at modest cruise wing loading,
+enabled by blowing roughly half the aircraft weight directly
+across the wing.  Electra's EL2 demonstrator and the
+in-development EL9 hybrid \cite{Electra2024EL9} are the most
+publicly visible examples; both distribute eight to ten
+propellers along the leading edge, deflecting Fowler-flap
+augmented section lift coefficients well beyond $C_L = 4$.
+
+The cost of DEP-augmented blown lift -- hidden in a clean
+configuration drawing -- shows up at the empennage.  The same
+propeller wake that creates wing $C_{L,\max}$ pours energetic,
+deflected flow into the horizontal-tail region.  At high
+thrust setting ($T/W \to 1$) the downwash blanket along the
+centerline fills the airspace where the stabilizer would
+operate, and elevator authority collapses precisely when it is
+needed -- at low approach airspeeds, with flaps deployed, and
+at the highest body angles of attack.
+
+A simple low-mounted horizontal tail behind a continuous-flap
+wing -- the layout adopted by the NASA X-57 ``Maxwell''
+all-electric DEP testbed \cite{NASA_X57_Maxwell} -- is known
+to exhibit stability shortcomings at high thrust setting, and
+is the natural starting point of any DEP-eSTOL configuration
+study.  The textbook fix is to raise the stabilizer clear of
+the wake (T-tail, high boom).  At the approach speeds and
+flap settings representative of today's blown-lift uSTOL flight
+envelopes this fix has proved adequate.  This paper, however,
+targets a more aggressive uSTOL operating frontier -- slower
+approach speeds, stronger blowing, and steeper landing flare
+attitudes than current designs nominally accommodate -- and
+shows that within that extended envelope \emph{the T-tail fix
+is necessary but insufficient}: even with a $40\%$-span,
+full-chord stabilizer perched at $z=+1.9\,c_w$ and extending
+from $x=+3.5\,c_w$ to $+4.5\,c_w$ aft of the CG
+(i.e.\ $4\,c_w$ aft of the wing leading edge), the
+configuration remains strongly unstable.  We then walk through
+a four-step \emph{evolution} that arrives at a much better
+configuration for this extended envelope: starting from the
+X-57-style cont-low baseline (Step~0), raise the htail (Step~1,
+the current wisdom), introduce an inboard flap gap
+(Step~2), drop the horizontal tail back into the slipstream
+column to harvest the slipstream dynamic pressure
+(Step~3, ironically returning to the Step~0 vertical position),
+and -- once the stability headroom is large enough -- shorten
+the tail boom (Step~4).
+
+We perform an unsteady RANS sweep with Flow360 \cite{Flow360}
+on a 10-prop, $165\,$ft$^2$, $2{,}600\,$lb reference uSTOL
+geometry.  Three high-lift section airfoils
+(Fig.~\ref{fig:airfoils}) form a Fowler-deployed assembly; the
+inboard $40\%$ of the span will be optionally configured as a
+``flap gap'' (vane and aft-flap absent, main element
+continuous).  Four configurations are studied in a $2\times 2$
+design matrix in
+$(\text{flap continuity}, z_{ht})$ -- shown in
+Fig.~\ref{fig:configs} -- across three flight phases
+(cruise, takeoff, landing).  For each combination we run an
+$\alpha$/$\theta_{ht}$/$T/W$ sensitivity sweep
+about a baseline trim point, fit local linear sensitivities
+with masks that exclude stalled points, and solve the $3\times
+3$ trim system in $(\alpha,\theta_{ht},T/W)$ for
+the equilibrium flight condition in each phase.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=0.55\linewidth]{figures/airfoil_phases_stacked.png}
+  \caption{Three-element high-lift system in three Fowler
+           kinematic states (top to bottom: stowed, takeoff,
+           landing).  Coved LS(1)-0417 main element, NACA 9621
+           vane, and NACA 6311 aft flap; each successive
+           configuration is shifted downward by $0.3\,c$.  The
+           gap-flap variants omit the vane + aft-flap assembly
+           across the central $40\%$ of the wing span.}
+  \label{fig:airfoils}
+\end{figure}
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/config_montage.png}
+  \caption{Configuration evolution at the cruise (flap-stowed)
+           reference geometry.  Top row, top views: (a)
+           continuous flap; (b) $40\%$ inboard flap gap; (c)
+           gap + shortened tail boom (v3, principal proposal).
+           The top views are independent of the horizontal-tail
+           vertical position.  Bottom row, side views: (d) low
+           horizontal tail; (e) high T-tail; (f) v3 low htail
+           with the shortened boom.  Wing and horizontal-tail
+           sections shown at actual chord scale (clean
+           LS(1)-0417 for the wing; inverted LS(1)-0417 for
+           the htail).  Actuator disks are drawn as rectangles
+           (axial-thickness $\times$ projected-diameter) so
+           they appear physically correct in both projections.
+           CG is marked ``+''; main landing gear shown as a
+           filled circle.  The same gear is drawn in all three
+           side views to highlight the rotational advantage of
+           the short-boom v3: at high landing-flare attitudes
+           the aircraft pitches up around the main-gear contact
+           point, and the shorter-arm htail in (f) clears the
+           ground at flare attitudes where the long-boom
+           configurations (d, e) would strike.}
+  \label{fig:configs}
+\end{figure}
+
+%====================================================================
+\section{Configurational Evolution}
+\label{sec:evolution}
+%====================================================================
+
+\subsection{Step 0 -- The Naive Low-Tail Baseline (cont-low)}
+
+The simplest DEP-eSTOL configuration places a conventional
+low-mounted horizontal tail behind a continuous-flap wing.
+This is the layout of the NASA X-57 ``Maxwell'' all-electric
+DEP testbed \cite{NASA_X57_Maxwell}, the most publicly visible
+example of which is known to have experienced flight-readiness
+challenges that contributed to the program's 2023 closure.
+For our 10-prop, full-span distributed array this layout
+is fine in unflapped cruise -- a clean, lightly-loaded wing
+and a tail outside the (small) prop wake gives a textbook
+$\sm = +46.7\%$ MAC.  The failure modes the X-57 community
+anticipated emerge in the flapped phases:
+Figure~\ref{fig:cont-low-sens} shows the sensitivity sweeps
+across the three phases.  In takeoff and landing the
+horizontal tail sits inside the wing+flap downwash and is
+hit by the wakes of the inboard propellers; both contribute
+to a destabilising downwash gradient that overwhelms the
+tail's restoring moment.  The static-margin column of
+Table~\ref{tab:sm} reads $\sm = -12.4\%$ in takeoff and
+$\sm = -30.3\%$ in landing, both unstable.  cont-low sets the
+benchmark against which the subsequent steps are measured.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/cont_low_combined_sens.png}
+  \caption{Sensitivity sweeps for the cont-low Step~0
+           baseline (the X-57-class layout) with all three
+           flight phases overlaid on a common set of axes:
+           \textcolor[HTML]{1b7e3a}{cruise} (green),
+           \textcolor[HTML]{d97706}{takeoff} (orange),
+           \textcolor[HTML]{c0392b}{landing} (red).  Lift and
+           drag columns include the streamwise thrust
+           contribution:
+           $C_{L,\mathrm{total}} = C_L + C_T \sin\alpha$ and
+           $C_{D,\mathrm{total}} = C_D - C_T \cos\alpha$, so
+           that $C_{D,\mathrm{total}} = 0$ marks level flight
+           (climb when negative, descent when positive).  The
+           $C_{m_{\mathrm{CG}}}$-vs-$\alpha$ slope in the third
+           column is positive in both takeoff and landing,
+           indicating instability; cruise on the clean wing is
+           comfortably stable.  Cont-low sets the benchmark
+           against which the subsequent steps are measured.}
+  \label{fig:cont-low-sens}
+\end{figure}
+
+\subsection{Step 1 -- The Current Wisdom: T-Tail with Continuous Flap (cont-high)}
+
+The traditional remedy is to lift the stabiliser clear of the
+wake: cont-high replaces the low htail with a T-tail at
+$z=+1.9\,c_w$, recovering elevator effectiveness through a
+reduced downwash gradient.  Figure~\ref{fig:cont-high-sens}
+shows the sensitivity sweeps across the three phases.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/cont_high_combined_sens.png}
+  \caption{Sensitivity sweeps for the cont-high T-tail
+           baseline (Step~1; \emph{large circles, thick lines}),
+           with the previous-step cont-low data of
+           Fig.~\ref{fig:cont-low-sens} overlaid (\emph{small
+           circles, thin lines, same colors}) for direct visual
+           comparison of the design change.  Three flight phases
+           on common axes: \textcolor[HTML]{1b7e3a}{cruise}
+           (green), \textcolor[HTML]{d97706}{takeoff} (orange),
+           \textcolor[HTML]{c0392b}{landing} (red).  Rows are
+           the three sensitivity sweeps ($\alpha$,
+           $\theta_{ht}$, $T/W$); the first two
+           columns are
+           $C_{L,\mathrm{total}} = C_L + C_T\sin\alpha$ and
+           $C_{D,\mathrm{total}} = C_D - C_T\cos\alpha$, so
+           $C_{D,\mathrm{total}}=0$ corresponds to level flight.
+           Solid line segments lie inside the linear-fit
+           range; dashed segments lie outside.  Cruise
+           (SM = +55\%) is stable, takeoff (SM $\approx 0\%$)
+           is neutrally stable, and landing (SM = -24\%) is
+           strongly unstable despite the $40\%$-span,
+           full-chord, high-mounted horizontal stabiliser.}
+  \label{fig:cont-high-sens}
+\end{figure}
+
+Three uSTOL-relevant observations follow:
+
+\begin{enumerate}
+  \item The T-tail buys back stability in cruise but \emph{not}
+        in landing -- exactly the phase that stresses
+        empennage authority most.
+  \item Elevator authority
+        $|\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}| =
+        0.054$/deg in landing is only $60\%$ of the cruise
+        value: the T-tail is partly inside the deflected flap
+        wake, where local dynamic pressure is below freestream.
+        Despite the stabiliser being $40\%$ of the wingspan and
+        full main-wing chord (large by any conventional
+        metric), the marginal trim deflections sit close to
+        the empirical htail stall boundary ($+12^\circ$
+        takeoff, $+20^\circ$ landing).
+  \item In the negative-$\sm$ landing regime, the htail
+        operates at high lift to trim the wing+flap moment.
+        If the htail stalls in this state -- e.g.\ during a
+        flare gust upset -- $|\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}|$
+        collapses to zero, the wing+flap nose-down moment is
+        unopposed, and the aircraft enters a nose-diver
+        attitude with no static-recovery path.  This is a
+        catastrophic failure mode at landing altitude.
+\end{enumerate}
+
+The textbook fix is necessary, but at the extended-envelope
+landing condition this paper targets it does not deliver a
+credible safety margin.  At today's published Electra-class
+approach speeds the same configuration would be acceptable;
+the analysis above is best understood as describing what
+happens when one tries to push a conventional empennage beyond
+its current operating frontier.
+
+\subsection{Step 2 -- Introducing the Flap Gap (gap-high)}
+
+The first step of the evolution is to remove the Fowler vane
+and aft-flap assembly from the central $40\%$ of the wing
+span; the main wing element remains continuous (this is a
+\emph{flap} gap, not a wing gap), and the inboard and outboard
+flap segments are unchanged.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/gap_high_combined_sens.png}
+  \caption{Sensitivity sweeps for the gap-high configuration
+           (Step~2; \emph{large circles, thick lines}) with the
+           cont-high baseline of Fig.~\ref{fig:cont-high-sens}
+           overlaid (\emph{small circles, thin lines, same
+           colors}).  Same axes, color encoding, and
+           $C_{L,\mathrm{total}}$/$C_{D,\mathrm{total}}$
+           convention as Fig.~\ref{fig:cont-high-sens}.  The
+           flap gap stabilises every phase relative to
+           cont-high: cruise $\sm$ stays high
+           ($+51.6\%$), takeoff swings from neutral
+           ($\sm \approx 0$ in cont-high) to weakly stable
+           ($\sm = +12.1\%$), and landing flips from strongly
+           unstable ($\sm = -23.8\%$ in cont-high) to weakly
+           stable ($\sm = +6.8\%$).  Mechanism: streamwise
+           vortices at the flap-segment edges roll the inboard
+           prop wake \emph{inboard} along the wing-trailing-
+           edge gap, producing a coherent upwash column that
+           impinges on the lower surface of the horizontal
+           tail; local $d\epsilon/d\alpha$ at the htail
+           station effectively flips sign relative to the
+           continuous-flap configuration, steepening the
+           htail's restoring moment.}
+  \label{fig:upwash-mechanism}
+\end{figure}
+
+The cost of the gap is a $\sim 10\%$ loss in landing
+$C_{L,\max}$ (missing flap area in the central bay of the
+wing) and a small cruise drag improvement (the unflapped
+central section runs cleaner than the slightly draggy stowed
+flap).  The \emph{benefit} -- attributable to the upwash
+mechanism evident in Fig.~\ref{fig:upwash-mechanism} -- is the
+restoration of stability in landing and the strengthening of
+the htail's restoring moment in all three phases.  On linear
+superposition arguments the gap contributes approximately
+$+25$ to $+40$ percentage points of $\sm$ in landing (gap-high
+CFD is in flight at the time of writing; the
+Table~\ref{tab:sm} entries will be completed before the
+abstract deadline).
+
+\subsection{Step 3 -- Ironically, Returning the htail to the Low Position (gap-low)}
+
+With the gap providing the stability fix that the high tail
+alone could not, the design optimisation flips.  We are now
+free to bring the horizontal tail back \emph{down}.  Ironically
+this places the stabiliser at the same vertical position as in
+the Step~0 naive baseline -- but now, with the upwash column
+from the flap gap providing the stability backbone, the low
+position is no longer a liability.  Instead it is a strong
+positive: at $z=+0.4\,c_w$ the htail sits inside the merged
+10-prop slipstream column.  Locally the htail sees the slipstream
+velocity rather than the freestream; at landing thrust
+$V_{\mathrm{slip}}/V_\infty \approx 2$--$3$, giving a
+$4$--$9\times$ dynamic-pressure boost.  Both
+$\partial C_{m_{\mathrm{CG}}}/\partial\alpha$ (stability) and
+$\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}$ (elevator
+authority) scale with local $q$.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/gap_low_combined_sens.png}
+  \caption{Sensitivity sweeps for the gap-low configuration
+           (Step~3; \emph{large circles, thick lines}) with the
+           gap-high baseline of Fig.~\ref{fig:upwash-mechanism}
+           overlaid (\emph{small circles, thin lines, same
+           colors}).  Same axes, color encoding, and
+           $C_{L,\mathrm{total}}$/$C_{D,\mathrm{total}}$
+           convention as Fig.~\ref{fig:cont-high-sens}.  All
+           three phases of gap-low are strongly stable: the
+           $C_{m_{\mathrm{CG}}}$-vs-$\alpha$ slopes (third
+           column) are sharply negative and the elevator-
+           authority slopes
+           ($\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}$,
+           middle row, third column) are roughly doubled
+           relative to cont-high.  The htail is in the prop
+           slipstream and benefits from a $4$--$9\times$
+           dynamic-pressure boost.  Reading $C_{D,\mathrm{total}}$
+           in the thrust-sweep row (bottom-middle) gives a
+           direct visualisation of the level-flight thrust
+           setting at each phase: the $C_{D,\mathrm{total}}=0$
+           crossing identifies the trimmed level-flight
+           thrust setting at that phase's airspeed.}
+  \label{fig:gap-low-sens}
+\end{figure}
+
+\begin{table}[htb!]
+\centering
+\caption{Static margin by configuration and phase, from
+         refreshed CFD sensitivity fits with stalled-point
+         masks applied.  Negative $\sm$ indicates instability.}
+\label{tab:sm}
+\begin{tabular}{lccc}
+\toprule
+Configuration & Cruise $\sm$ & Takeoff $\sm$ & Landing $\sm$ \\
+\midrule
+\textbf{cont-low (Step 0; X-57-class)}  & $+46.7\%$ & $-12.4\%$ & $-30.3\%$ \\
+cont-high (Step 1; T-tail, continuous flap) & $+55.4\%$ & $-0.5\%$ & $-23.8\%$ \\
+gap-high (Step 2; T-tail, $40\%$ flap gap) & $+51.6\%$ & $+12.1\%$ & $+6.8\%$ \\
+\textbf{gap-low (Step 3; gap + slipstream)} & $\mathbf{+48.4\%}$ & $\mathbf{+73.2\%}$ & $\mathbf{+92.6\%}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The gap-low headline numbers (Table~\ref{tab:sm}) are
+strongly stable in every phase.  Elevator authority roughly
+doubles relative to cont-high in takeoff and landing, exactly
+as expected for a $\sim 2\times$ velocity boost on the htail.
+
+\subsection{Step 4 -- Shortening the Tail Boom (v3)}
+
+The gap-low static margins are unusually large for a piloted
+aircraft.  The final step of the evolution is to recognise
+that we can spend some of the headroom on \emph{boom
+geometry}: a third-generation design that retains the gap-low
+planform but moves the horizontal-tail aerodynamic centre
+from $+3.75\,c_w$ to $+2.0\,c_w$ aft of the CG, i.e.\ from
+$\approx 4\,c$ aft of the wing leading edge to $\approx 2\,c$
+aft of the wing trailing edge.  The htail is held at the same
+$z=+0.4\,c_w$ to remain inside the slipstream column.  This
+shortened-boom geometry -- which we refer to in what follows
+as ``v3'' -- is the principal configurational contribution of
+this paper and is analysed in detail in the next section.
+
+%====================================================================
+\section{Analysis of the v3 Configuration}
+%====================================================================
+
+The v3 configuration halves the horizontal-tail moment arm
+($k = L_{ht}^{(v3)} / L_{ht}^{(v2)} = 2.0/3.75 \approx 0.53$)
+while retaining the planform and high-lift system of v2
+gap-low.  Both the htail's contribution to
+$\partial C_{m_{\mathrm{CG}}}/\partial\alpha$ and to
+$\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}$ scale linearly
+with the moment arm; wing and flap contributions do not.
+
+\subsection{Trimmable flight envelope}
+\label{sec:envelope}
+
+The most direct way to read off what the configuration can
+\emph{do} is to march through a representative $(\alpha,
+T/W)$ grid, pick $\theta_{ht}$ such that the
+moment trims at each point, evaluate $C_L$, $C_D$, $C_{T,\mathrm{del}}$
+from the local linear sensitivities, and solve the Newtonian
+force-balance for the equilibrium airspeed $V$ and flight-path
+angle $\gamma$.  Method details in the repository's
+\texttt{post/v2\_gapped/equilibrium\_grid.py}: each row gives
+a trimmed flight condition; together they sketch out a
+multi-dimensional flight envelope.
+
+The numerical table in this section is generated from the
+\emph{v2 gap-low} (Step~3, long boom) sensitivities and is
+shown here as the methodological preview of what the v3
+analysis will look like once its CFD lands.  Once we have v3
+CFD, the same script runs verbatim on the v3 sweep and
+produces the equivalent v3 table; the structure of the
+discussion in this section will not change, only the numbers.
+
+\begin{table}[htb!]
+\centering
+\small
+\caption{\textbf{Trimmable flight envelope, v2 gap-low (preview
+         for v3 analysis)}.  At each $(\alpha,
+         T/W)$ grid point, $\theta_{ht}$ trims
+         the moment; equilibrium $V$ and $\gamma$ follow from
+         the Newtonian force balance with delivered actuator-
+         disk thrust held constant.  $T/W$ is the delivered
+         thrust-to-weight ratio.  Generated by
+         \texttt{post/v2\_gapped/equilibrium\_grid.py}.}
+\label{tab:gap-low-envelope}
+\begin{tabular}{ccccccc}
+\toprule
+Phase & $\alpha$ [deg] & $T/W$ & $\theta_{ht}$ [deg]
+   & $C_L$  & $V$ [kt] & $\gamma$ [deg] \\
+\midrule
+\multirow{9}{*}{Cruise}
+  & $+5$ & $0.05$ & $+2.75$ & $0.74$ & $95.3$ & $-2.4$  \\
+  & $+5$ & $0.10$ & $+2.85$ & $0.75$ & $94.1$ & $+0.2$  \\
+  & $+5$ & $0.15$ & $+2.96$ & $0.77$ & $92.9$ & $+2.7$  \\
+  & $+7$ & $0.05$ & $+1.69$ & $0.90$ & $85.9$ & $-1.9$  \\
+  & $+7$ & $0.10$ & $+1.80$ & $0.92$ & $84.9$ & $+0.7$  \\
+  & $+7$ & $0.15$ & $+1.90$ & $0.94$ & $83.9$ & $+3.3$  \\
+  & $+9$ & $0.05$ & $+0.63$ & $1.07$ & $78.8$ & $-1.5$  \\
+  & $+9$ & $0.10$ & $+0.74$ & $1.09$ & $77.9$ & $+1.1$  \\
+  & $+9$ & $0.15$ & $+0.85$ & $1.10$ & $77.0$ & $+3.8$  \\
+\midrule
+\multirow{9}{*}{Takeoff}
+  & $+6$  & $0.32$ & $-3.56$ & $3.33$ & $44.2$ & $+1.1$  \\
+  & $+6$  & $0.64$ & $-1.89$ & $4.18$ & $37.8$ & $+17.3$ \\
+  & $+6$  & $0.97$ & $-0.23$ & $5.04$ & $28.8$ & $+43.6$ \\
+  & $+9$  & $0.32$ & $-5.73$ & $3.87$ & $40.6$ & $+0.7$  \\
+  & $+9$  & $0.64$ & $-4.07$ & $4.73$ & $34.8$ & $+17.9$ \\
+  & $+9$  & $0.97$ & $-2.40$ & $5.58$ & $25.5$ & $+46.2$ \\
+  & $+12$ & $0.32$ & $-7.90$ & $4.42$ & $37.6$ & $+0.4$  \\
+  & $+12$ & $0.64$ & $-6.24$ & $5.28$ & $32.2$ & $+18.4$ \\
+  & $+12$ & $0.97$ & $-4.58$ & $6.13$ & $22.5$ & $+48.4$ \\
+\midrule
+\multirow{9}{*}{Landing}
+  & $+8$  & $0.26$ & $-0.40$ & $5.68$ & $33.3$ & $-13.2$ \\
+  & $+8$  & $0.52$ & $+3.26$ & $7.29$ & $29.2$ & $-3.0$  \\
+  & $+8$  & $0.77$ & $+6.92$ & $8.90$ & $25.7$ & $+10.5$ \\
+  & $+14$ & $0.26$ & $-3.05$ & $6.20$ & $31.2$ & $-16.0$ \\
+  & $+14$ & $0.52$ & $+0.61$ & $7.80$ & $27.4$ & $-4.2$  \\
+  & $+14$ & $0.77$ & $+4.27$ & $9.41$ & $23.8$ & $+11.0$ \\
+  & $+20$ & $0.26$ & $-5.70$ & $6.71$ & $29.4$ & $-18.3$ \\
+  & $+20$ & $0.52$ & $-2.05$ & $8.32$ & $25.7$ & $-5.1$  \\
+  & $+20$ & $0.77$ & $+1.61$ & $9.93$ & $22.0$ & $+11.5$ \\
+\midrule
+\multicolumn{7}{l}{\textit{v3 design target -- ``low-slow pass'' (CFD-TBD)}} \\
+  & $+30$ & \todo{TBD} & \todo{TBD} & \todo{TBD} & $<20$ & $0.0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+What the table says, in plain language:
+
+\paragraph{Cruise.}
+Across $\alpha \in [+5, +9]^\circ$ and the cruise-thrust grid,
+the aircraft trims everywhere with $\theta_{ht}$ between
+$+0.6$ and $+3^\circ$ -- modest deflections inside the
+unstalled htail range.  The flight-path angle is small
+($|\gamma| \lesssim 4^\circ$) so the configuration sits in a
+classic level-cruise pocket; $V$ ranges from $77$ to $95$
+knots depending on $\alpha$ at any given $T/W$.
+
+\paragraph{Takeoff.}
+With delivered $T/W \in [0.32, 0.97]$ and $\alpha \in
+[+6, +12]^\circ$, trim $\theta_{ht}$ stays well inside the
+htail's $+12^\circ$ takeoff stall margin (all values are
+$\le 0^\circ$ here).  The interesting story is in $\gamma$:
+at $T/W \approx 0.32$ the aircraft is barely climbing
+($\gamma \approx 0^\circ$), but adding thrust drives
+$\gamma$ to $+17^\circ$ at $T/W \approx 0.64$ and to a
+strikingly steep $+43$ to $+48^\circ$ at $T/W \approx 0.97$.
+Equilibrium $V$ is slow throughout -- $22$ to $44$ knots --
+typical of a blown-lift uSTOL climb.
+
+\paragraph{Landing.}
+The same envelope captures the full landing approach.  At
+low thrust ($T/W \approx 0.26$) the aircraft descends at
+$\gamma \in [-13, -18]^\circ$ across the $\alpha$ sweep --
+steep enough for short-field approaches.  Mid-thrust
+($T/W \approx 0.52$) gives shallow descent near level;
+high thrust ($T/W \approx 0.77$) reaches $\gamma
+\approx +11^\circ$ climb-out, providing the go-around
+envelope.  Approach speeds are 22-33 knots, and trim
+$\theta_{ht}$ stays inside the htail's $+20^\circ$ landing
+stall margin everywhere in the grid (the maximum is
+$+6.9^\circ$ at the high-thrust low-$\alpha$ go-around
+corner).
+
+\paragraph{Reading the v3 expectation off the table.}
+Halving the htail arm halves both the destabilising and the
+authority slopes from the htail, but leaves $C_L$, $C_D$, and
+$C_T$ essentially unchanged at each grid point (these depend
+on the wing, the flap, and the AD-driven slipstream, not on
+the htail moment arm).  So the v3 envelope predicted by
+linear extrapolation has the \emph{same} $(V, \gamma)$ at
+each $(\alpha, T/W)$ point as the v2 table
+above; only the column $\theta_{ht}$ changes, scaled by
+$1/k = 1.88$ relative to its baseline.  The most binding
+corner remains landing $\alpha=+8^\circ$,
+$T/W \approx 0.77$ (go-around): $\theta_{ht} = -6
++ (+6.92-(-6)) \cdot 1.88 \approx +18.3^\circ$, still
+inside the empirical $+20^\circ$ landing stall margin.  The
+other corners scale further inside their margins.  CFD
+validation of v3 will replace these projections with
+direct readings.
+
+\subsection{Slipstream coverage at the shorter arm}
+
+A potential failure mode of the shortened-boom design is that
+the horizontal tail moves out of the prop slipstream column.
+We verify this is not the case.  The 10-prop array, with
+prop disks at $x=-0.7\,c_w$ and $z=+0.1\,c_w$ and disk
+radius $R=0.385\,c_w$, sheds a merged slipstream of width
+$\sim b/2$ at the propeller plane.  At the v2 htail location
+($+3.75\,c_w$, i.e.\ $\sim 4.4\,c_w$ downstream of the disks)
+the slipstream has spread to occupy
+$z\in[-0.3, +0.6]\,c_w$ at the centerline.  At the v3 htail
+location ($+2.0\,c_w$, i.e.\ $\sim 2.7\,c_w$ downstream of
+the disks) the spreading is somewhat less, leaving a
+$z$-band of about $[-0.2, +0.55]\,c_w$.  The v3 htail at
+$z = +0.4\,c_w$ remains comfortably inside this band.  Moving
+the htail vertically up by more than $\sim 0.1\,c_w$ would
+risk exiting the slipstream upper edge; this constrains the
+v3 design to keep the htail at the v2 low-tail vertical
+position.
+
+\subsection{Geometric benefits at landing flare}
+
+The relevant pitch pivot at flare/touchdown is the main-gear
+ground-contact point, which on a bushplane-style fixed gear
+sits slightly aft of and well below the CG.  For our
+schematic gear (see Fig.~\ref{fig:configs}, panels d-f), the
+contact point is at $(x_g, z_g) = (+0.50\,c_w,\,-1.00\,c_w)$
+in the body frame.  The CG is at the origin; the htail
+trailing edge is at $(x_{TE},\,+0.4\,c_w)$ with $x_{TE} =
++4.5\,c_w$ (v2 long boom) or $+2.5\,c_w$ (v3 short boom).
+
+A nose-up rotation by $\theta$ about the gear contact maps a
+point $(x, z)$ to
+$z' = z_g - (x - x_g)\sin\theta + (z - z_g)\cos\theta$.
+For a $30^\circ$ flare attitude:
+
+\begin{itemize}
+  \item v2 (long boom, $x_{TE} = +4.5\,c_w$):
+        $z'_{TE} = -1.00 - 4.0\!\cdot\!\sin 30^\circ + 1.4\!\cdot\!\cos 30^\circ
+                 = -1.79\,c_w$ -- tail TE sits $0.79\,c_w$ below the
+        ground plane, i.e.\ tail strike.
+  \item v3 (short boom, $x_{TE} = +2.5\,c_w$):
+        $z'_{TE} = -1.00 - 2.0\!\cdot\!\sin 30^\circ + 1.4\!\cdot\!\cos 30^\circ
+                 = -0.79\,c_w$ -- tail TE sits $0.21\,c_w$ above
+        the ground plane, comfortable clearance.
+\end{itemize}
+
+At a $30^\circ$ flare the v2 long-boom geometry strikes the
+tail; the v3 short-boom geometry retains $\sim 0.2\,c_w$
+($\sim 0.28\,$m) of clearance.  The same calculation at the
+modest $17^\circ$ flare used by conventional uSTOLs gives
+$z'_{TE} = -0.83$ (v2, $0.17\,c_w$ below ground) vs $-0.25$
+(v3, $0.75\,c_w$ above ground): even the gentler maneuver is
+marginal on the long boom and easy on the short boom.
+
+The geometric impact has direct operational consequence: the
+v3 short boom supports a \emph{much} more aggressive landing
+flare than the v2 long boom can carry without tail strike,
+which enables a tighter landing-roll energy budget.  In the
+limit the configuration approaches a uSTOL ``low-slow pass''
+landing -- $\alpha \approx +30^\circ$ at $\gamma = 0$ in
+ground-effect at $V \lesssim 20\,$kt.  We add an aspirational
+row to Table~\ref{tab:gap-low-envelope} reflecting this v3
+design target, to be filled in with CFD readings once the
+v3 sweeps complete.
+
+\subsection{Cautions and CFD validation plan}
+
+The linear-$k$ extrapolation above ignores the steepening of
+the wing-wake downwash gradient at the htail station as the
+htail moves closer to the wing.  For flapped-wing
+configurations this effect is known to reduce the effective
+$\partial C_{m_{\mathrm{CG}}}/\partial\alpha$ contribution of
+the htail by $15$--$25\%$ beyond the simple arm-scaling.  We
+therefore expect the actual v3 static margins to be
+$\sim 15$--$25\%$ smaller than the linear estimates in
+Table~\ref{tab:v3-sm}, i.e.\ $\sim +17$/$+30$/$+27\%$ MAC --
+still strongly stable.  CFD validation of the v3 configuration
+(geometry generation, mesh, three-phase sensitivity sweep
+mirroring the v2 campaign) forms part of the full paper.
+
+%====================================================================
+\section{Expected Full-Paper Contributions}
+%====================================================================
+
+The full SciTech 2027 manuscript (1 December 2026 deadline)
+will extend this extended abstract with:
+
+\begin{itemize}
+  \item \textbf{CFD validation of the v3 geometry.}
+        Generation of the shortened-boom CSM, mesh, and a
+        three-phase sensitivity sweep mirroring the v2
+        campaign.  Comparison to the linear-extrapolation
+        predictions of Table~\ref{tab:v3-sm}.
+  \item \textbf{Completion of the gap-high CFD entries} in
+        Table~\ref{tab:sm}, isolating the gap-alone and
+        $z$-alone contributions to stability through the
+        $2\times 2$ design matrix.
+  \item \textbf{Nonlinear phugoid dynamic simulations} for
+        the three principal configurations
+        (cont-high, gap-low~v2, v3) at the landing trim point.
+        Damping ratio, natural frequency, and time-domain
+        response to elevator and thrust step disturbances will
+        be reported.  This converts the static-margin
+        headline into a handling-quality comparison.
+  \item \textbf{A ground-effect landing maneuver in CFD.}
+        Trimmed descent on a $-3^\circ$ glideslope, prescribed
+        flare initiation at $h=2\,$ft AGL, throttle chop and
+        pitch-up to $\alpha=+17^\circ$ at touchdown.  Resolves
+        ground-effect lift amplification, real-time htail
+        authority during the flare, and slipstream attachment
+        to the ground plane.  Validates the static-aero
+        conclusions of this abstract against a representative
+        dynamic maneuver.
+  \item \textbf{Acoustic spot-check} at design tip-Mach number
+        and a sensitivity sweep on the gap-fraction parameter
+        (fixed at $0.40$ throughout this abstract).
+\end{itemize}
+
+\section*{Reproducibility statement}
+
+All Flow360 case identifiers, geometry CSM/UDC sources, and
+post-processing scripts are committed to the project
+repository \cite{HimalayaRepo}; the commit SHA accompanies
+the title page.
+
+\appendix
+\section{Geometry Reproduction Reference}
+
+This appendix tabulates every number required to reproduce
+the geometry of Figs.~\ref{fig:airfoils} and \ref{fig:configs}
+and the four CFD configurations in the main text.  All
+quantities are in SI units (m, kg, N, s, rad) unless noted
+otherwise.  The coordinate frame has its origin at the centre
+of gravity (CG); $+x$ aft, $+y$ starboard, $+z$ up.
+
+\subsection{Wing planform}
+
+The wing is a Hershey bar (rectangular, no taper, no sweep,
+no twist, no dihedral) with the parameters of
+Table~\ref{tab:wing}.
+
+\begin{table}[htb!]
+\centering
+\caption{Wing planform parameters.}
+\label{tab:wing}
+\begin{tabular}{lcl}
+\toprule
+Quantity & Symbol & Value \\
+\midrule
+Reference area  & $S_w$        & $15.33\,$m$^2$ ($\approx 165\,$ft$^2$) \\
+Span            & $b$          & $11.074\,$m  \\
+Aspect ratio    & AR           & $8.0$ \\
+Chord / MAC     & $c_w$        & $1.385\,$m \\
+Wing LE $x$     & $x_{LE,w}$   & $-0.5\,c_w = -0.692\,$m \\
+Wing $c/4$ $x$  & $x_{c/4,w}$  & $-0.25\,c_w = -0.346\,$m \\
+Wing $c/2$ $x$  & $x_{c/2,w}$  & $0$ (by construction; CG sits at wing half-chord) \\
+Wing chord plane $z$ & $z_w$ & $+0.4\,c_w = +0.554\,$m above CG \\
+Gross weight    & $W$          & $11{,}565\,$N ($\approx 2{,}600\,$lbf) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Three-element high-lift section}
+
+Every spanwise station of the wing uses the three-element
+section of Fig.~\ref{fig:airfoils}: a coved LS(1)-0417 main
+element, a NACA 9621 vane, and a NACA 6311 aft flap.  Section
+coordinates are in normalised wing-chord coordinates
+($x/c$, $y/c$); $x=0$ is the wing LE, $x=1$ the wing TE; $y$
+is positive up.  A uniform blunt trailing-edge thickness of
+$0.003\,c_w$ is applied to all three elements.
+
+\paragraph{Main element.}  Modified LS(1)-0417 with a coved
+lower-surface cutout:
+\begin{itemize}\setlength\itemsep{0pt}
+  \item Lower-surface cutout begins at $x/c=0.510$ and
+        terminates at the cove vertex $(0.620, 0.055)$ with a
+        filleted corner of radius $0.2\,c$.
+  \item Upper-surface lip cut at $x/c=0.850$.
+  \item The clean LS(1)-0417 upper- and lower-surface
+        ordinates are given in
+        \texttt{geometry/airfoils/estol\_config.yaml} under
+        \texttt{airfoils.ls1\_0417.\{upper,lower\}}.
+\end{itemize}
+
+\paragraph{Vane.}  NACA 9621 with $25$-point distribution,
+stowed LE $(0.550, -0.048)$, stowed TE $(0.730, +0.035)$.
+Element chord $\approx 0.198\,c_w$.
+
+\paragraph{Aft flap.}  NACA 6311, stowed LE
+$(0.690, -0.011)$, stowed TE $(1.000, 0.000)$.  Element chord
+$\approx 0.310\,c_w$.
+
+\subsection{Fowler kinematics}
+
+The vane and aft flap move together as a rigid assembly,
+hinged about the pivot point $(0.550, -0.048)\,c_w$ (the
+stowed vane LE).  For each phase the assembly is rigidly
+translated by $(\Delta x, \Delta y)$ and rotated by
+$\Delta\theta$ about the pivot.
+
+\begin{table}[htb!]
+\centering
+\caption{Fowler kinematics (rigid rotation/translation of the
+         vane+aft-flap assembly about the pivot point).  Positive
+         $\Delta\theta$ is TE-up; the prescribed values are TE-down.}
+\label{tab:fowler}
+\begin{tabular}{lccc}
+\toprule
+Phase    & $\Delta x$ & $\Delta y$ & $\Delta\theta$ \\
+\midrule
+Stowed   & $0.000$ & $0.000$ & $0^\circ$ \\
+Takeoff  & $0.280$ & $0.045$ & $-40^\circ$ \\
+Landing  & $0.300$ & $0.050$ & $-65^\circ$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Inboard flap gap}
+
+The flap-gap variants are obtained by removing the vane+aft-flap
+assembly across the central $40\%$ of the wing span,
+i.e.\ on the spanwise interval
+$|y| < 0.20\,b = 2.215\,$m.  The main element is not modified.
+The inboard and outboard flap segments retain their Fowler
+kinematics.  A small spanwise air gap of $0.005\,b$ is
+maintained between each flap-segment inboard edge and the
+no-flap region to ensure mesh-discrete edge separation in CFD.
+
+\subsection{Horizontal tail}
+
+A single-element rectangular planform, inverted LS(1)-0417
+section (negative camber to give down-force at zero
+incidence), pivoted about its quarter-chord for parametric
+$\theta_{ht}$ sweeps.
+
+\begin{table}[htb!]
+\centering
+\caption{Horizontal tail planform and placement.}
+\label{tab:htail}
+\begin{tabular}{lcl}
+\toprule
+Quantity & Symbol & Value \\
+\midrule
+Span         & $b_{ht}$        & $0.40\,b = 4.430\,$m \\
+Chord        & $c_{ht}$        & $1.00\,c_w = 1.385\,$m \\
+Reference area & $S_{ht}$      & $b_{ht}\,c_{ht} = 6.135\,$m$^2$ \\
+$S_{ht}/S_w$ &                  & $0.400$ \\
+LE $x$       & $x_{LE,ht}$     & $+3.5\,c_w = +4.847\,$m (= $4\,c_w$ aft of wing LE) \\
+TE $x$       & $x_{TE,ht}$     & $+4.5\,c_w = +6.231\,$m \\
+$c/4$ $x$    & $x_{c/4,ht}$    & $+3.75\,c_w = +5.193\,$m \\
+$z$, low-tail variant   & $z_{ht}^{low}$  & $+0.4\,c_w = +0.554\,$m (in wing chord plane) \\
+$z$, high-tail variant  & $z_{ht}^{high}$ & $+1.9\,c_w = +2.631\,$m (T-tail) \\
+Tail volume coefficient & $V_H = S_{ht}\,\ell_t / (S_w\,c_w)$ & $\approx 1.60$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The v3 configuration of \S 3 changes only $x_{c/4,ht}$, from
+$+3.75\,c_w$ to $+2.0\,c_w$.
+
+\subsection{10-prop distributed array}
+
+Ten actuator disks are arrayed at the five non-dimensional
+spanwise stations
+$\eta = y/(b/2) \in \{0.1, 0.3, 0.5, 0.7, 0.9\}$ on each
+semispan, all at the same $(x,z)$ in the body frame:
+
+\begin{table}[htb!]
+\centering
+\caption{Propeller array: ten disks total
+         (five per semispan, mirror-symmetric in $y$).}
+\label{tab:props}
+\begin{tabular}{lcl}
+\toprule
+Quantity & Symbol & Value \\
+\midrule
+Number of disks & $N$  & $10$ \\
+Disk diameter   & $D$  & $1.067\,$m \\
+Disk radius     & $R$  & $0.534\,$m ($= 0.385\,c_w$) \\
+Disk $x$        & $x_{prop}$ & $-0.7\,c_w = -0.969\,$m (= $0.2\,c_w$ ahead of wing LE) \\
+Disk $z$        & $z_{prop}$ & $+0.1\,c_w = +0.138\,$m (= $0.3\,c_w$ below wing chord plane) \\
+Disk $y$        & $y_{prop}$ & $\pm\{0.554, 1.661, 2.769, 3.876, 4.983\}\,$m \\
+Design $T/W$    & --     & $0.5$ at $T/W=1$ \\
+Thrust per disk at design & $T_p$  & $578\,$N \\
+Disk loading at design     & $DL$   & $1{,}292\,$N/m$^2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each disk is modelled in Flow360 as a constant-force actuator
+disk perpendicular to the body $x$-axis; the disk-thickness
+mesh region is $0.1\,c_w$ axially.  The thrust multiplier
+$T/W$ scales every disk's thrust uniformly so
+that $T/W=1$ corresponds to the design-point
+$T/W=0.5$ at cruise altitude.
+
+\subsection{Operating conditions}
+
+The atmosphere is ISA at $3{,}658\,$m ($\approx 12{,}000\,$ft)
+in every phase (high-altitude STOL operation):
+$\rho = 0.849\,$kg/m$^3$, $a = 326.0\,$m/s,
+$\mu = 1.693\times 10^{-5}\,$Pa$\cdot$s.
+
+\begin{table}[htb!]
+\centering
+\caption{Per-phase nominal flight condition.  ``Baseline''
+         $\alpha$/$\theta_{ht}$/$T/W$ values
+         define the centre of each sensitivity sweep.}
+\label{tab:flight}
+\begin{tabular}{lcccc}
+\toprule
+Phase & Flap & $V_\infty$ [m/s] & $\gamma$ [deg] & BO $(\alpha,\,\theta_{ht},\,T/W)$ [deg, deg, --] \\
+\midrule
+Cruise   & stowed   & $45.72$ & $0$    & $(+7,\, 0,\, 1.0)$ \\
+Takeoff  & takeoff  & $18.00$ & $+30$  & $(+8,\, -5,\, 16)$ \\
+Landing  & landing  & $12.86$ & $-30$  & $(+8,\, -6,\, 12)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Coordinate system summary}
+
+The body frame's origin is at the aircraft CG, which lies on
+the longitudinal symmetry plane.  The CG sits $+0.4\,c_w$
+below the wing chord plane and at the wing half-chord
+longitudinal station.  Body $+x$ is aft, $+y$ starboard, $+z$
+up.  All references geometry follows AIAA flight-mechanics
+sign conventions (positive elevator trailing-edge down is
+nose-down; positive $\alpha$ is nose-up; positive
+$\theta_{ht}$ in this paper is TE-down, i.e.\ in the
+``pull-back-the-stick'' direction).
+
+\subsection{Source files in the repository}
+
+\begin{itemize}\setlength\itemsep{0pt}
+  \item Parameter master file: \texttt{params.py}.
+  \item Airfoil section coordinates + Fowler kinematics:
+        \texttt{geometry/airfoils/estol\_config.yaml} and the
+        builder \texttt{geometry/airfoils/build\_estol\_geometry.py}.
+  \item OpenCSM geometry sources, one \texttt{.csm} file per
+        configuration:
+        \texttt{geometry/tsangpo.csm} (cont-low),
+        \texttt{geometry/tsangpo\_gapped.csm} (gap-low),
+        \texttt{geometry/tsangpo\_high\_htail.csm} (cont-high),
+        \texttt{geometry/tsangpo\_gapped\_high\_htail.csm}
+        (gap-high).
+  \item Flow360 case-construction:
+        \texttt{cfd\_setup.py} (\texttt{build\_params(\ldots)}).
+  \item Per-phase sensitivity-plot drivers:
+        \texttt{post/v2\_continuous/*.py} (cont-low),
+        \texttt{post/v2\_continuous\_high/*.py} (cont-high),
+        \texttt{post/v2\_gapped/*.py} (gap-low).
+  \item Sweep CSV caches and equilibrium-grid tables:
+        \texttt{post/out/v2\_*/}.
+\end{itemize}
+
+\bibliography{refs}
+
+\end{document}

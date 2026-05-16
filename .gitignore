@@ -23,3 +23,16 @@ serveCSM.log
 .vscode/
 geometry/out_high_htail/
 geometry/out_gapped_high_htail/
+
+# Local Claude session state
+.claude/
+
+# Heavy slice-output cache (re-downloadable via paper/figures/_retrieve_slices.py)
+paper/figures/slices/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out

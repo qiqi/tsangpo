@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse, sys
 from pathlib import Path
 
+import numpy as np
+
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "post"))
@@ -25,7 +27,7 @@ SPEC = PhaseSpec(
     # thrust CMy slope reverses past T_mult > +22.
     mask_alpha  = lambda a: a <= 11.0,
     mask_htail  = lambda h: (h >= 0.0) & (h <= 25.0),
-    mask_thrust = lambda t: t <= 22.0,
+    mask_thrust = lambda t: np.ones_like(t, dtype=bool),
     title       = "Tsangpo v2 TAKEOFF (continuous flap) — BO α=+8°, θ_ht=-5°, T=+16, "
                   "V=18 m/s, γ=+30°",
 )

@@ -25,8 +25,8 @@ SPEC = PhaseSpec(
     gamma_deg   = P.CLIMB_ANGLE_DEG,
     # Inherit low-htail masks; relax if high htail clears the downwash blanket.
     mask_alpha  = lambda a: a <= 11.0,
-    mask_htail  = lambda h: np.ones_like(h, dtype=bool),
-    mask_thrust = lambda t: t <= 22.0,
+    mask_htail  = lambda h: (h >= -10.0) & (h <= 25.0),
+    mask_thrust = lambda t: np.ones_like(t, dtype=bool),
     title       = "Tsangpo v2 TAKEOFF (continuous flap, HIGH htail) — BO α=+8°, θ_ht=-5°, "
                   "T=+16, V=18 m/s, γ=+30°",
 )

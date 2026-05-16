@@ -24,7 +24,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 import params as P
 
-SWEEP_RE = re.compile(r"_(alpha|htail|thrust)_([pmx][\d.p]+)(?:deg)?(?:$|_)")
+SWEEP_RE = re.compile(r"(?:^|_)(alpha|htail|thrust)_([pmx][\d.p]+)(?:deg)?(?:$|_)")
 PARENT_SUBSTR_DEFAULT = "_parent"
 
 
@@ -286,6 +286,22 @@ def run(spec: PhaseSpec, refresh: bool = False):
     h, dh = by_sweep(rows, "htail",  spec.qS)
     t, dt = by_sweep(rows, "thrust", spec.qS)
     Ma, Mh, Mt = spec.mask_alpha(a), spec.mask_htail(h), spec.mask_thrust(t)
+
+    # Write a JSON sidecar describing the (lo, hi) linear range used
+    # for each sweep, alongside the cache.  Consumers (combined-sens
+    # plotter, etc.) read this rather than re-importing the PhaseSpec.
+    import json
+    def _bounds(mask, x):
+        if mask.sum() == 0:
+            return None
+        return [float(x[mask].min()), float(x[mask].max())]
+    linear_range = {
+        "alpha":  _bounds(Ma, a),
+        "htail":  _bounds(Mh, h),
+        "thrust": _bounds(Mt, t),
+    }
+    (spec.out_dir / f"{spec.phase_name}_linear_range.json").write_text(
+        json.dumps(linear_range, indent=2))
     fittable = {label: mask.sum() >= 2
                 for label, mask in (("alpha", Ma), ("htail", Mh), ("thrust", Mt))}
     for label, ok in fittable.items():

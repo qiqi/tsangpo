@@ -162,7 +162,7 @@ AC_HEIGHT_M   = 1.25 * P.WING_SPAN_M
 AC_RADIUS_M   = 1.10 * (P.X_TAIL_DEFAULT_M + 1.5 * P.HTAIL_CHORD_M)
 HT_HEIGHT_M   = 1.30 * P.HTAIL_SPAN_M
 HT_RADIUS_M   = 1.50 * P.HTAIL_CHORD_M
-PROP_REFINE_M = 0.05 * P.WING_MAC_M
+PROP_REFINE_M = 0.025 * P.WING_MAC_M   # halved (was 0.05 c_w) -- AD-delivery probe
 
 
 def build_params(
@@ -179,6 +179,8 @@ def build_params(
     surface_max_edge_length_m: float = 0.075,
     curvature_resolution_deg:  float | None = None,
     htail_z_m:                 float = P.Z_TAIL_LOW_M,
+    htail_x_m:                 float = P.X_TAIL_DEFAULT_M,
+    ht_radius_m:               float = HT_RADIUS_M,
 ):
     """Build a SimulationParams for one (α_body, θ_htail, T_mult) point.
 
@@ -223,9 +225,9 @@ def build_params(
         # cylinder follows the geometry's htail.
         ht_cyl = fl.Cylinder(
             name="htail_pitch_zone",
-            center=(P.X_TAIL_DEFAULT_M, 0, htail_z_m) * fl.u.m,
+            center=(htail_x_m, 0, htail_z_m) * fl.u.m,
             axis=(0, 1, 0),
-            height=HT_HEIGHT_M * fl.u.m, outer_radius=HT_RADIUS_M * fl.u.m,
+            height=HT_HEIGHT_M * fl.u.m, outer_radius=ht_radius_m * fl.u.m,
         )
         prop_cyls = [
             fl.Cylinder(
