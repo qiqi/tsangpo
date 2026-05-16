@@ -51,7 +51,9 @@ ground-effect landing maneuver.
 \begin{tabular}{ll}
 $\alpha$ & body angle of attack \\
 $\theta_{ht}$ & horizontal-tail rotation (positive: TE down) \\
-$T/W$ & delivered total thrust normalised by aircraft weight (dimensionless) \\
+$T/L$ & delivered total thrust normalised by total lift; $L$ \\
+       & \quad includes the thrust's vertical component, so $T/L = C_T / C_{L,\mathrm{total}}$ \\
+       & \quad in the wind frame; pure CFD-derived dimensionless ratio \\
 $C_L,C_D,C_{m_{\mathrm{CG}}}$ & lift, drag, and pitching-moment coefficients about CG \\
 $\sm$ & static margin
        $\equiv -(\partial C_{m_{\mathrm{CG}}}/\partial\alpha) /
@@ -79,7 +81,7 @@ The cost of DEP-augmented blown lift -- hidden in a clean
 configuration drawing -- shows up at the empennage.  The same
 propeller wake that creates wing $C_{L,\max}$ pours energetic,
 deflected flow into the horizontal-tail region.  At high
-thrust setting ($T/W \to 1$) the downwash blanket along the
+thrust setting ($T/L \to 1$) the downwash blanket along the
 centerline fills the airspace where the stabilizer would
 operate, and elevator authority collapses precisely when it is
 needed -- at low approach airspeeds, with flaps deployed, and
@@ -124,10 +126,10 @@ design matrix in
 $(\text{flap continuity}, z_{ht})$ -- shown in
 Fig.~\ref{fig:configs} -- across three flight phases
 (cruise, takeoff, landing).  For each combination we run an
-$\alpha$/$\theta_{ht}$/$T/W$ sensitivity sweep
+$\alpha$/$\theta_{ht}$/$T/L$ sensitivity sweep
 about a baseline trim point, fit local linear sensitivities
 with masks that exclude stalled points, and solve the $3\times
-3$ trim system in $(\alpha,\theta_{ht},T/W)$ for
+3$ trim system in $(\alpha,\theta_{ht},T/L)$ for
 the equilibrium flight condition in each phase.
 
 \begin{figure}[htb!]
@@ -242,7 +244,7 @@ shows the sensitivity sweeps across the three phases.
            (green), \textcolor[HTML]{d97706}{takeoff} (orange),
            \textcolor[HTML]{c0392b}{landing} (red).  Rows are
            the three sensitivity sweeps ($\alpha$,
-           $\theta_{ht}$, $T/W$); the first two
+           $\theta_{ht}$, $T/L$); the first two
            columns are
            $C_{L,\mathrm{total}} = C_L + C_T\sin\alpha$ and
            $C_{D,\mathrm{total}} = C_D - C_T\cos\alpha$, so
@@ -435,12 +437,44 @@ $\partial C_{m_{\mathrm{CG}}}/\partial\alpha$ and to
 $\partial C_{m_{\mathrm{CG}}}/\partial\theta_{ht}$ scale linearly
 with the moment arm; wing and flap contributions do not.
 
+A v3 CFD campaign mirroring the gap-low one (3 phases $\times$
+$1+19$ cases each) is currently in flight; partial data is
+available for landing ($7/20$) and takeoff ($5/20$),
+with cruise still queueing.
+Figure~\ref{fig:v3-sens} shows the partial v3 sensitivity
+sweeps with the gap-low (Step 3) baseline overlaid -- the
+first peek at how the shortened boom shifts the
+sensitivities.  The trim points marked here are the v3
+campaign's chosen BO values ($\alpha=+25^\circ$,
+$\theta_{ht}=+5^\circ$ at landing; $\alpha=+15^\circ$,
+$\theta_{ht}=-5^\circ$ at takeoff) -- deliberately at the
+high-$\alpha$ ``low-slow-pass'' frontier of the envelope to
+test the v3 short-boom directly under the most demanding
+operating condition for tail authority.
+
+\begin{figure}[htb!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/v3_combined_sens.png}
+  \caption{Partial v3 (Step 4) sensitivity sweeps with the
+           gap-low (Step 3) overlay (smaller circles, thinner
+           lines, same colors).  Cruise points
+           are absent (CFD still queued); takeoff and landing
+           rows show the sweep points that have completed so
+           far.  v3 BO trim is intentionally placed near the
+           ``low-slow-pass'' frontier -- $\alpha=+15^\circ$ in
+           takeoff and $\alpha=+25^\circ$ in landing -- so the
+           sweeps probe the high-$\alpha$ behavior of the
+           short-boom directly.  Final numbers will be filled
+           in once the full sweep lands.}
+  \label{fig:v3-sens}
+\end{figure}
+
 \subsection{Trimmable flight envelope}
 \label{sec:envelope}
 
 The most direct way to read off what the configuration can
 \emph{do} is to march through a representative $(\alpha,
-T/W)$ grid, pick $\theta_{ht}$ such that the
+T/L)$ grid, pick $\theta_{ht}$ such that the
 moment trims at each point, evaluate $C_L$, $C_D$, $C_{T,\mathrm{del}}$
 from the local linear sensitivities, and solve the Newtonian
 force-balance for the equilibrium airspeed $V$ and flight-path
@@ -462,16 +496,16 @@ discussion in this section will not change, only the numbers.
 \small
 \caption{\textbf{Trimmable flight envelope, v2 gap-low (preview
          for v3 analysis)}.  At each $(\alpha,
-         T/W)$ grid point, $\theta_{ht}$ trims
+         T/L)$ grid point, $\theta_{ht}$ trims
          the moment; equilibrium $V$ and $\gamma$ follow from
          the Newtonian force balance with delivered actuator-
-         disk thrust held constant.  $T/W$ is the delivered
+         disk thrust held constant.  $T/L$ is the delivered
          thrust-to-weight ratio.  Generated by
          \texttt{post/v2\_gapped/equilibrium\_grid.py}.}
 \label{tab:gap-low-envelope}
 \begin{tabular}{ccccccc}
 \toprule
-Phase & $\alpha$ [deg] & $T/W$ & $\theta_{ht}$ [deg]
+Phase & $\alpha$ [deg] & $T/L$ & $\theta_{ht}$ [deg]
    & $C_L$  & $V$ [kt] & $\gamma$ [deg] \\
 \midrule
 \multirow{9}{*}{Cruise}
@@ -487,25 +521,25 @@ Phase & $\alpha$ [deg] & $T/W$ & $\theta_{ht}$ [deg]
 \midrule
 \multirow{9}{*}{Takeoff}
   & $+6$  & $0.32$ & $-3.56$ & $3.33$ & $44.2$ & $+1.1$  \\
-  & $+6$  & $0.64$ & $-1.89$ & $4.18$ & $37.8$ & $+17.3$ \\
-  & $+6$  & $0.97$ & $-0.23$ & $5.04$ & $28.8$ & $+43.6$ \\
+  & $+6$  & $0.67$ & $-1.89$ & $4.18$ & $37.8$ & $+17.3$ \\
+  & $+6$  & $1.40$ & $-0.23$ & $5.04$ & $28.8$ & $+43.6$ \\
   & $+9$  & $0.32$ & $-5.73$ & $3.87$ & $40.6$ & $+0.7$  \\
-  & $+9$  & $0.64$ & $-4.07$ & $4.73$ & $34.8$ & $+17.9$ \\
-  & $+9$  & $0.97$ & $-2.40$ & $5.58$ & $25.5$ & $+46.2$ \\
+  & $+9$  & $0.68$ & $-4.07$ & $4.73$ & $34.8$ & $+17.9$ \\
+  & $+9$  & $1.55$ & $-2.40$ & $5.58$ & $25.5$ & $+46.2$ \\
   & $+12$ & $0.32$ & $-7.90$ & $4.42$ & $37.6$ & $+0.4$  \\
-  & $+12$ & $0.64$ & $-6.24$ & $5.28$ & $32.2$ & $+18.4$ \\
-  & $+12$ & $0.97$ & $-4.58$ & $6.13$ & $22.5$ & $+48.4$ \\
+  & $+12$ & $0.69$ & $-6.24$ & $5.28$ & $32.2$ & $+18.4$ \\
+  & $+12$ & $1.77$ & $-4.58$ & $6.13$ & $22.5$ & $+48.4$ \\
 \midrule
 \multirow{9}{*}{Landing}
   & $+8$  & $0.26$ & $-0.40$ & $5.68$ & $33.3$ & $-13.2$ \\
-  & $+8$  & $0.52$ & $+3.26$ & $7.29$ & $29.2$ & $-3.0$  \\
-  & $+8$  & $0.77$ & $+6.92$ & $8.90$ & $25.7$ & $+10.5$ \\
+  & $+8$  & $0.50$ & $+3.26$ & $7.29$ & $29.2$ & $-3.0$  \\
+  & $+8$  & $0.78$ & $+6.92$ & $8.90$ & $25.7$ & $+10.5$ \\
   & $+14$ & $0.26$ & $-3.05$ & $6.20$ & $31.2$ & $-16.0$ \\
-  & $+14$ & $0.52$ & $+0.61$ & $7.80$ & $27.4$ & $-4.2$  \\
-  & $+14$ & $0.77$ & $+4.27$ & $9.41$ & $23.8$ & $+11.0$ \\
+  & $+14$ & $0.50$ & $+0.61$ & $7.80$ & $27.4$ & $-4.2$  \\
+  & $+14$ & $0.80$ & $+4.27$ & $9.41$ & $23.8$ & $+11.0$ \\
   & $+20$ & $0.26$ & $-5.70$ & $6.71$ & $29.4$ & $-18.3$ \\
-  & $+20$ & $0.52$ & $-2.05$ & $8.32$ & $25.7$ & $-5.1$  \\
-  & $+20$ & $0.77$ & $+1.61$ & $9.93$ & $22.0$ & $+11.5$ \\
+  & $+20$ & $0.51$ & $-2.05$ & $8.32$ & $25.7$ & $-5.1$  \\
+  & $+20$ & $0.84$ & $+1.61$ & $9.93$ & $22.0$ & $+11.5$ \\
 \midrule
 \multicolumn{7}{l}{\textit{v3 design target -- ``low-slow pass'' (CFD-TBD)}} \\
   & $+30$ & \todo{TBD} & \todo{TBD} & \todo{TBD} & $<20$ & $0.0$ \\
@@ -522,27 +556,31 @@ $+0.6$ and $+3^\circ$ -- modest deflections inside the
 unstalled htail range.  The flight-path angle is small
 ($|\gamma| \lesssim 4^\circ$) so the configuration sits in a
 classic level-cruise pocket; $V$ ranges from $77$ to $95$
-knots depending on $\alpha$ at any given $T/W$.
+knots depending on $\alpha$ at any given $T/L$.
 
 \paragraph{Takeoff.}
-With delivered $T/W \in [0.32, 0.97]$ and $\alpha \in
-[+6, +12]^\circ$, trim $\theta_{ht}$ stays well inside the
-htail's $+12^\circ$ takeoff stall margin (all values are
-$\le 0^\circ$ here).  The interesting story is in $\gamma$:
-at $T/W \approx 0.32$ the aircraft is barely climbing
-($\gamma \approx 0^\circ$), but adding thrust drives
-$\gamma$ to $+17^\circ$ at $T/W \approx 0.64$ and to a
-strikingly steep $+43$ to $+48^\circ$ at $T/W \approx 0.97$.
-Equilibrium $V$ is slow throughout -- $22$ to $44$ knots --
-typical of a blown-lift uSTOL climb.
+With delivered $T/L$ spanning $[0.32, 1.77]$ across the
+grid and $\alpha \in [+6, +12]^\circ$, trim $\theta_{ht}$
+stays well inside the htail's $+12^\circ$ takeoff stall
+margin (all values are $\le 0^\circ$ here).  The interesting
+story is in $\gamma$: at $T/L \approx 0.32$ the aircraft is
+barely climbing ($\gamma \approx 0^\circ$), but adding
+thrust drives $\gamma$ to $+17^\circ$ at $T/L \approx 0.67$
+and to a strikingly steep $+43$ to $+48^\circ$ at
+$T/L \approx 1.4$--$1.8$.  ($T/L > 1$ in steep climb because
+in equilibrium $L = W \cos\gamma < W$ when $\gamma \neq 0$
+-- thrust exceeds the wing-axis lift component, the rest
+balancing the weight.)  Equilibrium $V$ is slow throughout
+-- $22$ to $44$ knots -- typical of a blown-lift uSTOL
+climb.
 
 \paragraph{Landing.}
 The same envelope captures the full landing approach.  At
-low thrust ($T/W \approx 0.26$) the aircraft descends at
+low thrust ($T/L \approx 0.26$) the aircraft descends at
 $\gamma \in [-13, -18]^\circ$ across the $\alpha$ sweep --
 steep enough for short-field approaches.  Mid-thrust
-($T/W \approx 0.52$) gives shallow descent near level;
-high thrust ($T/W \approx 0.77$) reaches $\gamma
+($T/L \approx 0.50$) gives shallow descent near level;
+high thrust ($T/L \approx 0.80$) reaches $\gamma
 \approx +11^\circ$ climb-out, providing the go-around
 envelope.  Approach speeds are 22-33 knots, and trim
 $\theta_{ht}$ stays inside the htail's $+20^\circ$ landing
@@ -557,11 +595,11 @@ $C_T$ essentially unchanged at each grid point (these depend
 on the wing, the flap, and the AD-driven slipstream, not on
 the htail moment arm).  So the v3 envelope predicted by
 linear extrapolation has the \emph{same} $(V, \gamma)$ at
-each $(\alpha, T/W)$ point as the v2 table
+each $(\alpha, T/L)$ point as the v2 table
 above; only the column $\theta_{ht}$ changes, scaled by
 $1/k = 1.88$ relative to its baseline.  The most binding
 corner remains landing $\alpha=+8^\circ$,
-$T/W \approx 0.77$ (go-around): $\theta_{ht} = -6
+$T/L \approx 0.78$ (go-around): $\theta_{ht} = -6
 + (+6.92-(-6)) \cdot 1.88 \approx +18.3^\circ$, still
 inside the empirical $+20^\circ$ landing stall margin.  The
 other corners scale further inside their margins.  CFD
@@ -852,7 +890,7 @@ Disk radius     & $R$  & $0.534\,$m ($= 0.385\,c_w$) \\
 Disk $x$        & $x_{prop}$ & $-0.7\,c_w = -0.969\,$m (= $0.2\,c_w$ ahead of wing LE) \\
 Disk $z$        & $z_{prop}$ & $+0.1\,c_w = +0.138\,$m (= $0.3\,c_w$ below wing chord plane) \\
 Disk $y$        & $y_{prop}$ & $\pm\{0.554, 1.661, 2.769, 3.876, 4.983\}\,$m \\
-Design $T/W$    & --     & $0.5$ at $T/W=1$ \\
+Design $T/W$    & --     & $0.5$ at the cruise-design thrust scale \\
 Thrust per disk at design & $T_p$  & $578\,$N \\
 Disk loading at design     & $DL$   & $1{,}292\,$N/m$^2$ \\
 \bottomrule
@@ -861,10 +899,11 @@ Disk loading at design     & $DL$   & $1{,}292\,$N/m$^2$ \\
 
 Each disk is modelled in Flow360 as a constant-force actuator
 disk perpendicular to the body $x$-axis; the disk-thickness
-mesh region is $0.1\,c_w$ axially.  The thrust multiplier
-$T/W$ scales every disk's thrust uniformly so
-that $T/W=1$ corresponds to the design-point
-$T/W=0.5$ at cruise altitude.
+mesh region is $0.1\,c_w$ axially.  A thrust multiplier
+$T_{\mathrm{mult}}$ scales every disk's commanded pressure
+jump uniformly; results are reported as the resulting
+delivered $T/L = C_T/C_{L,\mathrm{total}}$ rather than the
+multiplier itself.
 
 \subsection{Operating conditions}
 
@@ -875,17 +914,20 @@ $\mu = 1.693\times 10^{-5}\,$Pa$\cdot$s.
 
 \begin{table}[htb!]
 \centering
-\caption{Per-phase nominal flight condition.  ``Baseline''
-         $\alpha$/$\theta_{ht}$/$T/W$ values
-         define the centre of each sensitivity sweep.}
+\caption{Per-phase nominal flight condition.  Baseline
+         $\alpha$/$\theta_{ht}$/$T_{\mathrm{mult}}$ values
+         define the centre of each sensitivity sweep; the
+         resulting CFD-measured $T/L$ at BO is given in the
+         last column.}
 \label{tab:flight}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-Phase & Flap & $V_\infty$ [m/s] & $\gamma$ [deg] & BO $(\alpha,\,\theta_{ht},\,T/W)$ [deg, deg, --] \\
+Phase & Flap & $V_\infty$ [m/s] & $\gamma$ [deg]
+   & BO $(\alpha,\,\theta_{ht},\,T_{\mathrm{mult}})$ & $T/L$ at BO \\
 \midrule
-Cruise   & stowed   & $45.72$ & $0$    & $(+7,\, 0,\, 1.0)$ \\
-Takeoff  & takeoff  & $18.00$ & $+30$  & $(+8,\, -5,\, 16)$ \\
-Landing  & landing  & $12.86$ & $-30$  & $(+8,\, -6,\, 12)$ \\
+Cruise   & stowed   & $45.72$ & $0$    & $(+7,\, 0,\, 1.0)$    & $0.05$ \\
+Takeoff  & takeoff  & $18.00$ & $+30$  & $(+8,\, -5,\, 16)$    & $0.52$ \\
+Landing  & landing  & $12.86$ & $-30$  & $(+8,\, -6,\, 12)$    & $0.39$ \\
 \bottomrule
 \end{tabular}
 \end{table}

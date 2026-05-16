@@ -133,16 +133,23 @@ def solve_equilibrium(spec: PhaseSpec, slopes: dict, baselines: dict,
     sin_g = K * (CT * cos(a_rad) - CD * x)
     gamma_deg = degrees(atan2(sin_g, cos_g))
     # AD thrust is F = CT_del · q_b · S (constant in V at fixed T_mult, per
-    # the cfd_setup actuator-disk model).  T/W is the combined-prop thrust
-    # over aircraft weight.
+    # the cfd_setup actuator-disk model).  T/L is the delivered total
+    # thrust over the total (aero + thrust-component) lift, i.e.,
+    # T/L = C_T / C_{L,total} = CT / (CL + CT·sin α).  Pure CFD output
+    # — no assumed aircraft weight in the denominator.
     F_thrust_N = CT * spec.qS
-    T_over_W   = F_thrust_N / P.W_GROSS_N
+    CL_total   = CL + CT * sin(radians(alpha_deg))
+    # T/L at the equilibrium V (not at V_b): L = CL_total · q_trim · S
+    # = CL_total · ½ρ V_trim² · S.  No W in this expression.
+    q_trim   = 0.5 * spec.rho * V * V if V > 0 else float("nan")
+    L_total_N = CL_total * q_trim * P.WING_AREA_M2
+    T_over_L  = F_thrust_N / L_total_N if L_total_N > 0 else float("nan")
     return dict(
         alpha=alpha_deg, T_mult=T_mult, theta_ht=theta_ht_deg,
         CL=CL, CD=CD, CT_del=CT,
         V_m_s=V, V_kt=V * KNOTS_PER_M_S,
         gamma_deg=gamma_deg,
-        F_thrust_N=F_thrust_N, T_over_W=T_over_W,
+        F_thrust_N=F_thrust_N, T_over_L=T_over_L,
         note="",
     )
 
@@ -171,7 +178,7 @@ def main():
 
     # CSV
     fields = ["phase", "alpha", "T_mult", "theta_ht", "CL", "CD", "CT_del",
-              "V_m_s", "V_kt", "gamma_deg", "F_thrust_N", "T_over_W",
+              "V_m_s", "V_kt", "gamma_deg", "F_thrust_N", "T_over_L",
               "V_b", "alpha_b", "theta_ht_b", "T_b", "note"]
     with out_csv.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields); w.writeheader()
@@ -207,14 +214,14 @@ def main():
             lines.append(f"| `{k}` | {v:+.5f} |")
         lines += [
             "",
-            "| α [deg] | T_mult | θ_htail [deg] | CL | CD | CT_del | V [kt] | γ [deg] | F_thrust [N] | T/W | note |",
+            "| α [deg] | T_mult | θ_htail [deg] | CL | CD | CT_del | V [kt] | γ [deg] | F_thrust [N] | T/L | note |",
             "|---------|--------|---------------|----|----|--------|--------|---------|--------------|-----|------|",
         ]
         for r in [r for r in rows if r["phase"] == phase]:
             vkt = "{:6.2f}".format(r["V_kt"])     if not isnan(r["V_kt"])     else "  nan "
             g   = "{:+6.2f}".format(r["gamma_deg"]) if not isnan(r["gamma_deg"]) else " nan  "
             F   = "{:7.1f}".format(r["F_thrust_N"]) if not isnan(r["F_thrust_N"]) else " nan   "
-            tw  = "{:5.3f}".format(r["T_over_W"]) if not isnan(r["T_over_W"]) else " nan "
+            tw  = "{:5.3f}".format(r["T_over_L"]) if not isnan(r["T_over_L"]) else " nan "
             lines.append(
                 f"| {r['alpha']:+5.1f} | {r['T_mult']:+5.1f} | {r['theta_ht']:+6.2f}        |"
                 f" {r['CL']:+.3f} | {r['CD']:+.3f} | {r['CT_del']:+.3f} |"

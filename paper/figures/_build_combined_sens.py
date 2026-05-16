@@ -96,30 +96,36 @@ def _plot_one_config(axes, fam: str, sweeps, cols, *,
     phase_data = {}
     for ph in ("cruise", "takeoff", "landing"):
         spec = load_spec(fam, ph)
-        phase_data[ph] = (spec, load_sweep(spec))
+        try:
+            phase_data[ph] = (spec, load_sweep(spec))
+        except FileNotFoundError:
+            phase_data[ph] = None  # phase has no cached sweep yet
 
     for row, (sweep_name, _) in enumerate(sweeps):
         for col, (key, _) in enumerate(cols):
             ax = axes[row, col]
             for ph in ("cruise", "takeoff", "landing"):
+                if phase_data[ph] is None:
+                    continue
                 spec, data = phase_data[ph]
                 x, data_dict, mask = data[sweep_name]
                 y = data_dict[key]
-                # T/W = F_AD_delivered_N / W_GROSS_N, point-by-point.
-                # The thrust-sweep x-axis becomes the actual measured
-                # T/W at each sweep row.  BO T/W is the F_AD reading at
-                # the BO point of whichever sweep we're in (closest
-                # x-value to the BO of that sweep).
-                tw_arr = data_dict["F_AD_delivered_N"] / P.W_GROSS_N
+                # T/L = C_T / C_{L,total}, point-by-point.  L includes
+                # the thrust's vertical (wind-axis lift) component, so
+                # CL_total = CL_aero + CT*sin(alpha).  This makes T/L
+                # a pure CFD-derived nondimensional ratio that does
+                # not require an assumed aircraft weight.
+                tl_arr = data_dict["CT_delivered"] / np.maximum(
+                    data_dict["CL_total"], 1e-9)
                 bo_value = {"alpha":  spec.alpha_b,
                             "htail":  spec.theta_ht_b,
                             "thrust": spec.T_b}[sweep_name]
-                tw_bo = float(tw_arr[int(np.argmin(np.abs(x - bo_value)))])
+                tl_bo = float(tl_arr[int(np.argmin(np.abs(x - bo_value)))])
                 if sweep_name == "thrust":
-                    x_disp = tw_arr
+                    x_disp = tl_arr
                 else:
                     x_disp = x
-                bo_label = f"T/W={tw_bo:.2f}"
+                bo_label = f"T/L={tl_bo:.2f}"
                 color = PHASE_COLORS[ph]
                 label = (f"{ph} (BO α={spec.alpha_b:+.0f}°, "
                          f"θ={spec.theta_ht_b:+.0f}°, "
@@ -142,7 +148,7 @@ def plot_combined(fam: str, out_path: Path, title: str,
     sweeps = [
         ("alpha",  r"$\alpha$ [deg]"),
         ("htail",  r"$\theta_{\rm htail}$ [deg]"),
-        ("thrust", r"delivered $T/W$  (from $F_{\rm AD}/W$)"),
+        ("thrust", r"delivered $T/L = C_T / C_{L,\rm total}$"),
     ]
     # Include thrust contribution in CL and CD so the reader can infer
     # flight angle directly: with these definitions
@@ -193,3 +199,7 @@ if __name__ == "__main__":
                   HERE / "gap_low_combined_sens.png",
                   "gap-low (Step 3): $40\\%$ inboard flap gap + low htail in slipstream",
                   overlay_fam="v2_gapped_high")
+    plot_combined("v3",
+                  HERE / "v3_combined_sens.png",
+                  "v3 (Step 4): gap + low htail + shortened tail boom (partial CFD)",
+                  overlay_fam="v2_gapped")

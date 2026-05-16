@@ -7,7 +7,11 @@ geometry/out/
 geometry/*.stl
 geometry/*.step
 flow360/results/
-post/out/
+
+# post/out/ holds the cached CFD digests (sweep_data.csv,
+# linear_range.json, equilibrium_grid.{csv,md}) + reproducible plots.
+# Keep these so `paper/build.sh` works without cloud access.  Volume
+# meshes etc. never land here.
 
 # ESP / OpenCSM intermediates
 *.cpc
