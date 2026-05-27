@@ -1,9 +1,11 @@
 """
 Re-submit one parent (BO) case for each of the 12 (config, phase)
-projects with the current `cfd_setup.PROP_REFINE_M` (halved to 0.025 c_w
-≈ 0.0346 m for the AD-delivery probe).  Each submission is a fresh
-case — no fork_from — so Flow360 rebuilds the volume mesh with the new
-refinement, and the new case carries the AD-disk diagnostics we need.
+projects with the current `cfd_setup.PROP_REFINE_M` (0.025 c_w ≈ 0.0346 m,
+the finer AD refinement that brings disk delivery to ~2% of commanded vs
+~8% at 0.05 c_w).  Each submission is a fresh case — no fork_from — so
+Flow360 rebuilds the volume mesh with the new refinement.
+NOTE: the once-suspected ~60% AD under-delivery was a measurement-script
+unit error, not a solver bug — see FLOW360_AD_DELIVERY_RESOLVED.md.
 
 Run:
     python3 flow360/submit_fine_ad_parents.py

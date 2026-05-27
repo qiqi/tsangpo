@@ -248,8 +248,13 @@ runs fine with it zero). Do **not** route a nonzero diagnostic into a cylinder's
   honored, so the only safe diagnostic channel is `omegaDot` (one per UDD).
 - **Actuator-disk reaction is a volume body force, NOT in the wall integral.** Add
   the disk reaction moment by hand: a disk at body `(PROP_X,0,PROP_Z)` with thrust
-  `(−T,0,0)` contributes `(r×F)_y = −PROP_Z·T` about the CG. Verify the disk
-  model's *actual* integrated thrust equals the constant you assume.
+  `(−T,0,0)` contributes `(r×F)_y = −PROP_Z·T` about the CG. The solver delivers
+  the commanded `force_per_area` integral to within ~2% on a converged mesh (~8%
+  coarse — binary cell-membership at the disk boundary), so using the commanded
+  `T_disk` here is accurate to a couple percent. (An apparent ~60% under-delivery
+  once reported was a unit-conversion error in the *measurement* script —
+  hard-coded `ρ∞·a∞²` across cases run at different altitudes, off by the
+  141829/90250 = 1.572 sea-level/12kft factor — not a solver bug; don't re-chase it.)
 - **Output frequency:** `SliceOutput`/`VolumeOutput` default `frequency = -1`
   (last step only). For a flow animation set `frequency = 1` (per step). A
   single-frame VolumeOutput is ~2 GB and useless for animation; the y=0 slice is

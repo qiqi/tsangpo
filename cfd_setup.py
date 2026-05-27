@@ -166,7 +166,11 @@ AC_HEIGHT_M   = 1.25 * P.WING_SPAN_M
 AC_RADIUS_M   = 1.10 * (P.X_TAIL_DEFAULT_M + 1.5 * P.HTAIL_CHORD_M)
 HT_HEIGHT_M   = 1.30 * P.HTAIL_SPAN_M
 HT_RADIUS_M   = 1.50 * P.HTAIL_CHORD_M
-PROP_REFINE_M = 0.025 * P.WING_MAC_M   # halved (was 0.05 c_w) -- AD-delivery probe
+PROP_REFINE_M = 0.025 * P.WING_MAC_M   # fine AD refinement: delivers commanded
+                                       # thrust to ~2% (vs ~8% at 0.05 c_w). The
+                                       # once-reported ~60% AD deficit was a
+                                       # measurement-script unit error, not a
+                                       # solver bug — see FLOW360_AD_DELIVERY_RESOLVED.md.
 
 
 def build_params(

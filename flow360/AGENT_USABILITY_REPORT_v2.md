@@ -216,26 +216,31 @@ the S3 client.
 
 ## 11. `force_per_area.thrust` semantics aren't fully documented
 
-**Bit us:** see `paper/figures/FLOW360_AD_BUG_REPORT.md` (the
-parallel bug report we'll send). Short version: we don't actually
-know whether `force_per_area.thrust` is a face pressure jump, a body-
-force density, or a coefficient — and the integrated reaction force
-(0.65 ×, 1.10 ×, or who-knows-× the commanded depending on disk
-resolution and inflow loading) varies more than enough to matter.
+**Bit us (partly self-inflicted — see resolution):** we initially read a large
+apparent under-delivery (an 0.65×/1.10× split). That split turned out to be a
+**unit-conversion error in our own measurement script** (hard-coded `ρ∞·a∞²` for
+12 kft applied to cases run at sea level — off by 1.572×), **not** a solver
+issue. Corrected, the integrated reaction is ~**1.10× commanded coarse**, ~**1.016×
+fine**, identical across configs. Full resolution:
+`paper/figures/FLOW360_AD_DELIVERY_RESOLVED.md`.
 
-**Agent angle:** an agent reads the field name `force_per_area.thrust`
-and unit (`N/m²`), assumes "uniform pressure jump", and computes
-`commanded = pressure × annular_area`. The actual delivered force is
-0.65× of that at takeoff/landing with the fine mesh. The
-discrepancy is large enough to flip the cross-config CD ranking in
-our paper figures.
+The genuine, remaining doc gap: `force_per_area.thrust` (N/m²) is not clearly
+specified as a body-force density, and `linearInterp` clamps the force through
+the hub (`r < radius[0]`), so the delivered integral over annulus
+`[r_inner, R]` is `1/(1−(r_inner/R)²)` times the naive `pressure × annular_area`
+(here 1.023×) — which a user computing "commanded = pressure × annular area"
+will not anticipate.
 
-**Recommended fix:** add a numerical worked example to the
-`ActuatorDisk` docs: "for a uniform `thrust=730.31 N/m²` over annulus
-r∈[0.08, 0.534] m, with axial cylinder height = 0.139 m and
-sufficient mesh resolution (≥ N cells radial, ≥ M cells axial),
-the integrated `Disk_i_Force` is expected to be …". Then we'll know
-when our results are model-correct vs mesh-artifact.
+**Agent angle:** an agent reading `force_per_area.thrust` / `N/m²` assumes
+"uniform pressure jump over the annulus" and computes
+`commanded = pressure × annular_area`. The hub-clamp makes the true delivered
+force ~2% higher than that; and **never re-dimensionalize `Disk_i_Force` with a
+hard-coded `ρ∞·a∞²` across cases at different altitudes** (that was our error).
+
+**Recommended fix:** add a numerical worked example to the `ActuatorDisk` docs:
+"for `thrust=730.31 N/m²` over annulus r∈[0.08, 0.534] m, axial height 0.139 m,
+at sufficient resolution, the integrated `Disk_i_Force` is ≈ `pressure ×
+π(R²−r_inner²) × 1/(1−(r_inner/R)²)` because force is applied through the hub."
 
 ---
 
