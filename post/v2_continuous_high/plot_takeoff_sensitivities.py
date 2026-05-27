@@ -22,6 +22,8 @@ SPEC = PhaseSpec(
     T_b         = +16.0,
     velocity    = P.V_TAKEOFF_M_S,
     rho         = P.RHO_TAKEOFF_KG_M3,
+    a_sound     = P.A_SOUND_TAKEOFF_M_S,
+    alpha_sweep_theta_ht = +10.0,
     gamma_deg   = P.CLIMB_ANGLE_DEG,
     # Inherit low-htail masks; relax if high htail clears the downwash blanket.
     mask_alpha  = lambda a: a <= 11.0,

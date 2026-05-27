@@ -65,7 +65,8 @@ despmtr   pivot_y         -0.048
 
 # ----- Inboard gap (applied to the vane + aft-flap assembly) ---------
 despmtr   gap_fraction      0.0      # 0.0 = baseline, 0.35 = proposed
-despmtr   flap_outboard_eta 0.95
+despmtr   flap_outboard_eta 1.00     # flap extends to the wing tip
+                                     # (was 0.95 = 5 % tip aileron region)
 
 set       flap_y_in        gap_fraction*wing_semispan
 set       flap_y_out       flap_outboard_eta*wing_semispan

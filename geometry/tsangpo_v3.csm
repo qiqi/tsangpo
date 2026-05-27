@@ -87,8 +87,9 @@ despmtr   pivot_y         -0.048
 # ----- Gapped-flap layout (all SEMISPAN fractions) -------------------
 despmtr   gap_fraction         0.40   # inboard flap edge (flap starts here)
 despmtr   mid_outer_semispan   0.39   # middle (no-cove) wing region outer edge
-despmtr   flap_outboard_eta    0.95   # outer flap edge (tip ailerons start)
-despmtr   flap_panel_frac      0.55   # = flap_outboard_eta − gap_fraction
+despmtr   flap_outboard_eta    1.00   # flap extends to the wing tip
+                                       # (was 0.95 = 5 % tip aileron region)
+despmtr   flap_panel_frac      0.60   # = flap_outboard_eta − gap_fraction
 despmtr   wing_side_frac       0.61   # = 1 − mid_outer_semispan  (per-side coved wing width)
 
 set       flap_y_in        gap_fraction*wing_semispan

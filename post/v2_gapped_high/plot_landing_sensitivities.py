@@ -22,6 +22,7 @@ SPEC = PhaseSpec(
     T_b         = 12.0,
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
+    a_sound     = P.A_SOUND_LANDING_M_S,
     gamma_deg   = -30.0,
     # Masks inherited from the gap40 low-htail siblings; refine post hoc.
     mask_alpha  = lambda a: a <= 20.0,

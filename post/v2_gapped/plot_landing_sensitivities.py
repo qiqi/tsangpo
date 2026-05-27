@@ -22,6 +22,7 @@ SPEC = PhaseSpec(
     T_b         = +12.0,
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
+    a_sound     = P.A_SOUND_LANDING_M_S,
     gamma_deg   = P.DESCENT_ANGLE_DEG,
     # gap40 landing: α unstalled out to +20°.  Htail unstalled across
     # the negative range up to θ_ht ≈ +12°; above that the htail stalls

@@ -167,6 +167,13 @@ def submit_one(phase_key: str) -> dict:
     print(f"  → project {project.id}")
     _save_project_id(phase_key, project.id)
 
+    # Move into the Tsangpo/6_v3_short_boom folder.
+    try:
+        C.move_project_to_folder(project, "6_v3_short_boom")
+        print(f"  moved project to folder Tsangpo/6_v3_short_boom")
+    except Exception as e:
+        print(f"  WARNING: failed to move project to v3 folder: {e!r}")
+
     surfaces = C.get_gapped_geometry_surfaces(project)
     print(f"  Surfaces: main={surfaces.wing_main_surfs[0].name}, "
           f"vane={[s.name for s in surfaces.wing_vane_surfs]}, "

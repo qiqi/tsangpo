@@ -67,7 +67,10 @@ def set_csm_despmtrs(inlined: str, **kwargs) -> str:
                          side_span_frac=0.60)
     """
     for name, value in kwargs.items():
-        pat = rf"(despmtr\s+{re.escape(name)}\s+)[-\d.eE+]+\b"
+        # `(?=\s|$)` not `\b`: `\b` fails between a trailing `.` (non-word)
+        # and following whitespace (also non-word), so the engine backtracks
+        # and leaves the dot — e.g. "0." becomes "0.40." silently.
+        pat = rf"(despmtr\s+{re.escape(name)}\s+)[-\d.eE+]+(?=\s|$)"
         inlined, n = re.subn(pat, rf"\g<1>{value}", inlined, count=1)
         if n != 1:
             raise ValueError(
@@ -139,6 +142,7 @@ TSANGPO_FOLDER_IDS = {
     "3_v2_gapped_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
     "4_v2_gapped_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
     "5_v2_continuous_low_htail":   "folder-2c582dd7-918a-430f-a0f8-e28e036451ad",
+    "6_v3_short_boom":             "folder-f764b689-2ea5-49dd-88c7-0811ca0b6d38",
 }
 
 
@@ -242,6 +246,9 @@ def build_params(
             for side, side_sign in (("R", +1), ("L", -1))
             for i, eta in enumerate(P.PROP_Y_NONDIM)
         ]
+        # Counter-rotating prop pairs: starboard (R) and port (L) sides spin
+        # in opposite senses so their reaction torques on the airframe cancel.
+        # `_R` in cyl.name means side_sign=+1 (CW from rear), `_L` means -1.
         ad_models = [
             fl.ActuatorDisk(
                 name=cyl.name.replace("disk_", "prop_"),
@@ -249,7 +256,10 @@ def build_params(
                 force_per_area=fl.ForcePerArea(
                     radius=np.array([0.15 * P.PROP_RADIUS_M, P.PROP_RADIUS_M]) * fl.u.m,
                     thrust=np.array([fpa, fpa]) * fl.u.N / fl.u.m ** 2,
-                    circumferential=np.array([swirl, swirl]) * fl.u.N / fl.u.m ** 2,
+                    circumferential=(
+                        (+1 if "_R" in cyl.name else -1)
+                        * np.array([swirl, swirl]) * fl.u.N / fl.u.m ** 2
+                    ),
                 ),
             )
             for cyl in prop_cyls
@@ -286,7 +296,10 @@ def build_params(
                     farfield,
                     fl.RotationVolume(
                         name="ac_rotation", entities=ac_cyl,
-                        enclosed_entities=wing_system_surfs + [ht_cyl],
+                        # prop_cyls enclosed so the actuator-disk slipstream
+                        # rotates with the airframe (otherwise disk axes stay
+                        # horizontal as the body pitches, blowing past the wing).
+                        enclosed_entities=wing_system_surfs + [ht_cyl] + prop_cyls,
                         spacing_axial=0.30 * fl.u.m,
                         spacing_radial=0.15 * fl.u.m,
                         spacing_circumferential=0.15 * fl.u.m,
@@ -321,8 +334,8 @@ def build_params(
             reference_geometry=fl.ReferenceGeometry(
                 area=P.WING_AREA_M2 * fl.u.m ** 2,
                 moment_center=(0, 0, 0) * fl.u.m,
-                moment_length=(P.WING_SEMI_SPAN_M, P.WING_MAC_M,
-                               P.WING_SEMI_SPAN_M) * fl.u.m,
+                moment_length=(P.WING_SPAN_M, P.WING_MAC_M,
+                               P.WING_SPAN_M) * fl.u.m,
             ),
             operating_condition=fl.AerospaceCondition(
                 velocity_magnitude=velocity_m_s * fl.u.m / fl.u.s,

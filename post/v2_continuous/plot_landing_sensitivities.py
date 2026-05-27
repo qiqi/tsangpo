@@ -22,6 +22,8 @@ SPEC = PhaseSpec(
     T_b         = +12.0,
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
+    a_sound     = P.A_SOUND_LANDING_M_S,
+    alpha_sweep_theta_ht = +20.0,
     gamma_deg   = P.DESCENT_ANGLE_DEG,
     # Wing CL peaks at α=+11°; htail in heavy downwash blanket for θ_ht ≤ 0;
     # over-the-top stall past +40°; thrust CMy flattens past +25.

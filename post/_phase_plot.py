@@ -46,19 +46,36 @@ def discover_sweeps(project_id: str, alpha_b: float, theta_ht_b: float, T_b: flo
                     parent_substr: str = PARENT_SUBSTR_DEFAULT) -> dict:
     """Walk the project's cases, parse sweep names, return dict of sweep
     lists + the parent case id.  The parent is also injected at the BO
-    point of each sweep so the fitter sees a complete range."""
+    point of each sweep so the fitter sees a complete range.
+
+    Parent-selection priority (when several candidates exist in a project):
+      1. coarse `BO_estimate` parent (used by the bulk of forks)
+      2. anything else with `_parent` in the name
+    Diagnostic fine_ad parents (named `*_fine_ad_parent`) are EXCLUDED —
+    they ran at a different altitude than the sweep forks and would
+    contaminate the linear fit if injected as an extra BO point.
+    """
     from flow360 import Project, Case
     p = Project.from_cloud(project_id=project_id)
     out: dict = {"alpha": [], "htail": [], "thrust": [], "parent": None}
+    bo_parent: str | None = None
+    other_parent: str | None = None
     for cid in p.get_case_ids():
         c = Case.from_cloud(case_id=cid)
-        if parent_substr in c.name or "BO_estimate" in c.name:
-            out["parent"] = cid
+        if "fine_ad_parent" in c.name or "alphaResweep" in c.name:
+            # diagnostic-only; not a sweep family member
+            continue
+        if "BO_estimate" in c.name:
+            bo_parent = cid
+            continue
+        if parent_substr in c.name:
+            other_parent = cid
             continue
         m = SWEEP_RE.search(c.name)
         if not m:
             continue
         out[m.group(1)].append((_parse_tok(m.group(2)), cid))
+    out["parent"] = bo_parent or other_parent
     if out["parent"]:
         out["alpha"].append((alpha_b, out["parent"]))
         out["htail"].append((theta_ht_b, out["parent"]))
@@ -72,11 +89,41 @@ def discover_sweeps(project_id: str, alpha_b: float, theta_ht_b: float, T_b: flo
 # Force fetch (skips cases with no result yet)
 # ---------------------------------------------------------------------------
 
+def _isa_rho_a(altitude_m: float) -> tuple[float, float]:
+    """ISA standard atmosphere (troposphere) density [kg/m³] and speed
+    of sound [m/s] at the given altitude in metres."""
+    import math
+    T0, L, p0, R, gamma = 288.15, 0.0065, 101325.0, 287.05, 1.4
+    T = T0 - L * altitude_m
+    p = p0 * (T / T0) ** (9.80665 / (R * L))
+    rho = p / (R * T)
+    a = math.sqrt(gamma * R * T)
+    return rho, a
+
+
+def _case_altitude_m(case) -> float:
+    """Read the case's freestream altitude from its operating_condition.
+    Falls back to None if the structure is unfamiliar (caller handles)."""
+    try:
+        ts = case.params.operating_condition.thermal_state
+        alt = float(ts.private_attribute_input_cache.altitude.value)
+        return alt
+    except Exception:
+        try:
+            return float(case.params.operating_condition.thermal_state.altitude.value)
+        except Exception:
+            return None
+
+
 def fetch_rows(sweeps: dict, rho_a2_L2: float) -> list[dict]:
     """Pull final-step total_forces + actuator_disks for each case in the
-    sweep dict.  Skips cases whose Flow360 status isn't COMPLETED (still
-    running, stopped, errored).  Any unexpected download failure on a
-    COMPLETED case propagates — that's a real bug worth surfacing."""
+    sweep dict.  Skips cases whose Flow360 status isn't COMPLETED.
+
+    `rho_a2_L2` is a fallback only.  Each case's actual ρ·a² is computed
+    from its own altitude (read from `case.params.operating_condition.
+    thermal_state`); the F_AD column then carries SI thrust regardless
+    of whether the case ran at SL or design altitude.
+    """
     import flow360 as fl
     rows: list[dict] = []
     for sweep in ("alpha", "htail", "thrust"):
@@ -91,7 +138,18 @@ def fetch_rows(sweeps: dict, rho_a2_L2: float) -> list[dict]:
             last = int(np.where(ps == ps.max())[0][-1])
             ad = c.results.actuator_disks; ad.load_from_remote()
             av = ad.values
-            F_AD = sum(np.array(av[f"Disk{i}_Force"])[-1] for i in range(10)) * rho_a2_L2
+            alt = _case_altitude_m(c)
+            if alt is None:
+                this_rho_a2 = rho_a2_L2        # legacy fallback
+                alt_str = "??"
+            else:
+                rho_c, a_c = _isa_rho_a(alt)
+                this_rho_a2 = rho_c * a_c * a_c
+                alt_str = f"{alt:5.0f}m"
+            # Flow360 reports Disk_i_Force already in non-dim N (i.e., it
+            # has integrated the disk area, with L_ref=1 m), so the SI
+            # conversion is simply F_nd · ρ·a² for this case's altitude.
+            F_AD = sum(np.array(av[f"Disk{i}_Force"])[-1] for i in range(10)) * this_rho_a2
             rows.append(dict(
                 sweep=sweep, value=val, case_id=cid,
                 CL=float(v["CL"][last]),  CD=float(v["CD"][last]),
@@ -100,7 +158,7 @@ def fetch_rows(sweeps: dict, rho_a2_L2: float) -> list[dict]:
                 physical_step=int(ps[last]),
                 pseudo_step=int(v["pseudo_step"][last]),
             ))
-            print(f"  {sweep:6s} {val:+6.2f}  {cid[:18]}  "
+            print(f"  {sweep:6s} {val:+6.2f}  {cid[:18]}  alt={alt_str}  "
                   f"CL={rows[-1]['CL']:+.4f}  CMy={rows[-1]['CMy']:+.4f}  F_AD={F_AD:+.0f}")
     return rows
 
@@ -164,17 +222,27 @@ class PhaseSpec:
     theta_ht_b:  float
     T_b:         float
     velocity:    float          # m/s
-    rho:         float          # kg/m^3
+    rho:         float          # kg/m^3 — must match the altitude the CFD case ran at
     gamma_deg:   float          # 0 for cruise, +30 climb, -30 descent
     mask_alpha:  Callable[[np.ndarray], np.ndarray]
     mask_htail:  Callable[[np.ndarray], np.ndarray]
     mask_thrust: Callable[[np.ndarray], np.ndarray]
     title:       str            # plot suptitle
+    # Speed of sound at the CFD altitude.  Used (with rho) to convert non-dim
+    # actuator-disk forces back to N: F_N = F_nd · ρ · a² · L_ref².  Defaults
+    # to the cruise value (12,000 ft) for legacy specs that omit it; the
+    # takeoff/landing specs override it to the SL value 340.29 m/s.
+    a_sound:     float = P.A_SOUND_CRUISE_M_S
+    # θ_ht at which the α-sweep was actually taken.  None ⇒ same as theta_ht_b
+    # (i.e. the α-sweep was at the BO θ_ht).  Set to a different value for
+    # configurations whose α-sweep was rerun at higher θ_ht to keep the
+    # htail unstalled (cont-low and cont-high takeoff/landing).
+    alpha_sweep_theta_ht: float | None = None
 
     @property
     def qS(self):        return 0.5 * self.rho * self.velocity ** 2 * P.WING_AREA_M2
     @property
-    def rho_a2_L2(self): return self.rho * P.A_SOUND_CRUISE_M_S ** 2
+    def rho_a2_L2(self): return self.rho * self.a_sound ** 2
     @property
     def W_cos_g(self):   return P.W_GROSS_N * cos(radians(self.gamma_deg))
     @property

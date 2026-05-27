@@ -14,6 +14,26 @@ project.run_case(params=params, ..., use_beta_mesher=True)
 `MeshingDefaults.curvature_resolution_angle` is also only honored by
 the beta mesher; with the legacy mesher it silently does nothing.
 
+**Always include a y=0 `SliceOutput` in every CFD case.** Add it to
+the case's `outputs=[...]` list at submission time so we never have
+to fork a 1-step case just to look at the mesh / flow at the symmetry
+plane.  The slice is cheap (~10 MB) and turns a multi-hour fork-and-
+re-mesh cycle into a one-line download.
+
+```python
+fl.SliceOutput(
+    name="y0_slice",
+    entities=[fl.Slice(name="y=0",
+                       normal=(0.0, 1.0, 0.0),
+                       origin=(0.0, 0.0, 0.0) * fl.u.m)],
+    output_fields=["velocity", "Mach", "Cp", "primitiveVars"],
+)
+```
+
+This applies to ALL submission scripts — warmups, phugoid chunks,
+sensitivity sweeps, alpha sweeps, gap-fraction studies, every one.
+If you add a new `submit_*.py`, the y=0 slice goes in by default.
+
 ## Geometry
 
 - Airfoil sketches are emitted by `geometry/airfoils/build_estol_geometry.py`

@@ -32,6 +32,7 @@ SPEC = PhaseSpec(
     T_b         = +8.69,
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
+    a_sound     = P.A_SOUND_LANDING_M_S,
     gamma_deg   = P.DESCENT_ANGLE_DEG,
     # v3 short-boom landing: copying v2_gapped masks until v3 data lands.
     mask_alpha  = lambda a: a <= 30.0,

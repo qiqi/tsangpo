@@ -113,18 +113,27 @@ T_CRUISE_TOTAL_N   = Q_CRUISE_PA * WING_AREA_M2 * 0.04   # CD ≈ 0.04 initial g
 T_CRUISE_PER_PROP_N = T_CRUISE_TOTAL_N / N_PROPS
 
 # Takeoff / climb-out point (flap phase 1 deployed, blown lift from props)
-V_TAKEOFF_M_S      = 18.0                  # 35 knots
-ALT_TAKEOFF_M      = ALT_CRUISE_M          # same altitude (high-altitude STOL)
-RHO_TAKEOFF_KG_M3  = RHO_CRUISE_KG_M3
-Q_TAKEOFF_PA       = 0.5 * RHO_TAKEOFF_KG_M3 * V_TAKEOFF_M_S ** 2
-CLIMB_ANGLE_DEG    = 30.0                  # target climb-out flight-path angle
+# DESIGN intent: high-altitude STOL.  ρ/a here are the design-altitude
+# values used for trim-solver normalization (qS = ½ρV²S etc.).  Note that
+# some CFD cases were actually submitted at altitude=0 (Flow360
+# ThermalState.from_standard_atmosphere with altitude=0); the F_AD
+# back-conversion in post/_phase_plot.py reads each case's own altitude
+# from its params, so the dimensional thrust is computed correctly per
+# case regardless of where it ran.
+V_TAKEOFF_M_S       = 18.0                 # 35 knots
+ALT_TAKEOFF_M       = ALT_CRUISE_M         # design altitude (12,000 ft STOL)
+RHO_TAKEOFF_KG_M3   = RHO_CRUISE_KG_M3
+A_SOUND_TAKEOFF_M_S = A_SOUND_CRUISE_M_S
+Q_TAKEOFF_PA        = 0.5 * RHO_TAKEOFF_KG_M3 * V_TAKEOFF_M_S ** 2
+CLIMB_ANGLE_DEG     = 30.0                 # target climb-out flight-path angle
 
 # Landing / steep-descent point (flap phase 2 deployed)
-V_LANDING_M_S      = 12.86                 # 25 knots
-ALT_LANDING_M      = ALT_CRUISE_M
-RHO_LANDING_KG_M3  = RHO_CRUISE_KG_M3
-Q_LANDING_PA       = 0.5 * RHO_LANDING_KG_M3 * V_LANDING_M_S ** 2
-DESCENT_ANGLE_DEG  = -30.0                 # target descent (negative = downward) flight-path angle
+V_LANDING_M_S       = 12.86                # 25 knots
+ALT_LANDING_M       = ALT_CRUISE_M         # design altitude (12,000 ft STOL)
+RHO_LANDING_KG_M3   = RHO_CRUISE_KG_M3
+A_SOUND_LANDING_M_S = A_SOUND_CRUISE_M_S
+Q_LANDING_PA        = 0.5 * RHO_LANDING_KG_M3 * V_LANDING_M_S ** 2
+DESCENT_ANGLE_DEG   = -30.0                # target descent (negative = downward) flight-path angle
 
 
 @dataclass(frozen=True)

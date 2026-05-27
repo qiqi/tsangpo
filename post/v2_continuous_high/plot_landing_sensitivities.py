@@ -20,6 +20,8 @@ SPEC = PhaseSpec(
     T_b         = +12.0,
     velocity    = P.V_LANDING_M_S,
     rho         = P.RHO_LANDING_KG_M3,
+    a_sound     = P.A_SOUND_LANDING_M_S,
+    alpha_sweep_theta_ht = +20.0,
     gamma_deg   = P.DESCENT_ANGLE_DEG,
     # Inherit low-htail landing masks; refine when data lands.
     mask_alpha  = lambda a: a <= 8.0,

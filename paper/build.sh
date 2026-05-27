@@ -36,8 +36,9 @@ for fam in v2_continuous v2_continuous_high v2_gapped v2_gapped_high v3; do
 done
 
 echo
-echo "=== 2. Equilibrium grid for gap-low ==="
+echo "=== 2. Equilibrium grids (gap-low + v3) ==="
 python3 post/v2_gapped/equilibrium_grid.py | tail -3
+python3 post/v3/equilibrium_grid.py         | tail -3
 
 echo
 echo "=== 3. Re-render paper figures ==="

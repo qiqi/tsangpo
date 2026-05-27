@@ -40,3 +40,11 @@ paper/*.log
 paper/*.bbl
 paper/*.blg
 paper/*.out
+
+# Phugoid/unsteady scratch: raw per-step slices, frames, probe data (regenerable, GB-scale)
+post/v3/slices_chunk*/
+post/v3/phugoid_runs/**/slices_chunk*/
+post/v3/phugoid_runs/**/slice_frames/
+post/v3/phugoid_slice_probe/
+post/v3/pitch_step_v2_slices/
+post/v3/mesh_slice_y0*/

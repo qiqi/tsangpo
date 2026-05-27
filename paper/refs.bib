@@ -1,45 +1,103 @@
-% Bibliography stub for the SciTech 2027 extended abstract.
-% Verify entries before submission.
+% Bibliography for the SciTech 2027 extended abstract.
 
-@techreport{NASA_X57_Maxwell,
-  author       = {{NASA Armstrong Flight Research Center}},
-  title        = {X-57 ``Maxwell'' Distributed-Electric-Propulsion
-                  Flight Demonstrator: Configuration, Flight-Readiness
-                  Reviews, and Program Closure},
-  institution  = {NASA},
+% --- Electra / blown-lift DEP context ----------------------------------------
+@article{Cusati2023DEPCommuter,
+  author       = {Cusati, V. and Corcione, S. and Nicolosi, F. and Zhang, Q.},
+  title        = {Improvement of Take-Off Performance for an Electric
+                  Commuter Aircraft Due to Distributed Electric Propulsion},
+  journal      = {Aerospace},
+  volume       = {10},
+  number       = {3},
+  pages        = {276},
   year         = {2023},
-  note         = {Verify the canonical NASA technical reference at
-                  submission time; candidates include NASA/TM--2020-220436
-                  and the 2023 program-closure press materials.}
+  doi          = {10.3390/aerospace10030276}
 }
 
-@misc{Electra2024EL9,
-  author       = {{Electra Aero, Inc.}},
-  title        = {{EL9 hybrid-electric ultra-STOL aircraft program}},
-  howpublished = {Company technical disclosures and public press},
-  year         = {2024},
-  note         = {Verify the most-cited Electra paper at submission;
-                  candidates include AIAA SciTech and ATIO papers on
-                  the EL2 demonstrator and blown-lift flight test results.}
+% --- X-57 ``Maxwell'' references ---------------------------------------------
+@inproceedings{Deere2017X57HighFidelity,
+  author       = {Deere, K. A. and Viken, S. and Carter, M. and
+                  Viken, J. K. and Derlaga, J. M. and Stoll, A. M.},
+  title        = {Comparison of High-Fidelity Computational Tools for
+                  Wing Design of a Distributed Electric Propulsion Aircraft},
+  booktitle    = {35th AIAA Applied Aerodynamics Conference},
+  year         = {2017},
+  doi          = {10.2514/6.2017-3925}
 }
 
-@misc{Flow360,
-  author       = {{Flexcompute, Inc.}},
-  title        = {Flow360 cloud {RANS} solver},
-  howpublished = {\url{https://flexcompute.com/flow360}},
-  year         = {2025}
+@inproceedings{Viken2017X57Airfoils,
+  author       = {Viken, J. K. and Viken, S. and Deere, K. A. and
+                  Carter, M.},
+  title        = {Design of the Cruise and Flap Airfoil for the X-57
+                  Maxwell Distributed Electric Propulsion Aircraft},
+  booktitle    = {35th AIAA Applied Aerodynamics Conference},
+  year         = {2017},
+  doi          = {10.2514/6.2017-3922}
 }
 
-@misc{HimalayaRepo,
-  author       = {Wang, Qiqi and contributors},
-  title        = {Himalaya: distributed-prop {eSTOL} configuration study},
-  howpublished = {Internal repository (commit SHA on title page)},
-  year         = {2026}
+@inproceedings{HwangNing2018X57MDO,
+  author       = {Hwang, J. T. and Ning, A.},
+  title        = {Large-scale Multidisciplinary Optimization of an
+                  Electric Aircraft for On-Demand Mobility},
+  booktitle    = {2018 AIAA/ASCE/AHS/ASC Structures, Structural Dynamics,
+                  and Materials Conference},
+  year         = {2018},
+  doi          = {10.2514/6.2018-1384}
 }
 
-% TODO: add specific references for:
-%   - McCormick or similar canonical reference on actuator-disk theory
-%   - Selig airfoil database / LS(1)-0417 references
-%   - AIAA papers on T-tail deep-stall and elevator authority margins
-%   - Anderson "Aircraft Performance and Design" on htail effectiveness eta_t
-%   - Any prior published distributed-prop eSTOL configuration studies
+% --- Flow360 solver V&V and prior actuator-disk / blown-lift work -----------
+@inproceedings{Casses2022BlownPropPropulsion,
+  author       = {Casses, C. and Courtin, C. and Drela, M. and
+                  Fitzgibbon, T. A. and others},
+  title        = {Impact of Propulsion Modeling Approach on High-Lift
+                  Force Prediction of Propeller-Blown Wings},
+  booktitle    = {AIAA AVIATION 2022 Forum},
+  year         = {2022},
+  doi          = {10.2514/6.2022-3302}
+}
+
+@inproceedings{Fitzgibbon2025HLPW5,
+  author       = {Fitzgibbon, T. A. and Wang, Q. and Spalart, P. and
+                  others},
+  title        = {The Application of the {Flow360 CFD} Solver to
+                  {HLPW5}: Comparison of {RANS} and {HRLES} Predictions},
+  booktitle    = {AIAA SCITECH 2025 Forum},
+  year         = {2025},
+  doi          = {10.2514/6.2025-0684}
+}
+
+@inproceedings{Fitzgibbon2022HLPW4,
+  author       = {Fitzgibbon, T. A. and Spalart, P. and Wang, Q. and
+                  others},
+  title        = {An Analysis of Modeling Sensitivity Effects for
+                  High-Lift Predictions Using the {Flow360 CFD} Solver},
+  booktitle    = {AIAA AVIATION 2022 Forum},
+  year         = {2022},
+  doi          = {10.2514/6.2022-3745}
+}
+
+@inproceedings{Fitzgibbon2023DPW7,
+  author       = {Fitzgibbon, T. A.},
+  title        = {The Application of {Flow360} to the 7th Drag
+                  Prediction Workshop Cases},
+  booktitle    = {AIAA AVIATION 2023 Forum},
+  year         = {2023},
+  doi          = {10.2514/6.2023-3253}
+}
+
+@inproceedings{Jia2023RotorFundamentals,
+  author       = {Jia, F. and Spalart, P. and Groom, M. J. and Wang, Q.},
+  title        = {Fundamental Studies Towards Rotor Simulations and Design},
+  booktitle    = {AIAA SCITECH 2023 Forum},
+  year         = {2023},
+  doi          = {10.2514/6.2023-2465}
+}
+
+@inproceedings{Jia2021TiltrotorDES,
+  author       = {Jia, F. and Moore, J. and Wang, Q.},
+  title        = {Assessment of Detached Eddy Simulation and Sliding
+                  Mesh Interface in Predicting Tiltrotor Performance in
+                  Helicopter and Airplane Modes},
+  booktitle    = {AIAA AVIATION 2021 Forum},
+  year         = {2021},
+  doi          = {10.2514/6.2021-2601}
+}

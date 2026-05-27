@@ -32,9 +32,11 @@ SPEC = PhaseSpec(
     T_b         = +15.21,
     velocity    = P.V_TAKEOFF_M_S,
     rho         = P.RHO_TAKEOFF_KG_M3,
+    a_sound     = P.A_SOUND_TAKEOFF_M_S,
     gamma_deg   = P.CLIMB_ANGLE_DEG,
-    # v3 short-boom takeoff: copying v2_gapped masks until v3 data lands.
-    mask_alpha  = lambda a: a <= 11.0,
+    # v3 takeoff BO is alpha=+15° (well into post-stall); widen the
+    # mask to capture the high-alpha regime the v3 design probes.
+    mask_alpha  = lambda a: a <= 30.0,
     mask_htail  = lambda h: h <= 12.0,
     mask_thrust = lambda t: np.ones_like(t, dtype=bool),
     title       = "Tsangpo v3 TAKEOFF (short-boom, gap40) — BO α=+15°, "

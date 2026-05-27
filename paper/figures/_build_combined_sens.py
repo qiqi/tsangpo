@@ -94,12 +94,23 @@ def _plot_one_config(axes, fam: str, sweeps, cols, *,
     else:
         ms = 3; lw = 0.75; alpha = 0.6
     phase_data = {}
+    bo_tl = {}
     for ph in ("cruise", "takeoff", "landing"):
         spec = load_spec(fam, ph)
         try:
             phase_data[ph] = (spec, load_sweep(spec))
         except FileNotFoundError:
             phase_data[ph] = None  # phase has no cached sweep yet
+            continue
+        # T/L at the actual BO operating point.  Use the htail-sweep row at
+        # θ_ht = BO_θ (htail-sweep is at α=BO_α, T_mult=BO_T, varying θ_ht,
+        # so this row IS the BO trim point — unlike the α-sweep's row at
+        # α=BO_α, which after the resweep is at a different θ_ht).
+        _, dh, _ = phase_data[ph][1]["htail"]
+        i_bo = int(np.argmin(np.abs(
+            np.array([r for r in phase_data[ph][1]["htail"][0]]) - spec.theta_ht_b)))
+        bo_tl[ph] = float(dh["CT_delivered"][i_bo] /
+                           max(dh["CL_total"][i_bo], 1e-9))
 
     for row, (sweep_name, _) in enumerate(sweeps):
         for col, (key, _) in enumerate(cols):
@@ -117,19 +128,26 @@ def _plot_one_config(axes, fam: str, sweeps, cols, *,
                 # not require an assumed aircraft weight.
                 tl_arr = data_dict["CT_delivered"] / np.maximum(
                     data_dict["CL_total"], 1e-9)
-                bo_value = {"alpha":  spec.alpha_b,
-                            "htail":  spec.theta_ht_b,
-                            "thrust": spec.T_b}[sweep_name]
-                tl_bo = float(tl_arr[int(np.argmin(np.abs(x - bo_value)))])
                 if sweep_name == "thrust":
                     x_disp = tl_arr
                 else:
                     x_disp = x
-                bo_label = f"T/L={tl_bo:.2f}"
+                # T/L on the legend is always the BO trim T/L (from
+                # htail-sweep at θ=BO), regardless of which sweep row this
+                # plot panel displays.
+                bo_label = f"T/L={bo_tl[ph]:.2f}"
                 color = PHASE_COLORS[ph]
+                # If the α-sweep was rerun at a different θ_ht (to keep the
+                # htail unstalled), annotate the legend so the reader knows
+                # which θ_ht each sweep row corresponds to.
+                a_sweep_th = getattr(spec, "alpha_sweep_theta_ht", None)
+                if a_sweep_th is not None and sweep_name == "alpha":
+                    th_str = (f"θ_α={a_sweep_th:+.0f}°  "
+                               f"(BO θ={spec.theta_ht_b:+.0f}°)")
+                else:
+                    th_str = f"θ={spec.theta_ht_b:+.0f}°"
                 label = (f"{ph} (BO α={spec.alpha_b:+.0f}°, "
-                         f"θ={spec.theta_ht_b:+.0f}°, "
-                         f"{bo_label})") if (primary and (row, col) == legend_in_ax) else None
+                         f"{th_str}, {bo_label})") if (primary and (row, col) == legend_in_ax) else None
                 ax.plot(x_disp, y, "o", color=color, mfc="white",
                         ms=ms, alpha=alpha, label=label)
                 order = np.argsort(x_disp)
@@ -184,22 +202,21 @@ def plot_combined(fam: str, out_path: Path, title: str,
 
 
 if __name__ == "__main__":
+    # Each config is plotted on its own — no overlay of the previous step
+    # (per user direction: "get rid of the thin lines, just do each case
+    # separately").
     plot_combined("v2_continuous",
                   HERE / "cont_low_combined_sens.png",
                   "cont-low (Step 0; X-57-class): low htail + continuous flap")
     plot_combined("v2_continuous_high",
                   HERE / "cont_high_combined_sens.png",
-                  "cont-high (Step 1): T-tail + continuous flap",
-                  overlay_fam="v2_continuous")
+                  "cont-high (Step 1): T-tail + continuous flap")
     plot_combined("v2_gapped_high",
                   HERE / "gap_high_combined_sens.png",
-                  "gap-high (Step 2): $40\\%$ inboard flap gap + T-tail",
-                  overlay_fam="v2_continuous_high")
+                  "gap-high (Step 2): $40\\%$ inboard flap gap + T-tail")
     plot_combined("v2_gapped",
                   HERE / "gap_low_combined_sens.png",
-                  "gap-low (Step 3): $40\\%$ inboard flap gap + low htail in slipstream",
-                  overlay_fam="v2_gapped_high")
+                  "gap-low (Step 3): $40\\%$ inboard flap gap + low htail in slipstream")
     plot_combined("v3",
                   HERE / "v3_combined_sens.png",
-                  "v3 (Step 4): gap + low htail + shortened tail boom (partial CFD)",
-                  overlay_fam="v2_gapped")
+                  "v3 (Step 4): gap + low htail + shortened tail boom (partial CFD)")

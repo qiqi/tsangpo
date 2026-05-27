@@ -201,20 +201,20 @@ def draw_sideview(ax, *, z_htail: float, short_boom: bool):
     _rect(ax, PROP_X - DISK_THICK / 2, PROP_Z - DISK_RAD,
           DISK_THICK, 2 * DISK_RAD,
           DISK_FC, DISK_EC, lw=0.8, zorder=2)
-    # Main landing gear: a single circle representing a (tundra-style
-    # bush-plane) main wheel.  The wheel is positioned slightly AFT of
-    # the CG and well BELOW the fuselage belly so the aircraft has
-    # geometric clearance to rotate to a high (>= 30 deg) nose-up
-    # landing attitude around the gear contact point before the
-    # horizontal tail strikes the ground.  With the v3 short boom
-    # (panel f), 30 deg rotation places the htail TE roughly
-    # 0.25 c above the ground; with the v2 long boom (panels d, e)
-    # the same rotation would drive the htail TE far below the ground
-    # plane, i.e. tail-strike.
-    WHEEL_X     = +0.50     # x position (aft of CG)
+    # Main landing gear: a large tundra-style tire — short STOL bushplane
+    # operations on unprepared surfaces motivate the oversize wheel for
+    # rock/rut absorption.  The wheel is positioned 0.2 c AFT of the CG
+    # (close in, typical of bushplanes) and well BELOW the fuselage belly
+    # so the aircraft has geometric clearance to rotate to a high
+    # (>= 30 deg) nose-up landing attitude around the gear contact point
+    # before the horizontal tail strikes the ground.  With the v3 short
+    # boom (panel f), 30 deg rotation keeps the htail TE above ground;
+    # with the v2 long boom (panels d, e) the same rotation would drive
+    # the htail TE far below the ground plane, i.e. tail-strike.
+    WHEEL_X     = +0.20     # x position (0.2 c aft of CG)
     WHEEL_Z     = -0.80     # wheel-center z (below belly at z = -0.40)
-    WHEEL_R     = 0.20      # larger tundra-style tire
-    GROUND_Z    = WHEEL_Z - WHEEL_R    # = -1.0  (ground contact point)
+    WHEEL_R     = 0.28      # tundra tire — ~0.77 m dia at c_w = 1.385 m
+    GROUND_Z    = WHEEL_Z - WHEEL_R    # ≈ -1.08  (ground contact point)
     ax.add_patch(mp.Circle((WHEEL_X, WHEEL_Z), WHEEL_R,
                             facecolor="#444444", edgecolor="black",
                             lw=1.2, zorder=4))

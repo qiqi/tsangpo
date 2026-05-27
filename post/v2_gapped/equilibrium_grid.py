@@ -123,7 +123,7 @@ def solve_equilibrium(spec: PhaseSpec, slopes: dict, baselines: dict,
                     CL=CL, CD=CD, CT_del=CT,
                     V_m_s=float("nan"), V_kt=float("nan"),
                     gamma_deg=float("nan"),
-                    F_thrust_N=float("nan"), T_over_W=float("nan"),
+                    F_thrust_N=float("nan"), T_over_L=float("nan"),
                     note="no real positive root for V — design infeasible")
     x = (-B + sqrt(disc)) / (2.0 * A)   # x = (V/V_b)^2; want the positive root
     if x <= 0:

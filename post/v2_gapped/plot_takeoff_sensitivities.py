@@ -22,6 +22,7 @@ SPEC = PhaseSpec(
     T_b         = +16.0,
     velocity    = P.V_TAKEOFF_M_S,
     rho         = P.RHO_TAKEOFF_KG_M3,
+    a_sound     = P.A_SOUND_TAKEOFF_M_S,
     gamma_deg   = P.CLIMB_ANGLE_DEG,
     # gap40 takeoff: gapped flap weakens the wing+flap downwash blanket.
     # htail stalls above θ_ht ≈ +12° (over-the-top).
