@@ -276,13 +276,9 @@ def _build_per_zone_udds(
     #     g_nd      = g_si  / a_inf²
     #     F_nd, M_nd = (already non-dim from Flow360)
     #     x_nd      = x_si   (since L_ref = 1 m, numerically identical)
-    if trim["altitude_m"] == 0.0:
-        rho_inf = 1.225
-        T_inf   = 288.15
-    else:
-        rho_inf = P.RHO_CRUISE_KG_M3
-        T_inf   = 288.15 - 0.0065 * trim["altitude_m"]
-    a_inf = (1.4 * 287.0 * T_inf) ** 0.5
+    # Single source of truth for the freestream reference (params.isa_atmosphere
+    # matches Flow360 from_standard_atmosphere); never hard-code rho/a per altitude.
+    rho_inf, a_inf = P.isa_atmosphere(trim["altitude_m"])
     inv_a_inf = 1.0 / a_inf
 
     # Initial airframe velocity in WORLD frame for the γ-kick (non-dim).

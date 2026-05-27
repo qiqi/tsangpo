@@ -1,5 +1,26 @@
 # Tsangpo eSTOL — project conventions
 
+## Project arc & where things live
+
+Trajectory of the work: **steady aero campaign** (cruise/takeoff/landing
+sweeps for the SciTech paper) → **free-flight phugoid** (closed-loop 6-DOF
+via UDD — done, validated) → **landing-maneuver controller in CFD** (the
+goal: a UDD that applies control inputs from state feedback to fly a landing).
+
+Map:
+- `params.py` — single source of truth for all dimensions, trim points, and
+  the atmosphere (`isa_atmosphere`, `nd_force_to_si`, `nd_moment_to_si`).
+- `cfd_setup.py` — geometry-surface lookup + steady `SimulationParams` builder
+  (actuator disks, rotation zones, reference geometry).
+- `flow360/unsteady_setup.py` — the **embedded-dynamics UDD framework** (4-cyl
+  sliding-mesh + 6-DOF integrator). **This is the foundation for the landing
+  controller**; read `flow360/PHUGOID_UDD_POSTMORTEM.md` before touching it.
+- `flow360/submit_*.py` — submitters (steady campaign + the phugoid pipeline:
+  `submit_unsteady_warmup` → `submit_gap110_nokick_diag` → `..._chunkN_...`).
+- `post/v3/{plot_running_case,viz_nokick_lagfix,render_phugoid_slices}.py` —
+  trajectory / attitude / y=0-Mach post-processing.
+- `flow360/{LESSONS.md, AGENT_USABILITY_REPORT_v2.md}` — Flow360 gotchas.
+
 ## Flow360
 
 **Always submit cases with `use_beta_mesher=True`.** The in-house beta

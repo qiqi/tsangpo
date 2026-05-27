@@ -91,9 +91,32 @@ S_HTAIL_OVER_S_WING = HTAIL_AREA_M2 / WING_AREA_M2                              
 L_TAIL_M            = X_TAIL_CQUARTER_M - WING_X_CQUARTER_M                       # wing c/4 → htail c/4
 TAIL_VOLUME_COEF    = (HTAIL_AREA_M2 * L_TAIL_M) / (WING_AREA_M2 * WING_MAC_M)    # ≈ 1.60
 
-# Atmosphere — ISA, 3,658 m (≈ 12,000 ft) -----------------------------
-RHO_CRUISE_KG_M3   = 0.8491
-A_SOUND_CRUISE_M_S = 325.95
+# Atmosphere — ISA, single source of truth ---------------------------
+# NEVER hard-code rho / a / rho*a^2 for a fixed altitude in a post-processing
+# script.  Doing so (re-dimensionalizing solver-non-dim forces with a 12 kft
+# rho*a^2 while the cases ran at sea level) produced a phantom ~60% actuator-disk
+# "under-delivery" that cost a week — see FLOW360_AD_DELIVERY_RESOLVED.md.
+# Re-dimensionalize each case's forces with THAT case's own altitude.
+def isa_atmosphere(altitude_m):
+    """ISA troposphere (0-11 km): (density [kg/m^3], speed_of_sound [m/s]).
+    Matches Flow360 ThermalState.from_standard_atmosphere."""
+    T0, p0, L, R, gamma, g = 288.15, 101325.0, 0.0065, 287.05, 1.4, 9.80665
+    T = T0 - L * altitude_m
+    p = p0 * (T / T0) ** (g / (L * R))
+    return p / (R * T), sqrt(gamma * R * T)
+
+def nd_force_to_si(force_nd, altitude_m, L_ref_m=1.0):
+    """Flow360 solver-non-dim force -> N: F_si = F_nd * rho * a^2 * L_ref^2."""
+    rho, a = isa_atmosphere(altitude_m)
+    return force_nd * rho * a * a * L_ref_m ** 2
+
+def nd_moment_to_si(moment_nd, altitude_m, L_ref_m=1.0):
+    """Flow360 solver-non-dim moment -> N.m: M_si = M_nd * rho * a^2 * L_ref^3."""
+    rho, a = isa_atmosphere(altitude_m)
+    return moment_nd * rho * a * a * L_ref_m ** 3
+
+ALT_CRUISE_M       = 3658.0                # ≈ 12,000 ft (design altitude)
+RHO_CRUISE_KG_M3, A_SOUND_CRUISE_M_S = isa_atmosphere(ALT_CRUISE_M)  # derived, not hard-coded
 MU_CRUISE_PA_S     = 1.6928e-5
 
 # Flight conditions ----------------------------------------------------
@@ -105,7 +128,6 @@ MACH_INF         = V_INF_M_S / A_SOUND_CRUISE_M_S
 RE_MAC           = RHO_CRUISE_KG_M3 * V_INF_M_S * WING_MAC_M / MU_CRUISE_PA_S
 
 # Cruise point (clean wing, stowed flap, level flight at altitude)
-ALT_CRUISE_M       = 3658.0                # ≈ 12,000 ft
 V_CRUISE_M_S       = 45.72                 # ≈ 150 ft/s (~89 kt)
 ALPHA_CRUISE_DEG   = 3.0
 Q_CRUISE_PA        = 0.5 * RHO_CRUISE_KG_M3 * V_CRUISE_M_S ** 2

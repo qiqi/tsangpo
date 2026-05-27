@@ -224,6 +224,30 @@ Last reviewed: 2026-05-13 — SDK v25.9.x.
   arithmetic into despmtr defaults or restructure to a single
   multiplication.**
 
+## Embedded-dynamics UDDs (free-flight / closed-loop)
+
+- **Two non-obvious UDD execution rules cost ~2 weeks on the phugoid.**
+  (1) Gate force-integrating state updates at `pseudoStep == 0`, never
+  `last_pseudo_step` — the auto-inserted `previousTheta_recorder` snapshots
+  theta at pseudoStep 0, so a last-step gate freezes the mesh
+  (`deltaTheta=0`, wing CL pinned at trim). (2) `update_law` is evaluated
+  SEQUENTIALLY in slot order, in place — a reference to `state[j]` sees the
+  NEW value if `j < k`, OLD if `j ≥ k`; the moment lever arm must use OLD
+  (higher-index) link-angle slots to match the one-step force lag.
+  **Full account + agent checklist + Flow360-team asks:
+  `flow360/PHUGOID_UDD_POSTMORTEM.md`.** Result: stable phugoid, T=17.4 s,
+  ζ≈0.026.
+
+- **Never hard-code `ρ∞·a∞²` (or ρ, a) for a fixed altitude in any
+  post-processing / measurement script.** Re-dimensionalizing solver-non-dim
+  forces with a 12 kft `ρ∞·a∞²` while the cases ran at sea level produced a
+  phantom ~60% actuator-disk "under-delivery" (the 1.572× SL/12kft factor;
+  see `paper/figures/FLOW360_AD_DELIVERY_RESOLVED.md`). Use
+  `params.isa_atmosphere(altitude_m)` (single source of truth, matches
+  Flow360 `from_standard_atmosphere`) and `params.nd_force_to_si` /
+  `nd_moment_to_si`, passing **each case's own altitude**. The AD kernel
+  itself delivers commanded thrust to ~2% (fine) / ~8% (coarse) — no bug.
+
 ## Open / unverified
 
 - Does the AngleExpression parser accept C-style ternary `?:`? Not
