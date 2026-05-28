@@ -255,9 +255,20 @@ def _build_per_zone_udds(
     """
     trim = PHASE_TRIM[phase]
     V_inf = trim["V_inf_m_s"]
-    alpha_BO_rad = radians(trim["alpha_BO_deg"])
-    gamma_rad    = radians(gamma_kick_deg)
-    theta_ht_rad = radians(trim["theta_ht_deg"])
+    alpha_BO_rad   = radians(trim["alpha_BO_deg"])
+    gamma_trim_rad = radians(trim["gamma_trim_deg"])
+    # γ_total = the TOTAL flight-path angle the body sees at t=0.  γ_trim
+    # is the steady-state path angle (e.g., −30° steep approach); γ_kick
+    # is the additional perturbation that excites the phugoid mode.
+    # In the flat-freestream wind-tunnel BC, both must enter the body's
+    # initial velocity AND its initial pitch to keep α=α_BO at trim;
+    # otherwise the warmup pose (θ=α_BO+γ_trim) doesn't match the
+    # phugoid's UDD initial state and Flow360 snaps the airframe cylinder
+    # by γ_trim at the first chunk1 step (see case-b90b56e5 transient,
+    # 26-05-28).  The pitch_step modes already do this — phugoid was the
+    # only path left over from the cruise-only era when γ_trim was always 0.
+    gamma_rad      = gamma_trim_rad + radians(gamma_kick_deg)
+    theta_ht_rad   = radians(trim["theta_ht_deg"])
 
     # L-pose default initial position (Jacobian-safe).  (+L, −L) maps to
     # (θ_link1, θ_link2) = (+π/2, +π/2) via the Option E IK.
