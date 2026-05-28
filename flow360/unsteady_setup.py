@@ -1627,12 +1627,20 @@ def build_unsteady_params(
                     ),
                     fl.RotationVolume(
                         name="cyl3_zone", entities=cyl_airframe,
-                        # prop_cyls enclosed so the actuator-disk slipstream
-                        # rotates with the airframe (otherwise disk axes stay
-                        # horizontal as the body pitches, blowing past the wing).
-                        enclosed_entities=(
-                            wing_system_surfs + [cyl_htail] + prop_cyls
-                        ),
+                        # NOTE: prop_cyls (actuator-disk shape Cylinders) are
+                        # intentionally NOT enclosed here.  They are neither
+                        # surfaces nor RotationVolumes — listing them caused
+                        # Flynn360 to create `slidingInterface-disk_R1` that
+                        # then had no backing volume zone:
+                        #   "(ERROR 7221) ... slidingInterface-disk_R1 ... not
+                        #    a known volume entity."   (vm-f8cbe461, landing
+                        #    warmup, 26-05-28).
+                        # Tradeoff: the AD axis stays world-fixed.  At cruise
+                        # ≤±10° the axis mismatch is small; at landing ±30°
+                        # it grows — revisit via a pitch-aware AD UDD if the
+                        # landing phugoid shows pathological coupling.
+                        # (Mirrored in cfd_setup.py for the 2-cyl steady path.)
+                        enclosed_entities=wing_system_surfs + [cyl_htail],
                         spacing_axial=0.30 * fl.u.m,
                         spacing_radial=0.15 * fl.u.m,
                         spacing_circumferential=0.15 * fl.u.m,
