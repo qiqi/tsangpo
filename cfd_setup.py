@@ -300,10 +300,20 @@ def build_params(
                     farfield,
                     fl.RotationVolume(
                         name="ac_rotation", entities=ac_cyl,
-                        # prop_cyls enclosed so the actuator-disk slipstream
-                        # rotates with the airframe (otherwise disk axes stay
-                        # horizontal as the body pitches, blowing past the wing).
-                        enclosed_entities=wing_system_surfs + [ht_cyl] + prop_cyls,
+                        # NOTE: prop_cyls (actuator-disk shape Cylinders) are
+                        # intentionally NOT enclosed here.  They are neither
+                        # surfaces nor RotationVolumes — listing them caused
+                        # Flynn360 to create `slidingInterface-disk_R1` that
+                        # then had no backing volume zone:
+                        #   "(ERROR 7221) ... slidingInterface-disk_R1 ... not
+                        #    a known volume entity."   (vm-87916f15, landing
+                        #    warmup, 26-05-28).
+                        # Tradeoff: the AD axis stays world-fixed (the body
+                        # pitches around it).  At cruise excursions ≤±10° the
+                        # axis mismatch is small; at landing ±30° it grows.
+                        # Revisit via a pitch-aware AD via UDD if the landing
+                        # phugoid shows pathological coupling.
+                        enclosed_entities=wing_system_surfs + [ht_cyl],
                         spacing_axial=0.30 * fl.u.m,
                         spacing_radial=0.15 * fl.u.m,
                         spacing_circumferential=0.15 * fl.u.m,
