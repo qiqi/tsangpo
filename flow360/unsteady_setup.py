@@ -29,23 +29,23 @@ cyl-2 rotations (the 2-link arm), so the CFD sees the airplane physically
 translating through the freestream.  Forces from CFD are reported in cyl
 1's rotating frame and rotated to inertial in the UDD update law.
 
-STATE (6 dynamics + 2 IK-cache, all in radians/SI/inertial-frame):
-    state[0] = x_cg      (m)
-    state[1] = z_cg      (m)
-    state[2] = Vx        (m/s, inertial)
-    state[3] = Vz        (m/s, inertial)
-    state[4] = theta_body (rad, absolute body pitch in inertial)
-    state[5] = q         (rad/s, body pitch rate)
-    state[6] = theta_link2 (rad, IK auxiliary)
-    state[7] = theta_link1 (rad, IK auxiliary)
+STATE (6 dynamics + 2 IK-cache; semi-implicit / Euler–Cromer slot order):
+    state[0] = Vx        (m/s, inertial)        ← integrated FIRST
+    state[1] = Vz        (m/s, inertial)
+    state[2] = q         (rad/s, body pitch rate)
+    state[3] = x_cg      (m)                    ← reads NEW Vx
+    state[4] = z_cg      (m)                    ← reads NEW Vz
+    state[5] = theta_body (rad, absolute pitch) ← reads NEW q (GCL: ω·dt≡Δθ)
+    state[6] = theta_link2 (rad, IK from NEW x, z)
+    state[7] = theta_link1 (rad, IK from NEW x, z, link2)
 
 INITIAL CONDITIONS for the v3-cruise phugoid γ₀ = +10° kick:
-    state[0] = -L = -250·c_w     (L-pose, Jacobian-safe)
-    state[1] = -L = -250·c_w
-    state[2] = V_∞·(1 − cos γ₀)  ≈ +0.69 m/s     (small +x drift)
-    state[3] = V_∞·sin γ₀        ≈ +7.94 m/s     (climb in inertial)
-    state[4] = α_BO + γ₀ (in rad) ≈ +0.272 rad   (body pitched up to maintain α)
-    state[5] = 0
+    state[0] = V_∞·(1 − cos γ₀)  ≈ +0.69 m/s     (small +x drift)
+    state[1] = V_∞·sin γ₀        ≈ +7.94 m/s     (climb in inertial)
+    state[2] = 0
+    state[3] = -L = -250·c_w     (L-pose, Jacobian-safe)
+    state[4] = -L = -250·c_w
+    state[5] = α_BO + γ₀ (in rad) ≈ +0.272 rad   (body pitched up to maintain α)
     state[6] = θ_link2_0 = π/2
     state[7] = θ_link1_0 = π/2
 
@@ -151,6 +151,7 @@ PHASE_TRIM = {
     ),
     "takeoff": dict(
         V_inf_m_s    = 18.00,
+        V_init_m_s   = 18.00,    # = V_inf: no wind-tunnel drift
         altitude_m   = 0.0,
         alpha_BO_deg = +11.31,
         theta_ht_deg = -3.21,
@@ -158,7 +159,12 @@ PHASE_TRIM = {
         gamma_trim_deg = +30.0,
     ),
     "landing": dict(
-        V_inf_m_s    = 12.86,
+        V_inf_m_s    = 12.86,    # 25 kt approach airspeed (matches steady
+                                  # landing campaign at SL).
+        V_init_m_s   = 12.86,    # = V_inf: airplane initial airspeed equals
+                                  # freestream → no world-frame drift at t=0.
+                                  # (Phugoid evolves; γ_trim = −30° steep
+                                  # descent translates the body downward.)
         altitude_m   = 0.0,
         alpha_BO_deg = +27.63,
         theta_ht_deg = -3.67,
@@ -357,7 +363,7 @@ def _build_per_zone_udds(
         "last_pseudo_step": float(last_pseudo_step),
         # Actuator-disk total reaction thrust magnitude (positive scalar).
         # Direction is BODY-FIXED (body -X = nose direction), so the world-
-        # frame components depend on state[4] = θ_body.  See state[2]/[3]/[5]
+        # frame components depend on state[5] = θ_body.  See state[0]/[1]/[2]
         # update_law expressions below for the body-orientation-aware decomposition.
         "T_disk_nd": T_disk_nd,
         # Disk z-offset in body frame (= PROP_Z_M, the perpendicular distance
@@ -379,31 +385,59 @@ def _build_per_zone_udds(
         "theta_link2_0": theta_link2_0,
     }
 
-    # state[6] = theta_link2 (computed first; depends only on x_cg, z_cg).
-    # state[7] = theta_link1 (computed second; references state[6]).
-    # Both are updated at end of update_law from OLD state[0], state[1] (Flow360's
-    # batch-update semantics) — i.e., theta_link1/2 lag the dynamics by one
-    # physical step.  At Δt = 0.01 s and a phugoid period of ~21 s, the lag
-    # is ~0.05% of the period — negligible.
+    # state[6] = theta_link2 (computed first; depends only on NEW x_cg, z_cg).
+    # state[7] = theta_link1 (computed second; references NEW state[6]).
+    # In the symplectic slot order, link angles read NEW x = state[3], z =
+    # state[4] (both updated earlier in the sequential eval), so they are
+    # coherent with the body's end-of-step position — no lag.
 
-    # FWD-IK lever-arm expressions for M_about_CG (temporal-consistency fix):
-    # In update_law, references to state[6], state[7] resolve to OLD values
-    # (= published at step N-1).  Forward IK on those recovers state[0,1]
-    # from the END of step N-2 -- which is exactly the body position where
-    # the wall forces (read at step N's pseudoStep==0 = end of step N-1's
-    # converged values) were evaluated.  Using these for the lever arm makes
-    # the moment-translation temporally consistent with the forces.
+    # ---------------------------------------------------------------------
+    # SLOT ORDER — semi-implicit (symplectic Euler–Cromer) integration.
+    # ---------------------------------------------------------------------
+    # Flow360 evaluates update_law SEQUENTIALLY by slot index (slot k reads
+    # NEW values for any state[j] with j < k, OLD values for j ≥ k).  We
+    # exploit that by placing VELOCITY slots BEFORE POSITION slots so the
+    # position updates read the NEW velocities — i.e.:
+    #     V_new = V_old + a(forces_OLD) · dt         (velocity update)
+    #     x_new = x_old + V_NEW · dt                 (position uses NEW V)
+    # This is Euler–Cromer (= symplectic Euler), which avoids the
+    # artificial anti-damping of explicit Euler on oscillators and makes
+    # the commanded grid velocity (omega) match the discrete mesh
+    # displacement exactly (GCL):
+    #     omega_published = q_NEW                    [output_vars]
+    #     Δθ_per_step     = q_NEW · dt               [update_law slot 5]
+    #     ⇒ omega · dt ≡ Δθ                          (no GCL residual)
+    #
+    # Slots:
+    #   [0] Vx, [1] Vz   (velocities — integrated first from OLD forces)
+    #   [2] q            (angular velocity)
+    #   [3] x_cg, [4] z_cg, [5] θ_body
+    #                    (positions/angle — read NEW velocities above)
+    #   [6] θ_link2,  [7] θ_link1
+    #                    (IK from NEW x, z — link angles always coherent
+    #                     with the body position at end of step)
+    #   [8] ω̇_airframe cache  /  M_about_CG_nd (diagnostics)
+    #   [9] ω̇_shoulder cache  /  Q_DOT_nd      (diagnostics)
+    #
+    # FWD-IK lever-arm expressions for M_about_CG (temporal-consistency fix
+    # — independent of integration scheme):
+    # In update_law, state[6], state[7] referenced from slot 2 (q-update,
+    # slot 2 < 6,7) resolve to OLD values = the IK of NEW x,z at the END
+    # of step N−1 = exactly the body position where the converged wall
+    # forces (read here at step N's pseudoStep==0) were evaluated.  Using
+    # these for the lever arm makes the moment-translation temporally
+    # consistent with the forces it is integrating.
     X_CG_IK = ("(cos(state[7])*(L1 - L2*cos(state[6])) "
                 "+ sin(state[7])*L2*sin(state[6]))")
     Z_CG_IK = ("(-sin(state[7])*(L1 - L2*cos(state[6])) "
                 "+ cos(state[7])*L2*sin(state[6]))")
     state_vars_initial_value = [
-        "x_cg_0",            # state[0]
-        "z_cg_0",            # state[1]
-        "Vx_0",              # state[2]
-        "Vz_0",              # state[3]
-        "theta_body_0",      # state[4]
-        "0.0",               # state[5] = q
+        "Vx_0",              # state[0]
+        "Vz_0",              # state[1]
+        "0.0",               # state[2] = q
+        "x_cg_0",            # state[3]
+        "z_cg_0",            # state[4]
+        "theta_body_0",      # state[5]
         "theta_link2_0",     # state[6]
         "theta_link1_0",     # state[7]
         # state[8..9] cache the analytic ω̇ for the two actively-rotating
@@ -431,29 +465,31 @@ def _build_per_zone_udds(
     #     forceX_log  =  0.0408
     #     forceZ_log  =  0.1549
     #     momentY_log = -67.71
-    #     state[0]   = +346.07,  state[1] = -346.07
-    #     M_about_CG = momentY + state[0]·forceZ - state[1]·forceX
+    #     state[3]   = +346.07,  state[4] = -346.07     (CG position)
+    #     M_about_CG = momentY + state[3]·forceZ - state[4]·forceX
     #                = -67.71 + 346·0.1549 - (-346)·0.0408
     #                = -67.71 + 53.60 + 14.12 ≈ 0   ✓ (trim)
     #   With the WORLD-frame interpretation, the dynamics integrate trivially
     #   in world coordinates — no cyl-frame rotation of forces is needed.
-    #   state[6] and state[7] are output-only: pure functions of state[0],
-    #   state[1] used to drive the cylinder rotations that physically move
+    #   state[6] and state[7] are output-only: pure functions of state[3],
+    #   state[4] used to drive the cylinder rotations that physically move
     #   the airframe through the (fixed) freestream.
 
     # ---- Analytic ω̇ expressions (defined here so update_law can cache them
     # in state[8..10]; same definitions are also referenced by per-cyl
     # output_vars further below).  All use forceX/Z/momentY which is only
     # allowed inside update_law, hence the caching pattern.
+    # New slots: Vx=state[0], Vz=state[1], q=state[2],
+    #            x=state[3],  z=state[4],  θ=state[5], link2=state[6].
     AX_EXPR    = "(forceX/m_nd)"
     AZ_EXPR    = "(forceZ/m_nd - g_nd)"
-    N_EXPR     = "(state[0]*state[2] + state[1]*state[3])"
-    A_EXPR     = "(state[0]*state[3] - state[1]*state[2])"
-    R2_EXPR    = "(state[0]*state[0] + state[1]*state[1])"
-    NDOT_EXPR  = (f"(state[2]*state[2] + state[3]*state[3] "
-                   f"+ state[0]*{AX_EXPR} + state[1]*{AZ_EXPR})")
-    ADOT_EXPR  = f"(state[0]*{AZ_EXPR} - state[1]*{AX_EXPR})"
-    OMEGA_ELBOW_LOCAL = ("((state[0]*state[2] + state[1]*state[3]) "
+    N_EXPR     = "(state[3]*state[0] + state[4]*state[1])"   # x·Vx + z·Vz
+    A_EXPR     = "(state[3]*state[1] - state[4]*state[0])"   # x·Vz − z·Vx
+    R2_EXPR    = "(state[3]*state[3] + state[4]*state[4])"   # x² + z²
+    NDOT_EXPR  = (f"(state[0]*state[0] + state[1]*state[1] "
+                   f"+ state[3]*{AX_EXPR} + state[4]*{AZ_EXPR})")
+    ADOT_EXPR  = f"(state[3]*{AZ_EXPR} - state[4]*{AX_EXPR})"
+    OMEGA_ELBOW_LOCAL = ("((state[3]*state[0] + state[4]*state[1]) "
                           "/ (L1*L2*sin(state[6])))")
     OMEGA_DOT_ELBOW = (f"({NDOT_EXPR} / (L1*L2*sin(state[6])) "
                         f"- {OMEGA_ELBOW_LOCAL} * {OMEGA_ELBOW_LOCAL} "
@@ -462,92 +498,102 @@ def _build_per_zone_udds(
                           f"- {ADOT_EXPR}/{R2_EXPR} "
                           f"+ 2.0*{A_EXPR}*{N_EXPR}/({R2_EXPR}*{R2_EXPR}))")
 
+    # update_law follows slot order [0..9]; sequential evaluation gives
+    # NEW-velocity-into-position (Euler–Cromer / symplectic).
     update_law = [
-        # state[0]: x_cg += Vx · dt          (m, m/s → all non-dim)
-        "if (pseudoStep == 0) state[0] + state[2] * timeStepSize; else state[0];",
-        # state[1]: z_cg += Vz · dt
-        "if (pseudoStep == 0) state[1] + state[3] * timeStepSize; else state[1];",
-        # state[2]: Vx += ((Fx_surface + T_x_world) / m_nd) · dt
-        # T_x_world = -T_disk_nd · cos(state[4])  -- thrust in body -X direction
-        # (nose), which in world frame at body pitch θ has x-component -T·cos θ.
-        # The CFD-reported `forceX` is the airframe-wall surface integral
-        # only and does NOT include the disk reaction; we add it here.
-        "if (pseudoStep == 0) state[2] + "
-        "( (forceX - T_disk_nd * cos(state[4])) / m_nd ) * timeStepSize; else state[2];",
-        # state[3]: Vz += ((Fz_surface + T_z_world) / m_nd - g_nd) · dt
-        # T_z_world = +T_disk_nd · sin(state[4])  -- z-component of body-fixed
-        # thrust as the body pitches.  At trim θ_body ≈ +5.57° this is ~+0.10·T
-        # (small but non-zero; matters during phugoid excursions where θ can
-        # reach ±30°).
-        "if (pseudoStep == 0) state[3] + "
-        "( (forceZ + T_disk_nd * sin(state[4])) / m_nd - g_nd ) * timeStepSize; else state[3];",
-        # state[4]: theta_body += q · dt
-        "if (pseudoStep == 0) state[4] + state[5] * timeStepSize; else state[4];",
-        # state[5]: q += (M_y_about_CG / I_yy_nd) · dt
-        # Moment translation (world frame) of WALL-SURFACE forces+moments:
-        #   r_CG  = (state[0], 0, state[1])      (moves with airframe)
-        #   r_mc  = (mc_x, 0, mc_z)               (FIXED in world)
-        # M_wall_about_CG = momentY + (r_mc − r_CG) × F
-        # (cross)_y       = (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
-        # We set mc = initial CG = (+L1, 0, −L2) so the lever arm starts
-        # at zero (eliminates catastrophic cancellation when subtracting
-        # large M_origin terms) and only grows with airframe displacement.
+        # state[0]: Vx_new = Vx_old + (a_x) · dt
+        # a_x = (forceX + T_x_world) / m_nd,
+        # T_x_world = −T_disk_nd · cos(state[5])  (body −X thrust → world X).
+        # state[5]=θ_body at slot 5 > 0 → OLD value, consistent with "force
+        # is from end of step N−1 where the body was at θ_old". Disk
+        # reaction is NOT in CFD's wall forceX (disk is a volume body force,
+        # not a surface) — we add it here.
+        "if (pseudoStep == 0) state[0] + "
+        "( (forceX - T_disk_nd * cos(state[5])) / m_nd ) * timeStepSize; else state[0];",
+        # state[1]: Vz_new = Vz_old + (a_z) · dt
+        # a_z = (forceZ + T_disk_nd·sin(state[5])) / m_nd − g_nd
+        # state[5]=θ_body OLD. At trim θ_body ≈ +5.57° (cruise) /
+        # +27.6° (landing) the body-frame thrust has non-negligible Z.
+        "if (pseudoStep == 0) state[1] + "
+        "( (forceZ + T_disk_nd * sin(state[5])) / m_nd - g_nd ) * timeStepSize; else state[1];",
+        # state[2]: q_new = q_old + (M_about_CG / I_yy_nd) · dt
+        # state[6], state[7] (link angles) read OLD (slot 6,7 > 2): these
+        # encode the body position at the END of step N−1 = where the
+        # converged forces were evaluated.  See FWD-IK comment above.
         #
-        # PLUS the disk-reaction moment about CG (which is NOT in the wall
-        # forces — disk is a volume body force, not a surface):
-        #   M_disk_about_CG = -prop_z_m · T_disk_nd  (constant, since
-        #     rotation axis = +y preserves the y-moment of any disk-attached
-        #     force pair).  Disk in body frame at (PROP_X_M, 0, PROP_Z_M)
-        #     with force (-T, 0, 0); (r × F)_y = z·F_x - x·F_z =
-        #     PROP_Z_M·(-T) - PROP_X_M·0 = -PROP_Z_M·T.
-        f"if (pseudoStep == 0) state[5] + "
+        # Moment translation (world frame) of WALL-SURFACE forces+moments:
+        #   r_CG  = forward_IK(state[6], state[7])  (moves with airframe)
+        #   r_mc  = (mc_x, 0, mc_z)                  (FIXED in world =
+        #                                            initial CG to zero
+        #                                            the lever arm at trim)
+        # M_wall_about_CG = momentY + (r_mc − r_CG) × F
+        # (cross)_y       = (mc_z − Z_CG_IK)·forceX − (mc_x − X_CG_IK)·forceZ
+        #
+        # PLUS the disk-reaction moment about CG (NOT in wall forces —
+        # disk is a volume body force):
+        #   M_disk_about_CG = −prop_z_m · T_disk_nd
+        # (Disk in body frame at (PROP_X_M, 0, PROP_Z_M) with force
+        # (−T, 0, 0); (r × F)_y = z·F_x − x·F_z = PROP_Z_M·(−T) − PROP_X_M·0
+        # = −PROP_Z_M·T.  Constant in y-component because rotation axis ⊥y.)
+        f"if (pseudoStep == 0) state[2] + "
         f"( ( momentY + (mc_z - {Z_CG_IK}) * forceX - (mc_x - {X_CG_IK}) * forceZ "
         f"    - prop_z_m * T_disk_nd ) "
-        f"/ I_yy_nd ) * timeStepSize; else state[5];",
+        f"/ I_yy_nd ) * timeStepSize; else state[2];",
+        # state[3]: x_cg += V_x_NEW · dt   (symplectic: reads state[0] NEW)
+        "if (pseudoStep == 0) state[3] + state[0] * timeStepSize; else state[3];",
+        # state[4]: z_cg += V_z_NEW · dt   (symplectic: reads state[1] NEW)
+        "if (pseudoStep == 0) state[4] + state[1] * timeStepSize; else state[4];",
+        # state[5]: θ_body += q_NEW · dt
+        # GCL: omega_published_airframe = q_NEW (via output_vars below),
+        # mesh moves by Δθ = q_NEW · dt — published rate ≡ discrete
+        # displacement / dt, no GCL residual.
+        "if (pseudoStep == 0) state[5] + state[2] * timeStepSize; else state[5];",
         # state[6]: theta_link2 (IK output) = acos((2L² − r²) / 2L²)
+        # Uses NEW x, z (slots 3, 4 < 6).
         "if (pseudoStep == 0) "
-        "acos( ( two_L_sq - state[0] * state[0] - state[1] * state[1] ) / two_L_sq ); "
+        "acos( ( two_L_sq - state[3] * state[3] - state[4] * state[4] ) / two_L_sq ); "
         "else state[6];",
         # state[7]: theta_link1 (IK output)
         # = atan(L2·sin θ_link2 / (L1 − L2·cos θ_link2)) − atan(z / x)
         # atan2 is not supported by the UDD expression evaluator; atan(y/x)
-        # is exact here because both denominators stay strictly positive in
-        # the trim-near pose: L1 − L2·cos(π/2) = L1 > 0; state[0] starts at
-        # +L > 0 and phugoid excursions keep it positive.
+        # is exact here because both denominators stay strictly positive
+        # in the trim-near pose: L1 − L2·cos(π/2) = L1 > 0; state[3] starts
+        # at +L > 0 and phugoid excursions keep it positive.
         "if (pseudoStep == 0) "
         "atan( L2 * sin(state[6]) / (L1 - L2 * cos(state[6])) ) "
-        "- atan(state[1] / state[0]); "
+        "- atan(state[4] / state[3]); "
         "else state[7];",
-        # state[8]: ω̇_airframe_rel = q̇ - 0.5·ω̇_elbow + Ȧ/r² - 2·A·N/r⁴
-        # Derived by substituting ω̇_shoulder = -0.5·ω̇_elbow - Ȧ/r² + 2·A·N/r⁴
-        # into ω̇_airframe_rel = q̇ - ω̇_shoulder - ω̇_elbow.
+        # state[8]: ω̇_airframe_rel = q̇ − 0.5·ω̇_elbow + Ȧ/r² − 2·A·N/r⁴
+        # Derived by substituting ω̇_shoulder = −0.5·ω̇_elbow − Ȧ/r² + 2·A·N/r⁴
+        # into ω̇_airframe_rel = q̇ − ω̇_shoulder − ω̇_elbow.
         # Variables (all in update_law, where forces are allowed):
-        #   q̇  = (momentY + (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
-        #         - prop_z_m·T_disk_nd) / I_yy_nd
-        #   ax = (forceX - T_disk_nd·cos(state[4])) / m_nd      (BODY-fixed thrust)
-        #   az = (forceZ + T_disk_nd·sin(state[4])) / m_nd − g_nd
-        #   ω̇_elbow = (Ṅ - ω_elbow²·L²·cos θ₂) / (L²·sin θ₂),
+        #   q̇  = (momentY + (mc_z − Z_IK)·forceX − (mc_x − X_IK)·forceZ
+        #         − prop_z_m·T_disk_nd) / I_yy_nd
+        #   ax = (forceX − T_disk_nd·cos(state[5])) / m_nd      (BODY-fixed thrust)
+        #   az = (forceZ + T_disk_nd·sin(state[5])) / m_nd − g_nd
+        #   ω̇_elbow = (Ṅ − ω_elbow²·L²·cos θ₂) / (L²·sin θ₂),
         #     where Ṅ = Vx² + Vz² + x·ax + z·az
         #   Ȧ = x·az − z·ax,  A = x·Vz − z·Vx,  N = x·Vx + z·Vz, r² = x² + z²
+        # (slot 8 sees NEW state[3..7] — diagnostic, not what state[2] used.)
         f"if (pseudoStep == 0) "
         f"((momentY + (mc_z - {Z_CG_IK})*forceX - (mc_x - {X_CG_IK})*forceZ "
         f"  - prop_z_m * T_disk_nd)/I_yy_nd "
-        " - 0.5*((state[2]*state[2] + state[3]*state[3] "
-        "         + state[0]*((forceX - T_disk_nd*cos(state[4]))/m_nd) "
-        "         + state[1]*((forceZ + T_disk_nd*sin(state[4]))/m_nd - g_nd)) "
+        " - 0.5*((state[0]*state[0] + state[1]*state[1] "
+        "         + state[3]*((forceX - T_disk_nd*cos(state[5]))/m_nd) "
+        "         + state[4]*((forceZ + T_disk_nd*sin(state[5]))/m_nd - g_nd)) "
         "        /(L1*L2*sin(state[6])) "
-        "        - ((state[0]*state[2] + state[1]*state[3])/(L1*L2*sin(state[6]))) "
-        "         *((state[0]*state[2] + state[1]*state[3])/(L1*L2*sin(state[6]))) "
+        "        - ((state[3]*state[0] + state[4]*state[1])/(L1*L2*sin(state[6]))) "
+        "         *((state[3]*state[0] + state[4]*state[1])/(L1*L2*sin(state[6]))) "
         "         *cos(state[6])/sin(state[6])) "
-        " + (state[0]*((forceZ + T_disk_nd*sin(state[4]))/m_nd - g_nd) "
-        "    - state[1]*((forceX - T_disk_nd*cos(state[4]))/m_nd)) "
-        "  /(state[0]*state[0] + state[1]*state[1]) "
-        " - 2.0*(state[0]*state[3] - state[1]*state[2]) "
-        "       *(state[0]*state[2] + state[1]*state[3]) "
-        "  /((state[0]*state[0] + state[1]*state[1]) "
-        "    *(state[0]*state[0] + state[1]*state[1]))); "
+        " + (state[3]*((forceZ + T_disk_nd*sin(state[5]))/m_nd - g_nd) "
+        "    - state[4]*((forceX - T_disk_nd*cos(state[5]))/m_nd)) "
+        "  /(state[3]*state[3] + state[4]*state[4]) "
+        " - 2.0*(state[3]*state[1] - state[4]*state[0]) "
+        "       *(state[3]*state[0] + state[4]*state[1]) "
+        "  /((state[3]*state[3] + state[4]*state[4]) "
+        "    *(state[3]*state[3] + state[4]*state[4]))); "
         "else state[8];",
-        # state[9]: ω̇_shoulder = -0.5·ω̇_elbow - Ȧ/r² + 2·A·N/r⁴
+        # state[9]: ω̇_shoulder = −0.5·ω̇_elbow − Ȧ/r² + 2·A·N/r⁴
         # (closed-form analytic; uses forces, so must be cached here).
         f"if (pseudoStep == 0) {OMEGA_DOT_SHOULDER}; "
         "else state[9];",
@@ -576,20 +622,24 @@ def _build_per_zone_udds(
     # through the freestream, so the apparent γ-correction is lost.
     #
     # Analytic ω derivations (the IK gives state[6], state[7] as closed-
-    # form functions of state[0..3] + L1=L2=L, so their derivatives are
-    # also closed-form):
+    # form functions of state[3..4] + L1=L2=L, so their derivatives are
+    # also closed-form).  All output_vars are evaluated AFTER update_law,
+    # so state[*] here are NEW (post-step) values:
     #
     #   ω_elbow      = (x·Vx + z·Vz) / (L1·L2·sin(state[6]))
-    #   ω_shoulder   = -ω_elbow/2  -  (x·Vz - z·Vx) / r²
-    #   ω_airframe_r = state[5] - ω_elbow/2  +  (x·Vz - z·Vx) / r²
-    #                = state[5] - ω_shoulder - ω_elbow   (Δ from absolute pitch
+    #   ω_shoulder   = −ω_elbow/2  −  (x·Vz − z·Vx) / r²
+    #   ω_airframe_r = state[2] − ω_elbow/2  +  (x·Vz − z·Vx) / r²
+    #                = q − ω_shoulder − ω_elbow   (Δ from absolute pitch
     #                  rate minus parent-chain rates)
     #   ω_htail_r    = 0   (theta_ht_rel constant)
     #
-    # where x = state[0], z = state[1], Vx = state[2], Vz = state[3],
-    # r² = state[0]² + state[1]².  All quantities are in Flow360 internal
-    # non-dim (timeStepSize is non-dim, so ω is rad / non-dim-time, which
-    # is what the solver expects).
+    # where x = state[3], z = state[4], Vx = state[0], Vz = state[1],
+    # q = state[2], r² = state[3]² + state[4]².  All quantities are in
+    # Flow360 internal non-dim (timeStepSize is non-dim, so ω is rad /
+    # non-dim-time, which is what the solver expects).
+    # GCL: with symplectic update, omega_airframe_published = q_NEW
+    # which equals (θ_NEW − θ_OLD)/dt exactly — commanded grid velocity
+    # ≡ discrete mesh-displacement rate, no residual.
     #
     # omegaDot (angular acceleration) is set to 0 as a first cut.  For
     # phugoid-rate evolution at our dt, omegaDot is ~10⁻⁷ rad/(nd-time)²
@@ -598,14 +648,14 @@ def _build_per_zone_udds(
 
     # ---- ω expressions (already validated to give CFD agreement vs simplistic) -----
     # Common subexpressions re-used across UDDs.
-    OMEGA_ELBOW = ("(state[0]*state[2] + state[1]*state[3]) "
+    OMEGA_ELBOW = ("(state[3]*state[0] + state[4]*state[1]) "
                     "/ (L1*L2*sin(state[6]))")
-    PSI_DOT     = ("(state[0]*state[3] - state[1]*state[2]) "
-                    "/ (state[0]*state[0] + state[1]*state[1])")
+    PSI_DOT     = ("(state[3]*state[1] - state[4]*state[0]) "
+                    "/ (state[3]*state[3] + state[4]*state[4])")
 
     omega_shoulder   = f"-0.5 * {OMEGA_ELBOW} - {PSI_DOT}"
     omega_elbow      = OMEGA_ELBOW
-    omega_airframe_r = f"state[5] - 0.5 * {OMEGA_ELBOW} + {PSI_DOT}"
+    omega_airframe_r = f"state[2] - 0.5 * {OMEGA_ELBOW} + {PSI_DOT}"
     omega_htail_r    = "0.0"
 
     # ---- ω̇ analytic expressions -------------------------------------------------
@@ -649,7 +699,7 @@ def _build_per_zone_udds(
             omega_shoulder, omegaDot_shoulder),
         ("elbow",    cyl_elbow,    "state[6]",
             omega_elbow, omegaDot_elbow),
-        ("airframe", cyl_airframe, "state[4] - state[7] - state[6]",
+        ("airframe", cyl_airframe, "state[5] - state[7] - state[6]",
             omega_airframe_r, omegaDot_airframe_r),
         ("htail",    cyl_htail,    "theta_ht_rel",
             omega_htail_r, omegaDot_htail_r),
@@ -666,16 +716,16 @@ def _build_per_zone_udds(
     # Diagnostic channels via omegaDot.  Solver rejects custom output_var
     # names (only the whitelist: theta/omega/omegaDot/alphaAngle/...), and
     # only omegaDot is safe to hijack (theta and omega drive the cylinder).
-    # We allocate one diagnostic per UDD:
-    #   shoulder.omegaDot  ← state[4]  (theta_body, sanity)
-    #   elbow.omegaDot     ← state[5]  (q, body pitch rate)
+    # We allocate one diagnostic per UDD (new slots):
+    #   shoulder.omegaDot  ← state[5]  (theta_body, sanity)
+    #   elbow.omegaDot     ← state[2]  (q, body pitch rate)
     #   airframe.omegaDot  ← state[8]  (M_about_CG_nd, repurposed cache)
     #   htail.omegaDot     ← state[9]  (Q_DOT_nd, repurposed cache)
     diag_omegaDot = {}
     if diagnostics:
         diag_omegaDot = {
-            "shoulder": "state[4]",
-            "elbow":    "state[5]",
+            "shoulder": "state[5]",
+            "elbow":    "state[2]",
             "airframe": "state[8]",
             "htail":    "state[9]",
         }
