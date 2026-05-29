@@ -184,6 +184,20 @@ PHASE_TRIM = {
         T_mult         = +14.17,
         gamma_trim_deg = -30.0,
     ),
+    # More aggressive retrim: θ_ht = 0° (neutral incidence, vs baseline
+    # -3.67° LE-down).  Slope from -3.67 → -2.0 gave ΔCMy/Δθ ≈ -0.14/deg.
+    # Extrapolating: at θ_ht=0°, CMy_warmup ≈ +1.24 - 0.14·3.67 ≈ +0.73.
+    # Closer to zero than the previous retrim's +1.01, but still positive
+    # — so the no-kick phugoid should still depart, just more slowly.
+    "landing_tht0": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = 0.0,         # ← neutral htail incidence
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
 }
 
 
