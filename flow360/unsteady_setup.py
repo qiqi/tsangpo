@@ -198,6 +198,19 @@ PHASE_TRIM = {
         T_mult         = +14.17,
         gamma_trim_deg = -30.0,
     ),
+    # Continuing the retrim sweep: θ_ht=+3° LE-UP.  Slope through 3
+    # prior data points is locked at -0.13/deg, so predicted
+    # CMy_warmup ≈ +0.758 - 0.13·3 ≈ +0.37.  Still nose-up but
+    # getting close to zero.
+    "landing_thtP3": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = +3.0,        # ← aggressive LE-up retrim
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
 }
 
 
