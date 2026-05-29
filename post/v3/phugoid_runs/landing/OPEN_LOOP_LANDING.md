@@ -91,7 +91,53 @@ benchmark the closed-loop controller against — with the right control
 inputs (θ_ht, T_mult modulation) the airframe should hold trim
 indefinitely.
 
-## Caveat — warmup-vs-chunk1 wall-BC transient
+## Retrim experiment (θ_ht = −2.0°) — 2026-05-29
+
+Tested the hypothesis "small CMy residual from θ_ht trim mismatch on
+4-cyl mesh drives the divergence."  Submitted a fresh warmup with
+θ_ht moved from −3.67° (baseline) to −2.0° (less LE-down).  Result:
+
+| trim       | θ_ht  | CMy_converged |
+|------------|-------|---------------|
+| baseline   | −3.67°| +1.241        |
+| retrim     | −2.00°| +1.011        |
+| Δ          | +1.67°| **−0.230**    |
+
+⇒ **ΔCMy/Δθ_ht ≈ −0.14 per degree of θ_ht.** Zeroing out the +1.241
+residual via htail trim alone would need θ_ht ≈ +5.3° (way outside any
+realistic flight setting, and well past where downwash+htail-α-response
+would stay linear).
+
+The htail has *very little authority* over the warmup CMy because the
+warmup pose puts the wing+flap at α=−2.4° (post-stall negative regime),
+not the design α=+27.6°.  That ~30° mismatch in aerodynamic state is
+the *actual* dominant issue; θ_ht only nudges it.  The +1.24 residual
+isn't a tuning bug — it's a structural consequence of running the
+warmup at the wrong α.
+
+### Proper fix — put the warmup at the right α
+
+Two options, both one-line changes:
+
+(A) **Tilt the body, keep the freestream flat** (the canonical CFD
+    convention).  Set `theta_body_trim = alpha_BO_rad` (drop the
+    `+ gamma_trim_rad` term from line 813 of unsteady_setup.py).
+    Body sits at θ_body = +27.6°, walls stationary, freestream along
+    +X ⇒ α = +27.6° matches the steady campaign.  Phugoid chunk1
+    still applies γ_trim to the body's *velocity vector* (the Vz_0
+    initial condition), so the descent is properly encoded.
+
+(B) **Tilt the freestream, keep the body horizontal-ish** (the
+    "wind-tunnel that tests descent" approach).  Set
+    `AerospaceCondition(alpha = gamma_trim_rad)` (=−30° for landing).
+    Freestream comes from above-and-forward; body at θ_body=−2.4° in
+    world sees α=+27.6° relative to the tilted freestream.
+
+(A) is simpler and matches the steady CFD campaign's convention.  Either
+would eliminate the chunk1 wall-BC transient AND give a warmup whose
+CMy residual reflects actual trim quality, not pose-mismatch.
+
+
 
 The warmup converges with the walls held stationary in flat freestream
 ⇒ the body sees α=θ_body=−2.4°, NOT the design α=+27.6° (which requires
