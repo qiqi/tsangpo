@@ -211,6 +211,19 @@ PHASE_TRIM = {
         T_mult         = +14.17,
         gamma_trim_deg = -30.0,
     ),
+    # In between baseline (nose-up div at -3.67°) and +3° (nose-down div).
+    # +3° showed apparent oscillation (apex θ=-22.7° at t=2.75s, returning
+    # by t=5s).  +1° should be even closer to a true natural-stability
+    # crossover; predicted CMy_warmup ≈ +0.611 from slope.
+    "landing_thtP1": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = +1.0,        # ← in-between retrim
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
 }
 
 
