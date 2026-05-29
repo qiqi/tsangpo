@@ -115,6 +115,43 @@ the *actual* dominant issue; θ_ht only nudges it.  The +1.24 residual
 isn't a tuning bug — it's a structural consequence of running the
 warmup at the wrong α.
 
+### Retrim chunk1 (θ_ht=−2° phugoid) — actual trajectory
+
+Forked a no-kick phugoid from the θ_ht=−2.0° warmup
+(case-484c926a in prj-fe988f58) to see what the trajectory looks like.
+
+![baseline vs retrim chunk1](../landing_thtN2/baseline_vs_retrim_chunk1.png)
+
+At t=5 s:
+
+|                  | baseline (θ_ht=−3.67°) | retrim (θ_ht=−2.0°) |
+|------------------|------------------------|---------------------|
+| θ_body           | **+52.7°**             | **+36.9°**          |
+| CMy (CSV)        | +23                    | +67                 |
+| CL               | +1.7                   | +4.5                |
+
+**Retrim's body rotates ~30% slower** despite a larger CSV CMy.  The
+CSV CMy is computed about the fixed initial-CG reference; the
+integrator's effective M is about the *current* CG and includes a
+lever-arm correction that depends on body translation — so CSV CMy
+overstates the effective moment in the retrim case where the body
+moves more.
+
+The CMy(θ_body) phase portrait reveals the underlying picture: both
+curves cross CMy=0 at θ_body ≈ 0° — that's the *natural* trim of the
+open-loop airframe in this regime.  Our prescribed trim
+(θ_body_trim = α_BO + γ_trim = −2.4°) sits *below* the natural trim,
+so both runs depart upward to find their own equilibrium and overshoot.
+The retrim's steeper ∂CMy/∂θ slope means the natural-trim equilibrium
+is more *unstable* (steeper positive slope through zero), but the
+overshoot dynamics are different in detail.
+
+**Bottom line**: retrim helps modestly (~30% slower divergence) but
+doesn't stabilize.  The intrinsic instability of the high-α
+blown-lift landing trim isn't a θ_ht tuning bug — it's a property of
+the underlying CMy(θ) curve in this regime.  The controller must
+provide the missing stabilization.
+
 ### Proper fix — put the warmup at the right α
 
 Two options, both one-line changes:
