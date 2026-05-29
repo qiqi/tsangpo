@@ -1785,16 +1785,23 @@ def build_unsteady_params(
                 fl.SurfaceOutput(name="surface", entities=all_surfs,
                                  output_fields=["Cp", "Cf", "yPlus", "CfVec"]),
                 fl.VolumeOutput(output_fields=["Mach", "qcriterion", "Cp"]),
-                # Mandated y=0 symmetry-plane slice (CLAUDE.md convention).
-                # The body only translates/pitches in the x-z plane, so y=0
-                # always cuts the centerline as the airframe oscillates.
-                # frequency=slice_frequency physical steps (default -1 = last
-                # step only; set =1 for a per-step flow-field animation).
+                # Y-slices (CLAUDE.md mandates y=0 always; here we add
+                # spanwise slices through the wing + propeller slipstreams).
+                # Span ≈ 11 m (half-span 5.5 m); props at y ≈ 0.55, 1.66,
+                # 2.77, 3.88, 4.98 m (and -y mirror).  y=0 cuts the
+                # fuselage centerline; y=±1, ±2, ±3 m cut through the
+                # wing+flap+slipstream regions on each side.
+                # frequency=slice_frequency physical steps (default -1 =
+                # last step only; set =1 for a per-step flow-field animation).
                 fl.SliceOutput(
-                    name="y0_slice",
-                    entities=[fl.Slice(name="y=0",
-                                       normal=(0.0, 1.0, 0.0),
-                                       origin=(0.0, 0.0, 0.0) * fl.u.m)],
+                    name="y_slices",
+                    entities=[
+                        fl.Slice(name=f"y={y_m:+.1f}",
+                                 normal=(0.0, 1.0, 0.0),
+                                 origin=(0.0, y_m, 0.0) * fl.u.m)
+                        for y_m in (-3.0, -2.0, -1.0, 0.0,
+                                    +1.0, +2.0, +3.0)
+                    ],
                     output_fields=["velocity", "Mach", "Cp", "primitiveVars"],
                     frequency=slice_frequency,
                 ),
