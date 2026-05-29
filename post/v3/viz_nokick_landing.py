@@ -193,14 +193,17 @@ def main() -> None:
                 "-", color="crimson", lw=1.2, alpha=0.7, zorder=2)
         ax.plot([xr[i] + nx*Lb], [zr[i] + nz*Lb], "o",
                 color="crimson", ms=2.5, zorder=4)
-    ax.set_xlabel("x through air [m]  (−X = flight direction)")
+    # World-frame +X axis to the right (matches the LIC slice viz, which
+    # also has world +X right).  Airplane flies in world −X direction
+    # (CSM convention: +X = aft), so the body's nose appears to point
+    # LEFT in this orientation, and the flight path reads RIGHT → LEFT.
+    ax.set_xlabel("x through air [m]  (world +X →; flight is −X)")
     ax.set_ylabel("altitude gain Δz [m]")
     ax.set_title("Flight path through the air (color=time)\n"
                   "red fuselage ticks, dot = nose")
     plt.colorbar(sc, ax=ax, label="t [s]")
     ax.grid(alpha=0.3); ax.axhline(0, color="k", lw=0.4)
     ax.set_aspect("equal", adjustable="box")
-    ax.invert_xaxis()  # so flight direction (-X) reads left→right
 
     ax = axes[0, 1]
     ax.plot(t, th, "-", lw=2, color="#1f77b4")
@@ -223,7 +226,7 @@ def main() -> None:
     ax.grid(alpha=0.3); ax.axhline(0, color="k", lw=0.4)
 
     fig.suptitle(f"Landing no-kick phugoid — {len(chunks)} chunk(s) stitched, "
-                  f"t ∈ [{t[0]:.2f}, {t[-1]:.2f}] s, air-relative frame  "
+                  f"t ∈ [{t[0]:.2f}, {t[-1]:.2f}] s, world frame +X→  "
                   f"(V=12.86 m/s, α_BO=+27.6°, T_mult=14.17, γ_trim=−30°)",
                   fontsize=12, fontweight="bold")
     out_png = OUT_DIR / "nokick_landing_trajectory.png"
@@ -231,10 +234,12 @@ def main() -> None:
     print(f"wrote {out_png}")
 
     # ---- Animation ----
+    # World-frame +X to the right (matches LIC slice viz).  Airplane
+    # flies in world −X direction, so the body moves RIGHT → LEFT here.
     fig2, ax2 = plt.subplots(figsize=(10, 6))
-    ax2.set_xlim(xr.max() + 5, xr.min() - 5)   # inverted so flight dir reads →
+    ax2.set_xlim(xr.min() - 5, xr.max() + 5)
     ax2.set_ylim(zr.min() - 5, zr.max() + 5)
-    ax2.set_xlabel("x through air [m]  (flight direction →)")
+    ax2.set_xlabel("x through air [m]  (world +X →)")
     ax2.set_ylabel("altitude Δz [m]")
     ax2.grid(alpha=0.3); ax2.set_aspect("equal", adjustable="box")
     path_line, = ax2.plot([], [], "-", color="#bbb", lw=1)
