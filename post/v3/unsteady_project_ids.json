@@ -75,5 +75,7 @@
   "phugoid_gap110_nokick_lagfix_chunk6": "case-8f1d6f90-a745-407c-96e1-eafcc2084159",
   "landing_warmup_gap110": "prj-7d4c5536-26ad-42cf-a75a-1cd5cb5e6ce8",
   "landing_warmup_gap110_case": "case-3c096a1e-ebad-4d72-950e-420c10500182",
-  "phugoid_landing_gap110_nokick_diag_chunk1": "case-5737a885-f9b4-46c1-9c36-be44570471b3"
+  "phugoid_landing_gap110_nokick_diag_chunk1": "case-5737a885-f9b4-46c1-9c36-be44570471b3",
+  "phugoid_landing_gap110_nokick_chunk2": "case-c5c327fe-1a36-46cd-8a7d-3fcb42880bd0",
+  "phugoid_landing_gap110_nokick_chunk3": "case-d2933c05-67d9-4e51-9445-566335f24cce"
 }
