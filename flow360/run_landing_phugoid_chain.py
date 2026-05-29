@@ -50,13 +50,16 @@ CHAIN = [
     {"child": "phugoid_landing_gap110_nokick_chunk3",
      "submit_chunkN": True, "chunk": 3,
      "parent_key": "phugoid_landing_gap110_nokick_chunk2"},
-    # NOTE: chunks 4-6 intentionally NOT chained.  Chunk3 entered an
-    # extreme-attitude regime where dt=0.025s + max_pseudo=200 stopped
-    # resolving the flow (CMy magnitudes ×25 of chunk1 peak; CD went
-    # nonphysically negative).  Open-loop instability is fully
-    # characterized by chunks 1-2 (trim → +98° apex of half-loop).
-    # If we ever need cleaner late-time data, refine dt and/or
-    # max_pseudo for chunk3+ and re-launch.
+    # One more chunk to see how the post-half-loop dynamics evolve.
+    # Chunk3's late-time numerics were noisy at the extreme attitudes
+    # but the qualitative tumble is informative; chunk4 will show
+    # whether the body settles into a sustained tumble, recovers into
+    # a different regime, or the solver gives up entirely.
+    {"child": "phugoid_landing_gap110_nokick_chunk4",
+     "submit_chunkN": True, "chunk": 4,
+     "parent_key": "phugoid_landing_gap110_nokick_chunk3"},
+    # chunks 5-6 left disabled — re-enable later if chunk4 produces
+    # interpretable data.
 ]
 
 

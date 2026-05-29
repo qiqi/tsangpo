@@ -171,6 +171,19 @@ PHASE_TRIM = {
         T_mult       = +14.17,
         gamma_trim_deg = -30.0,
     ),
+    # Same landing trim, retrimmed htail experiment.  θ_ht moved from
+    # −3.67° (the steady 2-cyl campaign's trim) toward less LE-down so the
+    # htail sees more α and produces more nose-down moment about CG —
+    # counters the residual nose-up CMy=+1.24 we saw on the 4-cyl warmup.
+    "landing_thtN2": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = -2.0,        # ← retrim experiment
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
 }
 
 
