@@ -829,6 +829,15 @@ def build_unsteady_params(
     pitch_step_step_offset: int  = 20,       # parent-case final physicalStep (so t_local starts at 0)
     pitch_step_link1_ramp_deg: float = 0.0,  # mode='pitch_step_multi' only: link1 cosine ramp amount
     pitch_step_link2_ramp_deg: float = 0.0,  # mode='pitch_step_multi' only: link2 cosine ramp amount
+    pitch_damping_si: float = 0.0,           # mode='pitch_step_cyl3_integrated' only:
+                                              # artificial rotational damping D_si in N·m·s/rad.
+                                              # Adds -D·q term to Q_DOT to make the body
+                                              # settle to equilibrium θ_eq quickly without
+                                              # oscillation.  D_crit ≈ 2·√(I·|∂M/∂θ|);
+                                              # 5000-15000 N·m·s/rad is typically slightly
+                                              # overdamped for our airframe (I ≈ 3000).
+    theta_ht_override_deg: float | None = None,  # if set, override trim["theta_ht_deg"]
+    V_inf_override_m_s:    float | None = None,  # if set, override trim["V_inf_m_s"]
     diagnostics: bool = False,               # phugoid mode only: instrument the 4 UDDs
                                               # with custom diag_* output_vars exposing all
                                               # state slots + M_about_CG_nd + Q_DOT_nd.
@@ -875,13 +884,21 @@ def build_unsteady_params(
     alpha_BO_rad   = radians(trim["alpha_BO_deg"])
     gamma_trim_rad = radians(trim["gamma_trim_deg"])
     theta_body_trim = alpha_BO_rad + gamma_trim_rad
-    theta_ht_rel    = radians(trim["theta_ht_deg"])
+    # Allow per-call override of htail incidence (used by the
+    # θ_eq(θ_ht, V_inf) grid sweep — avoids needing one PHASE_TRIM
+    # entry per grid cell).
+    theta_ht_deg_eff = (theta_ht_override_deg
+                        if theta_ht_override_deg is not None
+                        else trim["theta_ht_deg"])
+    theta_ht_rel    = radians(theta_ht_deg_eff)
 
     # Thrust setting (held fixed in this implementation).
     mult   = max(trim["T_mult"], 1e-4)
     fpa    = mult * C.FPA_CRUISE_PA
     swirl  = mult * C.SWIRL_CRUISE
-    V_inf  = trim["V_inf_m_s"]
+    V_inf  = (V_inf_override_m_s
+              if V_inf_override_m_s is not None
+              else trim["V_inf_m_s"])
 
     farfield = fl.AutomatedFarfield()
 
@@ -1503,6 +1520,18 @@ def build_unsteady_params(
             T_disk_total_N = (P.N_PROPS * trim["T_mult"] * P.T_CRUISE_PER_PROP_N)
             T_disk_nd_i    = T_disk_total_N / (rho_inf_i * a_inf_i * a_inf_i)
 
+            # Artificial damping coefficient.
+            # SI Newton's law for the body's pitch:  I·q̇ + D·q = M  (radians)
+            # In the UDD's solver-nondim, state[5] = q_si / a_inf and
+            # Q_DOT = q̈_si / a_inf².  So the damping term to subtract
+            # from Q_DOT is (D_si · q_si) / (I_si · a_inf²)
+            #   = (D_si / I_si) · (state[5] · a_inf) / a_inf²
+            #   = (D_si / (I_si · a_inf)) · state[5].
+            # Pre-bake the coefficient as a constant so the update_law
+            # expression can simply reference state[5] * damping_coef.
+            damping_coef_nd = (pitch_damping_si
+                               / (3000.0 * a_inf_i))   # I_si=3000 kg·m²
+
             constants_i = {
                 "L1":                 L1_M,           # link 1 length (m)
                 "L2":                 L2_M,           # link 2 length (m)
@@ -1523,6 +1552,7 @@ def build_unsteady_params(
                 "mc_z":               initial_z_cg_m,
                 "x_cg_0":             initial_x_cg_m,
                 "z_cg_0":             initial_z_cg_m,
+                "damping_coef":       damping_coef_nd,
                 # `pi` is built-in; do not redeclare.
             }
 
@@ -1544,9 +1574,14 @@ def build_unsteady_params(
             # terms vanish.  This matches the phugoid's q̇ formula exactly:
             # M_about_CG = momentY + (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
             #              − prop_z_m·T_disk_nd
+            # Add artificial damping  −damping_coef·state[5]  (zero unless
+            # pitch_damping_si>0).  Used for fast θ_eq seeking — the body
+            # becomes nearly first-order  q ≈ M/D  so it slides to the
+            # equilibrium  M(θ_eq)=0  without inertial overshoot.
             Q_DOT = ("((momentY + (mc_z - state[1])*forceX "
                       "- (mc_x - state[0])*forceZ "
-                      "- prop_z_m*T_disk_nd) / I_yy_nd)")
+                      "- prop_z_m*T_disk_nd) / I_yy_nd "
+                      "- damping_coef*state[5])")
 
             # ACTUAL CG position via forward IK from the prescribed link angles.
             # cyl_3 in cyl_1 frame: x_cyl1 = L1 − L2·cos(link2),  z_cyl1 = L2·sin(link2)
