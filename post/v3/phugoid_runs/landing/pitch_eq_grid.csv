@@ -1,0 +1,6 @@
+theta_ht_deg,V_inf_m_s,theta_eq_deg,warmup_case_id,chunk_case_id,status,notes
+-3.67,12.86,35.0485,case-99d26f8d-62d8-42a5-a763-f02b93bee1d5,case-399227d4-b4bc-451d-8caa-8ba58952004e,completed,τ=6.67s θ_end=+28.90°
+-2.0,12.86,26.4755,case-d15fa6ca-74a4-4e9b-8b48-496c28a519d4,case-6c12faa7-a0eb-4262-b977-40f385c46681,completed,τ=6.86s θ_end=+25.32° (chunk1+chunk2)
+0.0,12.86,13.0792,case-7d626e4f-3cda-48b9-b9d3-cb56367b5461,case-a573bed2-340d-4527-9786-20eea7134468,completed,τ=7.81s θ_end=+10.01°
+1.0,12.86,4.1898,case-8c2ec1ef-b9d9-4d30-b607-b802a16b3da2,case-bcc88667-3f1e-4ecb-84e6-2d45fc775dc6,completed,τ=7.09s θ_end=+3.95° (chunk1+chunk2)
+3.0,12.86,-10.1183,case-5f0e6943-92a6-4382-b6fa-cf8728011ca4,case-ada9e393-6459-4e57-9546-914b88a89742,completed,τ=5.19s θ_end=-9.38°

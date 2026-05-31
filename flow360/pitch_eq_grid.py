@@ -57,12 +57,16 @@ U = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(U)
 DEFAULT_TH_HT = [-3.67, -2.0, 0.0, +1.0, +3.0]
 DEFAULT_V_INF = [12.86]
 
-# Pitch-only damped run parameters.  Picked for ~10 physical steps to settle.
-WARMUP_N_STEPS         = 30
+# Pitch-only damped run parameters.
+# Warmup is a *frozen-cylinder* steady-style solve — a single physical step
+# with a generous pseudo budget suffices (45 000 iters from 30×1500 was 10×
+# overkill).  Chunk runs an overdamped 1st-order ODE with τ ≈ 5.6 s, so we
+# only need ~3 samples per τ — dt=2 s, n=6 → 12 s ≈ 2.1 τ of decay data.
+WARMUP_N_STEPS         = 3
 WARMUP_DT_S            = 1.0
 WARMUP_MAX_PSEUDO      = 1500
-CHUNK_N_STEPS          = 15
-CHUNK_DT_S             = 0.5         # ~5× warmup density, room for body to rotate
+CHUNK_N_STEPS          = 6
+CHUNK_DT_S             = 2.0
 CHUNK_MAX_PSEUDO       = 1500
 PITCH_DAMPING_SI       = 10000.0     # ~3× critical for our system
 STEP_OFFSET            = WARMUP_N_STEPS  # tells the UDD where chunk1 starts
@@ -221,18 +225,44 @@ def submit_pitch_only(th_ht_deg: float, V_inf_m_s: float,
     return case.id
 
 
-def extract_theta_eq(chunk_case_id: str) -> float:
-    """Read final state[4] (θ_body) from the UDD CSV."""
+def extract_theta_eq(chunk_case_id: str) -> tuple[float, float, float]:
+    """Return (θ_eq_fit, τ_fit, θ_eq_endstep) extracted from the UDD trajectory.
+
+    The damped run gives a clean exponential θ(t) = θ_eq + A·exp(-t/τ).
+    Fitting the asymptote is far more accurate than reading the last step,
+    especially when the run is only 2-3 τ long.  We also return τ so the
+    caller can tell whether the body settled (τ « t_run) or barely moved.
+    """
     c = fl.Case.from_cloud(case_id=chunk_case_id)
     fn = "results/udd_pitch_cyl3int_airframe_v2.csv"
     target = Path(f"/tmp/{chunk_case_id[:13]}/")
     target.mkdir(parents=True, exist_ok=True)
     c._download_file(fn, to_folder=str(target), overwrite=True)
+    import numpy as np
     import pandas as pd
+    from scipy.optimize import curve_fit
+
     df = pd.read_csv(target / fn.split("/")[-1],
                      sep=r"\s*,\s*", engine="python")
-    ends = df.groupby("physical_step").tail(1)
-    return math.degrees(float(ends["state[4]"].iloc[-1]))
+    ends = df.groupby("physical_step").tail(1).reset_index(drop=True)
+    ck = ends[ends["physical_step"] >= STEP_OFFSET].copy().reset_index(drop=True)
+    ck["t_s"]       = (ck["physical_step"] - STEP_OFFSET) * CHUNK_DT_S
+    ck["theta_deg"] = ck["state[4]"].apply(math.degrees)
+
+    theta_end = float(ck["theta_deg"].iloc[-1])
+    if len(ck) < 4:                       # not enough points to fit
+        return theta_end, float("nan"), theta_end
+
+    def model(t, theq, A, tau):
+        return theq + A * np.exp(-t / tau)
+    try:
+        p, _ = curve_fit(model, ck["t_s"], ck["theta_deg"],
+                         p0=[theta_end, theta_end - float(ck["theta_deg"].iloc[0]),
+                             max(ck["t_s"].iloc[-1] / 2, 1.0)],
+                         maxfev=5000)
+        return float(p[0]), float(p[2]), theta_end
+    except Exception:                     # fall back to last step
+        return theta_end, float("nan"), theta_end
 
 
 # ---- Orchestrator -----------------------------------------------------------
@@ -281,13 +311,19 @@ def run_grid(th_ht_list: list[float], V_inf_list: list[float],
             if _is_complete(cid):
                 done_chunk.add(key)
                 try:
-                    theta_eq = extract_theta_eq(cid)
+                    theta_eq, tau, theta_end = extract_theta_eq(cid)
+                    converged = (not math.isnan(tau)
+                                 and tau < CHUNK_N_STEPS * CHUNK_DT_S * 0.5)
+                    notes = (f"τ={tau:.2f}s θ_end={theta_end:+.2f}°"
+                             if not math.isnan(tau) else f"θ_end={theta_end:+.2f}°")
                     _append_result({"theta_ht_deg": key[0], "V_inf_m_s": key[1],
                                     "theta_eq_deg": f"{theta_eq:.4f}",
                                     "warmup_case_id": warmups[key],
                                     "chunk_case_id": cid,
-                                    "status": "completed", "notes": ""})
-                    print(f"  ({key[0]:+.2f}, {key[1]:.2f}) θ_eq = {theta_eq:+.3f}°")
+                                    "status": "completed" if converged else "weak_fit",
+                                    "notes": notes})
+                    print(f"  ({key[0]:+.2f}, {key[1]:.2f}) θ_eq = {theta_eq:+.3f}°  "
+                          f"(τ={tau:.2f}s, θ_end={theta_end:+.2f}°)")
                 except Exception as e:
                     _append_result({"theta_ht_deg": key[0], "V_inf_m_s": key[1],
                                     "theta_eq_deg": "",

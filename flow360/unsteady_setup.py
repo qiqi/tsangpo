@@ -1574,14 +1574,19 @@ def build_unsteady_params(
             # terms vanish.  This matches the phugoid's q̇ formula exactly:
             # M_about_CG = momentY + (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
             #              − prop_z_m·T_disk_nd
-            # Add artificial damping  −damping_coef·state[5]  (zero unless
-            # pitch_damping_si>0).  Used for fast θ_eq seeking — the body
-            # becomes nearly first-order  q ≈ M/D  so it slides to the
-            # equilibrium  M(θ_eq)=0  without inertial overshoot.
-            Q_DOT = ("((momentY + (mc_z - state[1])*forceX "
-                      "- (mc_x - state[0])*forceZ "
-                      "- prop_z_m*T_disk_nd) / I_yy_nd "
-                      "- damping_coef*state[5])")
+            # We treat the damping term implicitly so the time-step limit
+            # is set by the slow (θ-relaxation) timescale D/k, not the fast
+            # (q-relaxation) timescale I/D.  Define the inertial-only part
+            # of q̇ (= M_about_CG / I), then assemble the q update as
+            #   q_new = (q_old + Q_TORQUE·dt) / (1 + D·dt)
+            # which reduces to the old explicit form when damping_coef=0.
+            # See: dt·D/I > 2 with explicit damping causes |gain|>1 blow-up;
+            # implicit form is unconditionally stable for any dt > 0.
+            Q_TORQUE = ("((momentY + (mc_z - state[1])*forceX "
+                         "- (mc_x - state[0])*forceZ "
+                         "- prop_z_m*T_disk_nd) / I_yy_nd)")
+            Q_NEW = (f"(state[5] + {Q_TORQUE} * timeStepSize) "
+                      "/ (1.0 + damping_coef * timeStepSize)")
 
             # ACTUAL CG position via forward IK from the prescribed link angles.
             # cyl_3 in cyl_1 frame: x_cyl1 = L1 − L2·cos(link2),  z_cyl1 = L2·sin(link2)
@@ -1609,13 +1614,13 @@ def build_unsteady_params(
                 # The forces consumed are the END-OF-PREVIOUS-STEP converged
                 # values (still in the registry from pseudoStep=last of the
                 # previous physical step).
-                "if (pseudoStep == 0) "
-                "state[4] + state[5] * timeStepSize; else state[4];",
-                # state[5] = q.  Same pseudoStep==0 gate.
-                # Q_DOT uses (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
-                # to translate from the FIXED reference to the actual CG.
+                # The q used here is the IMPLICIT q_new (semi-implicit /
+                # symplectic Euler-Cromer), computed inline so state[4]
+                # doesn't have to wait one step for state[5]'s new value.
                 f"if (pseudoStep == 0) "
-                f"state[5] + {Q_DOT} * timeStepSize; else state[5];",
+                f"state[4] + ({Q_NEW}) * timeStepSize; else state[4];",
+                # state[5] = q, implicit damping update.
+                f"if (pseudoStep == 0) {Q_NEW}; else state[5];",
                 # state[6,7] = prescribed sine ramps (NOT gated — pure analytic).
                 LINK2_I,
                 LINK1_I,
