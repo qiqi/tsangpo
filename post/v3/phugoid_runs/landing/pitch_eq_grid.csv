@@ -1,6 +1,16 @@
 theta_ht_deg,V_inf_m_s,theta_eq_deg,warmup_case_id,chunk_case_id,status,notes
+-3.67,10.0,38.9190,case-f039a7a7-ecb0-4615-a445-3b7a5637ee8d,case-7c411dcd-0ea0-44ae-8ad4-6ac23a1e0608,oscillates,"chunk1 fit θ_eq=88.54° τ=24.10s; chunk2 dt=5 oscillates, mean=38.92°"
+-2.0,10.0,40.8101,case-72274c2e-701d-47d0-aa57-5e48e109a5b7,case-0fc0caf3-7ffd-416a-b106-979757f01921,completed,τ=11.74s θ_end=+37.77° (chunk1+chunk2_dt5)
+0.0,10.0,38.8534,case-3759fdec-1feb-458c-ad28-b904727d9ac5,case-4c232f31-f98a-4ca5-9b6b-60ad7295dbfc,weak_fit,τ=43.67s θ_end=+27.81° (chunk1+chunk2_dt5)
+1.0,10.0,8.6470,case-5edc600a-1e27-46a9-99a4-448e2328e8ba,case-56ee782d-f309-4c2f-a6e7-51b46f5afa8f,completed,τ=27.64s θ_end=+6.39° (chunk1+chunk2_dt5)
+3.0,10.0,,case-df236005-efb6-4a14-b5d1-9fa9992a836d,case-66f4cf2c-4c51-4255-8cb1-25a5aa86f307,diverges,"θ_end=-59.46° at t=50s; monotonically rotating, no fixed point"
 -3.67,12.86,35.0485,case-99d26f8d-62d8-42a5-a763-f02b93bee1d5,case-399227d4-b4bc-451d-8caa-8ba58952004e,completed,τ=6.67s θ_end=+28.90°
 -2.0,12.86,26.4755,case-d15fa6ca-74a4-4e9b-8b48-496c28a519d4,case-6c12faa7-a0eb-4262-b977-40f385c46681,completed,τ=6.86s θ_end=+25.32° (chunk1+chunk2)
 0.0,12.86,13.0792,case-7d626e4f-3cda-48b9-b9d3-cb56367b5461,case-a573bed2-340d-4527-9786-20eea7134468,completed,τ=7.81s θ_end=+10.01°
 1.0,12.86,4.1898,case-8c2ec1ef-b9d9-4d30-b607-b802a16b3da2,case-bcc88667-3f1e-4ecb-84e6-2d45fc775dc6,completed,τ=7.09s θ_end=+3.95° (chunk1+chunk2)
 3.0,12.86,-10.1183,case-5f0e6943-92a6-4382-b6fa-cf8728011ca4,case-ada9e393-6459-4e57-9546-914b88a89742,completed,τ=5.19s θ_end=-9.38°
+-3.67,16.0,20.0656,case-0dc8778c-475a-4ec9-a766-3d59202476f5,case-ef49ea2c-ec60-4e93-aadf-a34f7c565c57,limit_cycle,"limit cycle: center=20.07°, ±10.8°"
+-2.0,16.0,17.2612,case-e7fd76eb-9027-4850-bdf0-34d431882481,case-3455a062-e76f-4bdb-bbe2-4caa700307c3,completed,τ=3.88s θ_end=+13.48°
+0.0,16.0,8.7475,case-d6229817-b0e1-4ed3-ba96-56fee37a0f07,case-9fcd0a6a-a1c1-4473-bd14-dfc2dccb5bc6,completed,τ=4.38s θ_end=+6.70°
+1.0,16.0,3.0874,case-8f9a6487-44dc-48bd-a542-5b678bd5b4a6,case-cf630992-e3e7-44dc-929e-94f3fc94aadc,completed,τ=5.90s θ_end=+2.16°
+3.0,16.0,-7.9801,case-22f6ba84-9e59-44d7-8000-a758d8887e98,case-eb8e6128-5949-4d76-93c1-cd7deda534ca,completed,τ=5.42s θ_end=-7.42°
