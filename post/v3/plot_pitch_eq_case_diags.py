@@ -72,6 +72,19 @@ def load_case(case_id: str) -> dict:
                 data[fn] = None
                 continue
         data[fn] = pd.read_csv(local, sep=r"\s*,\s*", engine="python")
+    # also pull flow360.json once per case so we can read airframe UDD constants
+    if not (target / "flow360.json").exists():
+        try:
+            c = fl.Case.from_cloud(case_id=case_id)
+            c._download_file("flow360.json", to_folder=str(target), overwrite=True)
+        except Exception:
+            pass
+    try:
+        data["constants"] = next(
+            u["constants"] for u in json.loads((target/"flow360.json").read_text())
+            ["userDefinedDynamics"] if u["dynamicsName"] == "pitch_cyl3int_airframe")
+    except Exception:
+        data["constants"] = {}
     return data
 
 
@@ -95,6 +108,18 @@ def plot_case(key: str, th: float, V: float, chunk_lbl: str, case_id: str) -> Pa
     nl   = data['nonlinear_residual_v2.csv']
     mm   = data['minmax_state_v2.csv']
     cfl  = data['cfl_v2.csv']
+    consts = data.get('constants', {})
+    # default in case constants are missing
+    ratio = 1.0
+    cmy_ad_coef = 0.0
+    if tot is not None and udd is not None and consts:
+        end_tot = tot.groupby('physical_step').tail(1).reset_index(drop=True)
+        end_udd = udd.groupby('physical_step').tail(1).reset_index(drop=True)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            r = end_tot['CMy'].to_numpy() / end_udd['momentY'].to_numpy()
+            r = r[np.isfinite(r) & (np.abs(r) < 1000)]
+            ratio = float(np.median(r)) if len(r) else 1.0
+        cmy_ad_coef = -consts['prop_z_m'] * consts['T_disk_nd'] * ratio
 
     # Use UDD as the "primary" length reference; other CSVs should match row count
     n_udd = len(udd) if udd is not None else 0
@@ -133,14 +158,23 @@ def plot_case(key: str, th: float, V: float, chunk_lbl: str, case_id: str) -> Pa
         ax.plot(x_tot, tot['CD'], lw=0.6, label='CD', color='C3')
     ax.set_title('CL, CD  (total)'); ax.legend(fontsize=8); ax.grid(alpha=0.3)
 
-    # 4. CMy total + UDD momentY (these match — sanity)
+    # 4. CMy_wall  +  AD reaction (both in airframe-coef)  +  Q_TORQUE×I_yy
+    # All in the SAME unit so the moment balance is visible.  The sign of
+    # the green (wall + AD) curve drives θ — note how it can flip even
+    # while the wall-only CMy stays one-signed.
     ax = axes[1,0]
     if tot is not None:
-        ax.plot(x_tot, tot['CMy'], lw=0.6, label='CMy_total', color='C0')
-    if udd is not None:
-        ax.plot(x_udd, udd['momentY'], lw=0.6, alpha=0.6, label='UDD momentY', color='C2', ls=':')
-    ax.set_title('CMy  (total + UDD input)'); ax.legend(fontsize=8); ax.grid(alpha=0.3)
-    ax.axhline(0, color='k', alpha=0.3)
+        ax.plot(x_tot, tot['CMy'].to_numpy(), lw=0.6, color='C0',
+                label='CMy_wall (total)')
+        if consts:
+            ax.axhline(cmy_ad_coef, color='C3', ls='--', lw=1.0,
+                        label=f'CMy_AD = −prop_z·T_disk·{ratio:.1f} = {cmy_ad_coef:+.3f}')
+            qt_coef = tot['CMy'].to_numpy() + cmy_ad_coef
+            ax.plot(x_tot, qt_coef, lw=0.7, color='C2', alpha=0.85,
+                    label='Q_TORQUE·I_yy  =  wall + AD')
+    ax.set_title('Q_TORQUE in airframe-coef\n(wall + AD reaction; sign of total drives θ)')
+    ax.legend(fontsize=7, loc='best'); ax.grid(alpha=0.3)
+    ax.axhline(0, color='k', alpha=0.4)
 
     # 5. Per-surface CL: main_wing, htail, vanes, aft_flap, fuselage
     ax = axes[1,1]
@@ -181,14 +215,24 @@ def plot_case(key: str, th: float, V: float, chunk_lbl: str, case_id: str) -> Pa
         ax.plot(x_ad, tot_cfx, lw=0.7, color='C2', label='Σ Disk_CFx')
     ax.set_title('Actuator disk total CFx'); ax.legend(fontsize=8); ax.grid(alpha=0.3)
 
-    # 8. AD total CMy (10 disks)
+    # 8. AD total CMy: raw rotor-units (left) vs UDD effective coef (right)
     ax = axes[2,1]
     if ad is not None:
         x_ad = make_iter(ad)
-        tot_cmy = sum(ad[f'Disk{i}_CMy'] for i in range(10) if f'Disk{i}_CMy' in ad.columns)
-        ax.plot(x_ad, tot_cmy, lw=0.7, color='C2', label='Σ Disk_CMy')
-    ax.set_title('Actuator disk total CMy'); ax.legend(fontsize=8); ax.grid(alpha=0.3)
-    ax.axhline(0, color='k', alpha=0.3)
+        tot_cmy_raw = sum(ad[f'Disk{i}_CMy'] for i in range(10)
+                          if f'Disk{i}_CMy' in ad.columns)
+        ax.plot(x_ad, tot_cmy_raw, lw=0.7, color='C2', alpha=0.6,
+                label='Σ Disk_CMy raw (rotor units)')
+        ax.legend(fontsize=7, loc='upper right')
+        if consts:
+            ax2 = ax.twinx()
+            ax2.axhline(cmy_ad_coef, color='C3', ls='--', lw=1.2,
+                        label=f'UDD effective (airframe coef) = {cmy_ad_coef:+.3f}')
+            ax2.set_ylabel('airframe coef', color='C3', fontsize=8)
+            ax2.tick_params(axis='y', labelcolor='C3', labelsize=7)
+            ax2.legend(fontsize=7, loc='lower right')
+    ax.set_title('Actuator disk total CMy  (two normalizations)')
+    ax.grid(alpha=0.3); ax.axhline(0, color='k', alpha=0.3)
 
     # 9. CG world position (state[0], state[1])
     ax = axes[2,2]
