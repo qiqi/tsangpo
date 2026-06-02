@@ -27,23 +27,17 @@ OUT  = REPO / "post" / "v3" / "phugoid_runs" / "landing" / "pitch_eq_per_case_di
 OUT.mkdir(parents=True, exist_ok=True)
 
 # ---- Case catalog -----------------------------------------------------------
-# (cell_key, theta_ht, V_inf, chunk_label, ids_key_suffix)
+# Only the chunk2_qs_D30k forks — the production recipe.  Earlier integrator
+# variants (chunk1 implicit, chunk2 with dt=5, chunk2 with dt=2, QS at D=10k)
+# are no longer kept on disk; their cases still live in Flow360 if needed.
 CASES: list[tuple[str, float, float, str, str]] = []
 for th_lbl, th in [('thN3p67', -3.67), ('thN2p00', -2.0), ('thP0p00', 0.0),
                    ('thP1p00',  1.0),  ('thP3p00',  3.0)]:
     for V_lbl, V in [('V10p00', 10.0), ('V12p86', 12.86), ('V16p00', 16.0)]:
         key = f"{th_lbl}_{V_lbl}"
-        # Chunk1 always exists
-        CASES.append((key, th, V, 'chunk1', 'chunk_case'))
-        # Chunk2 variants (depend on cell)
-        for suffix in ['chunk2_case', 'chunk2_dt5_case', 'chunk2_dt2_case',
-                        'chunk2_qs_case', 'chunk2_qs_D30k_case']:
-            if f"pitch_eq_{key}_{suffix}" in IDS:
-                # Skip the failed dt5 retry for thN3p67_V16p00
-                if key == 'thN3p67_V16p00' and suffix == 'chunk2_dt5_case':
-                    continue
-                chunk_lbl = suffix.replace('_case', '')
-                CASES.append((key, th, V, chunk_lbl, suffix))
+        suffix = 'chunk2_qs_D30k_case'
+        if f"pitch_eq_{key}_{suffix}" in IDS:
+            CASES.append((key, th, V, 'chunk2_qs_D30k', suffix))
 
 print(f"Cases to plot: {len(CASES)}")
 
