@@ -36,7 +36,8 @@ for th_lbl, th in [('thN3p67', -3.67), ('thN2p00', -2.0), ('thP0p00', 0.0),
         # Chunk1 always exists
         CASES.append((key, th, V, 'chunk1', 'chunk_case'))
         # Chunk2 variants (depend on cell)
-        for suffix in ['chunk2_case', 'chunk2_dt5_case', 'chunk2_dt2_case']:
+        for suffix in ['chunk2_case', 'chunk2_dt5_case', 'chunk2_dt2_case',
+                        'chunk2_qs_case', 'chunk2_qs_D30k_case']:
             if f"pitch_eq_{key}_{suffix}" in IDS:
                 # Skip the failed dt5 retry for thN3p67_V16p00
                 if key == 'thN3p67_V16p00' and suffix == 'chunk2_dt5_case':

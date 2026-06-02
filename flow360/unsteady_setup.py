@@ -836,6 +836,16 @@ def build_unsteady_params(
                                               # oscillation.  D_crit ≈ 2·√(I·|∂M/∂θ|);
                                               # 5000-15000 N·m·s/rad is typically slightly
                                               # overdamped for our airframe (I ≈ 3000).
+    quasi_static_q:     bool  = False,        # mode='pitch_step_cyl3_integrated' only:
+                                              # if True, drop the q-memory term entirely —
+                                              # q_new = Q_TORQUE/D directly (pure relaxation).
+                                              # Useful when dt·D/I ≫ 1 anyway and the residual
+                                              # q-memory (13% at dt·D/I=6.7) is contaminating
+                                              # the angle trajectory.  In this mode dt can be
+                                              # taken very large; per-step δθ = dt·Q_torque/D
+                                              # so dt and D should be scaled together to keep
+                                              # δθ in a sensible range and dt·k/D < 1 (no
+                                              # forward-Euler overshoot on θ).
     theta_ht_override_deg: float | None = None,  # if set, override trim["theta_ht_deg"]
     V_inf_override_m_s:    float | None = None,  # if set, override trim["V_inf_m_s"]
     diagnostics: bool = False,               # phugoid mode only: instrument the 4 UDDs
@@ -1582,11 +1592,19 @@ def build_unsteady_params(
             # which reduces to the old explicit form when damping_coef=0.
             # See: dt·D/I > 2 with explicit damping causes |gain|>1 blow-up;
             # implicit form is unconditionally stable for any dt > 0.
+            # When quasi_static_q=True, drop the q-memory entirely:
+            #   q_new = Q_TORQUE / D
+            # i.e. the body relaxes purely on the moment direction with no
+            # inheritance of the previous step's rate.  This is the limit
+            # of the implicit form as dt·D/I → ∞.
             Q_TORQUE = ("((momentY + (mc_z - state[1])*forceX "
                          "- (mc_x - state[0])*forceZ "
                          "- prop_z_m*T_disk_nd) / I_yy_nd)")
-            Q_NEW = (f"(state[5] + {Q_TORQUE} * timeStepSize) "
-                      "/ (1.0 + damping_coef * timeStepSize)")
+            if quasi_static_q:
+                Q_NEW = f"({Q_TORQUE} / damping_coef)"
+            else:
+                Q_NEW = (f"(state[5] + {Q_TORQUE} * timeStepSize) "
+                          "/ (1.0 + damping_coef * timeStepSize)")
 
             # ACTUAL CG position via forward IK from the prescribed link angles.
             # cyl_3 in cyl_1 frame: x_cyl1 = L1 − L2·cos(link2),  z_cyl1 = L2·sin(link2)

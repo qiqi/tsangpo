@@ -148,5 +148,21 @@
   "pitch_eq_thP1p00_V10p00_chunk2_dt5_case": "case-2e476b62-b33f-4b19-a0b3-33b8d793388b",
   "pitch_eq_thP3p00_V10p00_chunk2_dt5_case": "case-36893c15-bf52-4d61-a3e0-a3b6512629ba",
   "pitch_eq_thN3p67_V16p00_chunk2_dt5_case": "case-a83f5b20-7d7a-4bb2-8718-7958bd06a2f8",
-  "pitch_eq_thN3p67_V16p00_chunk2_dt2_case": "case-50161a77-1d4f-441d-ab11-615b66979b6f"
+  "pitch_eq_thN3p67_V16p00_chunk2_dt2_case": "case-50161a77-1d4f-441d-ab11-615b66979b6f",
+  "pitch_eq_thP1p00_V16p00_chunk2_qs_case": "case-114da08d-189e-47d6-86b4-8a2fd792036b",
+  "pitch_eq_thP1p00_V16p00_chunk2_qs_D30k_case": "case-914f0c61-f95e-4d70-8a84-5763d475f48a",
+  "pitch_eq_thN3p67_V12p86_chunk2_qs_D30k_case": "case-c83ba821-893e-4343-b7fb-fa052d4e898d",
+  "pitch_eq_thP0p00_V12p86_chunk2_qs_D30k_case": "case-744a8792-ef8b-46e3-94cb-37d4d55ba6f5",
+  "pitch_eq_thP3p00_V12p86_chunk2_qs_D30k_case": "case-834445e1-3d56-460f-bc80-a8459aa1f6ac",
+  "pitch_eq_thN2p00_V12p86_chunk2_qs_D30k_case": "case-26cf01fa-467e-4fb3-ba72-114811c1c2ca",
+  "pitch_eq_thP1p00_V12p86_chunk2_qs_D30k_case": "case-14b4e963-7115-4d7b-b65b-69573d83877e",
+  "pitch_eq_thN3p67_V10p00_chunk2_qs_D30k_case": "case-e4bffa5a-44a7-4f17-9ad8-0c2f90ffc284",
+  "pitch_eq_thN2p00_V10p00_chunk2_qs_D30k_case": "case-9faffb5f-e50f-4d14-a52c-75abc487963d",
+  "pitch_eq_thP0p00_V10p00_chunk2_qs_D30k_case": "case-c7bbd3b2-826f-4008-9495-e69831e37dd6",
+  "pitch_eq_thP1p00_V10p00_chunk2_qs_D30k_case": "case-d622b3dc-31f5-447f-84fb-31bda5558ac6",
+  "pitch_eq_thP3p00_V10p00_chunk2_qs_D30k_case": "case-862aa50e-e4ee-44a0-8191-fb5a0a1c033b",
+  "pitch_eq_thN3p67_V16p00_chunk2_qs_D30k_case": "case-82f635d5-1c24-4f78-b78b-571242f954c2",
+  "pitch_eq_thN2p00_V16p00_chunk2_qs_D30k_case": "case-77ec4e1d-c488-4e3c-a49d-864eb7c3ffa0",
+  "pitch_eq_thP0p00_V16p00_chunk2_qs_D30k_case": "case-17b89324-f1c4-4721-9bda-3e60d750859d",
+  "pitch_eq_thP3p00_V16p00_chunk2_qs_D30k_case": "case-bef42448-0275-49ae-879d-2706b9d0d8ec"
 }
