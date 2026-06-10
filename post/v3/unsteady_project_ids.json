@@ -164,5 +164,9 @@
   "pitch_eq_thN3p67_V16p00_chunk2_qs_D30k_case": "case-82f635d5-1c24-4f78-b78b-571242f954c2",
   "pitch_eq_thN2p00_V16p00_chunk2_qs_D30k_case": "case-77ec4e1d-c488-4e3c-a49d-864eb7c3ffa0",
   "pitch_eq_thP0p00_V16p00_chunk2_qs_D30k_case": "case-17b89324-f1c4-4721-9bda-3e60d750859d",
-  "pitch_eq_thP3p00_V16p00_chunk2_qs_D30k_case": "case-bef42448-0275-49ae-879d-2706b9d0d8ec"
+  "pitch_eq_thP3p00_V16p00_chunk2_qs_D30k_case": "case-bef42448-0275-49ae-879d-2706b9d0d8ec",
+  "phugoid_landing_gap110_nokick_surf_chunk1": "case-ec6e9b85-67cc-4412-8b1d-1b13010816b4",
+  "phugoid_landing_gap110_nokick_surf_chunk2": "case-1144c8e8-690c-427e-a7c4-651c4024db18",
+  "phugoid_landing_gap110_nokick_surf_chunk3": "case-4614f270-b2d7-4d31-bb1f-ca2baec17d95",
+  "phugoid_landing_gap110_nokick_surf_chunk4": "case-76c4b711-0d88-48ae-b7eb-179540f048e5"
 }

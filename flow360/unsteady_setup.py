@@ -854,6 +854,11 @@ def build_unsteady_params(
     slice_frequency: int = -1,               # y=0 SliceOutput write frequency in physical
                                               # steps (-1 = last step only; 1 = every step
                                               # for a flow-field animation).
+    surface_frequency: int = -1,             # SurfaceOutput write frequency in physical
+                                              # steps (-1 = last step only; 1 = every step
+                                              # so that body-pose .pvtu files match the
+                                              # per-step slices for a body+slice 3D animation
+                                              # without manual coordinate transforms).
 ):
     """Build SimulationParams for the v3 phugoid 4-cylinder unsteady setup.
 
@@ -1841,7 +1846,8 @@ def build_unsteady_params(
             user_defined_dynamics=udds,
             outputs=[
                 fl.SurfaceOutput(name="surface", entities=all_surfs,
-                                 output_fields=["Cp", "Cf", "yPlus", "CfVec"]),
+                                 output_fields=["Cp", "Cf", "yPlus", "CfVec"],
+                                 frequency=surface_frequency),
                 fl.VolumeOutput(output_fields=["Mach", "qcriterion", "Cp"]),
                 # Y-slices (CLAUDE.md mandates y=0 always; here we add
                 # spanwise slices through the wing + propeller slipstreams).
