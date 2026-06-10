@@ -47,7 +47,7 @@ REPO   = Path("/home/qiqi/himalaya")
 OUT    = REPO / "post/v3/phugoid_runs/landing"
 FRAMES = OUT / "lic_frames_3d_native"
 FRAMES.mkdir(parents=True, exist_ok=True)
-CG_CSV = OUT / "cg_lookup_landing.csv"
+CG_CSV = OUT / "cg_lookup_landing_new.csv"   # extracted from the NEW (surf-per-step) chain
 
 # ── physical constants / appearance ──────────────────────────────────────────
 V_INF = 12.86
@@ -67,6 +67,14 @@ SURF_DIRS = {
     "chunk2": Path("/tmp/surf_chunk2_perstep"),
     "chunk3": Path("/tmp/surf_chunk3_perstep"),
     "chunk4": Path("/tmp/surf_chunk4_perstep"),
+}
+# Per-step slice directory layout.  From the SAME new chain (so the slice's
+# flow matches the surfaces' body pose at every step).
+SLICE_DIRS = {
+    "chunk1": Path("/tmp/slices_chunk1_new"),
+    "chunk2": Path("/tmp/slices_chunk2_new"),
+    "chunk3": Path("/tmp/slices_chunk3_new"),
+    "chunk4": Path("/tmp/slices_chunk4_new"),
 }
 
 # Map step → chunk (chunk1 = 30-229, chunk2 = 230-429, etc.).
@@ -213,9 +221,14 @@ def render_frame(step: int, slice_pvtu: str,
 def main(skip: int = 4, max_frames: int | None = None) -> None:
     cg = load_cg_lookup()
     all_files: list[tuple[int, str]] = []
-    for chunk_dir in sorted(d for d in os.listdir(OUT)
-                             if d.startswith("slices_chunk")):
-        for fp in glob.glob(str(OUT / chunk_dir / "slice_y=0_time_*.pvtu")):
+    # Iterate the NEW per-chunk slice dirs, NOT the legacy slices_chunk*/ ones
+    # which were from the old chain (different trajectory).  The new chain
+    # writes the y=0 slice as "slice_y=+0.0_time_<step>.pvtu" (the slice's
+    # canonical name is `y={y_m:+.1f}` in unsteady_setup.py, so 0.0 → +0.0).
+    for slice_dir in SLICE_DIRS.values():
+        if not slice_dir.exists(): continue
+        for fp in (glob.glob(str(slice_dir / "slice_y=+0.0_time_*.pvtu"))
+                    + glob.glob(str(slice_dir / "slice_y=0_time_*.pvtu"))):
             m = re.search(r"time_(\d+)", Path(fp).name)
             if m: all_files.append((int(m.group(1)), fp))
     all_files.sort()
