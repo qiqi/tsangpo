@@ -109,6 +109,39 @@ def load_cg_lookup() -> dict[int, tuple[float, float, float]]:
                                   float(r["theta_body_deg"]))
     return cg
 
+
+def build_trajectory_polyline(cg: dict[int, tuple[float, float, float]],
+                              up_to_step: int) -> pv.PolyData:
+    """Polyline of the body's historical CG path in the GROUND frame
+    (air at rest), expressed in chase-view coordinates anchored at the
+    current body's mesh-frame CG.
+
+    Mesh frame (CFD `WORLD`): freestream BC has air at (+V_inf, 0, 0) — the
+    air moves in +x at V_inf m/s.  Ground frame: air at rest; the two are
+    related by a Galilean shift X_ground(t) = x_mesh(t) − V_inf·t.
+
+    For a chase camera fixed at the current body's mesh position, the past
+    CG at step s lands at:
+
+        x_chase(s) = x_mesh(s) + V_inf · (t_now − t_s)
+
+    so the historical track trails downstream of the body (in +x) by
+    V_inf·Δt — the physically-correct flight path through still air.
+    Z is unchanged (no vertical wind)."""
+    steps = sorted(s for s in cg.keys() if s <= up_to_step)
+    pts = np.empty((len(steps), 3), dtype=np.float32)
+    for i, s in enumerate(steps):
+        x_m, z_m, _ = cg[s]
+        dt_since = (up_to_step - s) * DT     # seconds since past step (≥ 0)
+        pts[i] = (x_m + V_INF * dt_since, 0.0, z_m)
+    if len(pts) < 2:
+        return pv.PolyData(pts)
+    n = len(pts)
+    lines = np.empty(n + 1, dtype=np.int64)
+    lines[0] = n
+    lines[1:] = np.arange(n)
+    return pv.PolyData(pts, lines=lines)
+
 # ── find a surface step at or near the given step ────────────────────────────
 def nearest_surface_step(step: int, surf_dir: Path) -> int | None:
     """Find the nearest surface output step in surf_dir.  Returns None
@@ -183,6 +216,16 @@ def render_frame(step: int, slice_pvtu: str,
         if not path.exists(): continue
         m = pv.read(str(path))
         p.add_mesh(m, color=PART_COLORS[part_name], smooth_shading=True)
+    # Historical CG trajectory up to this step (polyline in y=0 plane).
+    # Rendered as a thin tube in a bright accent colour so it shows through
+    # the slice texture.
+    traj = build_trajectory_polyline(cg, up_to_step=step)
+    if traj.n_points >= 2:
+        tube = traj.tube(radius=0.08)
+        p.add_mesh(tube, color="white", smooth_shading=False)
+        # Highlight the current position with a small sphere
+        p.add_mesh(pv.Sphere(radius=0.20, center=(CGx, 0, CGz)),
+                   color="white", smooth_shading=True)
     p.set_background("black")
     p.camera_position = [
         (CGx - 6, -10, CGz + 5),     # camera behind-left-above CG
