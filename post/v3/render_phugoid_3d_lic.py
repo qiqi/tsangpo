@@ -115,7 +115,13 @@ def load_cg_lookup() -> dict[int, tuple[float, float, float]]:
 def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
                         out_png: Path) -> Path:
     """Sample the y=0 slice onto a 2WIN×2WIN window centered on (CGx, 0, CGz),
-    build LIC + Mach_rel composite, save as a PNG suitable for pv.Texture."""
+    build LIC + Mach_rel composite, save as a PNG suitable for pv.Texture.
+
+    Convention: rgb[i, j] has row index i = Z (axis 0), col index j = X (axis 1).
+    rgb[0, 0] corresponds to (X=CGx-WIN, Z=CGz-WIN).  PIL saves row 0 as the
+    TOP of the image file, but OpenGL textures read v=0 from the BOTTOM —
+    so we flip rgb vertically before saving so v=0 of the texture maps to
+    world Z=CGz-WIN (the lower edge of the chase window in Z)."""
     sl = pv.read(pvtu_path)
     grid = pv.ImageData()
     grid.dimensions = (RES, 1, RES)
@@ -131,6 +137,7 @@ def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
     rgb = (plt.get_cmap("turbo")(np.clip(mag/MACH_REL_MAX, 0, 1))[..., :3]
            * (0.45 + 0.55 * tex[..., None]))
     rgb = np.clip(rgb, 0, 1)
+    rgb = np.flipud(rgb)                                              # ← key fix
     Image.fromarray((rgb*255).astype(np.uint8)).save(out_png)
     return out_png
 
@@ -147,10 +154,19 @@ def render_frame(step: int, pvtu_path: str,
     tex_png = FRAMES / f".tex_{step:05d}.png"
     build_slice_texture(pvtu_path, CGx, CGz, tex_png)
 
-    plane = pv.Plane(center=(CGx, 0.0, CGz), direction=(0.0, 1.0, 0.0),
-                      i_size=2*WIN, j_size=2*WIN, i_resolution=1, j_resolution=1)
+    # Build the y=0 textured plane manually so we have explicit control over
+    # vertex ↔ texture-coord correspondence (pv.Plane's internal local-axis
+    # convention is opaque and was the source of the earlier flip bug).
+    W = WIN
+    plane_pts = np.array([
+        [CGx - W, 0, CGz - W],     # vertex 0 — low X, low Z   → texture (0,0)
+        [CGx + W, 0, CGz - W],     # vertex 1 — high X, low Z  → texture (1,0)
+        [CGx + W, 0, CGz + W],     # vertex 2 — high X, high Z → texture (1,1)
+        [CGx - W, 0, CGz + W],     # vertex 3 — low X, high Z  → texture (0,1)
+    ])
+    plane = pv.PolyData(plane_pts, faces=np.array([4, 0, 1, 2, 3]))
     plane.active_texture_coordinates = np.array(
-        [[0,0],[1,0],[0,1],[1,1]], dtype=np.float32)
+        [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
     texture = pv.Texture(str(tex_png))
 
     p = pv.Plotter(off_screen=True, window_size=(1400, 900))
