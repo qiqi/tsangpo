@@ -62,12 +62,20 @@ CAM_OFFSET = (-6.0, -10.0, +5.0)
 V_INF = 12.86
 A_INF = 340.29
 M_INF = V_INF / A_INF
-WIN   = 10.0
-RES   = 500
-LIC_LEN = 25
+# WIN = half-width of the chase slice plane.  A 2·WIN = 40 m plane comfortably
+# covers the visible region in chase view at any practical lag/window size
+# without exposing black borders at the plane's edge.
+WIN   = 20.0
+# RES = pixels along each side of the slice LIC texture (covers 2·WIN m).
+# Defaults to 1000 (= 50 source-px/m, matching the original RES=500 / WIN=10
+# density); main() bumps it further when the output window is large.
+RES   = 1000
+LIC_LEN = 50
 MACH_REL_MAX = 0.10
 DT    = 0.025
 WARMUP_OFFSET = 30
+# Output window (overridden by --width/--height).
+WINDOW_SIZE: tuple[int, int] = (1400, 900)
 
 # Per-step surface directory layout.  Each chunk has its own directory of
 # per-time .pvtu files extracted from surfaces.tar.gz.
@@ -117,6 +125,61 @@ def load_cg_lookup() -> dict[int, tuple[float, float, float]]:
                                   float(r["z_cg_m"]),
                                   float(r["theta_body_deg"]))
     return cg
+
+
+def compute_visible_y0_bbox(cam_pos: tuple[float, float, float],
+                            look_at: tuple[float, float, float],
+                            view_up: tuple[float, float, float],
+                            view_angle_deg: float,
+                            aspect: float,
+                            margin_frac: float = 0.08,
+                            max_extent: float = 250.0,
+                            ) -> tuple[float, float, float, float]:
+    """Axis-aligned bbox in the y=0 plane that exactly covers the camera's
+    view frustum, plus a small margin so the plane edge is never on-screen.
+
+    For each of the 4 screen corners, build the world-space ray and
+    intersect with y=0.  Some rays may be near-parallel to y=0 → clamp the
+    intersection to within ±max_extent of look_at to keep the plane finite.
+
+    Returns (x_min, x_max, z_min, z_max).  The y=0 slice plane should be
+    built with these bounds (replacing the old fixed WIN=±10 m square)."""
+    cam = np.asarray(cam_pos, dtype=np.float64)
+    lat = np.asarray(look_at, dtype=np.float64)
+    up  = np.asarray(view_up, dtype=np.float64)
+    fwd = lat - cam; fwd /= np.linalg.norm(fwd)
+    right = np.cross(fwd, up); right /= np.linalg.norm(right)
+    up_s  = np.cross(right, fwd); up_s /= np.linalg.norm(up_s)
+
+    half_v = math.tan(math.radians(view_angle_deg) * 0.5)
+    half_h = half_v * aspect
+    corners = []
+    for sx in (-1.0, +1.0):
+        for sy in (-1.0, +1.0):
+            ray = fwd + (sx * half_h) * right + (sy * half_v) * up_s
+            # Intersect with y=0 plane:  cam_y + ray_y * t = 0
+            if abs(ray[1]) < 1e-6:
+                # Ray parallel to y=0; project look-at point with max_extent
+                tx = lat[0]; tz = lat[2]
+            else:
+                t = -cam[1] / ray[1]
+                if t < 0:
+                    tx = lat[0]; tz = lat[2]   # ray goes away from y=0
+                else:
+                    tx = cam[0] + ray[0] * t
+                    tz = cam[2] + ray[2] * t
+            # Clamp the intersection to a sane region around look-at, so a
+            # near-grazing ray doesn't extend the bbox to infinity.
+            tx = float(np.clip(tx, lat[0] - max_extent, lat[0] + max_extent))
+            tz = float(np.clip(tz, lat[2] - max_extent, lat[2] + max_extent))
+            corners.append((tx, tz))
+    xs = [c[0] for c in corners]
+    zs = [c[1] for c in corners]
+    x_min, x_max = min(xs), max(xs)
+    z_min, z_max = min(zs), max(zs)
+    dx = (x_max - x_min) * margin_frac
+    dz = (z_max - z_min) * margin_frac
+    return (x_min - dx, x_max + dx, z_min - dz, z_max + dz)
 
 
 def chase_anchor(step: int, cg: dict[int, tuple[float, float, float]],
@@ -192,13 +255,16 @@ def nearest_surface_step(step: int, surf_dir: Path) -> int | None:
 
 # ── slice texture (same recipe as before; flipud only — empirically the
 #     fliplr from earlier was wrong for this convention) ─────────────────────
-def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
+def build_slice_texture(pvtu_path: str,
+                        x_min: float, x_max: float,
+                        z_min: float, z_max: float,
                         out_png: Path) -> None:
     sl = pv.read(pvtu_path)
     grid = pv.ImageData()
     grid.dimensions = (RES, 1, RES)
-    grid.origin     = (CGx - WIN, 0, CGz - WIN)
-    grid.spacing    = (2*WIN/(RES-1), 1, 2*WIN/(RES-1))
+    grid.origin     = (x_min, 0, z_min)
+    grid.spacing    = ((x_max - x_min) / (RES - 1), 1,
+                       (z_max - z_min) / (RES - 1))
     sampled = grid.sample(sl)
     v = sampled.point_data["velocity"].reshape(RES, RES, 3)
     v_rel = v.copy(); v_rel[:, :, 0] -= M_INF
@@ -227,22 +293,31 @@ def render_frame(step: int, slice_pvtu: str,
     surf_step = nearest_surface_step(step, surf_dir)
     if surf_step is None: return False
 
-    # Build slice texture
-    tex_png = FRAMES / f".tex_{step:05d}.png"
-    build_slice_texture(slice_pvtu, CGx, CGz, tex_png)
+    # Compute the camera anchor and pose now so we can size the slice plane
+    # to exactly cover the camera's view-frustum intersection with y=0.
+    anchor_x, anchor_z = chase_anchor(step, cg, LAG_S)
+    cam_pos = (anchor_x + CAM_OFFSET[0], CAM_OFFSET[1], anchor_z + CAM_OFFSET[2])
+    look_at = (CGx, 0.0, CGz)
+    view_up = (0.0, 0.0, 1.0)
+    aspect  = WINDOW_SIZE[0] / WINDOW_SIZE[1]
+    x_min, x_max, z_min, z_max = compute_visible_y0_bbox(
+        cam_pos, look_at, view_up, view_angle_deg=30.0, aspect=aspect)
 
-    # Build textured plane
-    W = WIN
+    # Build slice texture at the exact visible bbox
+    tex_png = FRAMES / f".tex_{step:05d}.png"
+    build_slice_texture(slice_pvtu, x_min, x_max, z_min, z_max, tex_png)
+
+    # Build textured plane matching the bbox
     plane_pts = np.array([
-        [CGx - W, 0, CGz - W], [CGx + W, 0, CGz - W],
-        [CGx + W, 0, CGz + W], [CGx - W, 0, CGz + W],
+        [x_min, 0, z_min], [x_max, 0, z_min],
+        [x_max, 0, z_max], [x_min, 0, z_max],
     ])
     plane = pv.PolyData(plane_pts, faces=np.array([4, 0, 1, 2, 3]))
     plane.active_texture_coordinates = np.array(
         [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
     texture = pv.Texture(str(tex_png))
 
-    p = pv.Plotter(off_screen=True, window_size=(1400, 900))
+    p = pv.Plotter(off_screen=True, window_size=WINDOW_SIZE)
     p.add_mesh(plane, texture=texture)
     # Load body parts at this step's surface_step IN NATIVE WORLD COORDINATES
     for part_name, prefix in PART_PREFIX.items():
@@ -261,12 +336,7 @@ def render_frame(step: int, slice_pvtu: str,
         p.add_mesh(pv.Sphere(radius=0.20, center=(CGx, 0, CGz)),
                    color="white", smooth_shading=True)
     p.set_background("black")
-    anchor_x, anchor_z = chase_anchor(step, cg, LAG_S)
-    p.camera_position = [
-        (anchor_x + CAM_OFFSET[0], CAM_OFFSET[1], anchor_z + CAM_OFFSET[2]),
-        (CGx, 0, CGz),              # always look at the CURRENT body CG
-        (0, 0, +1.0),
-    ]
+    p.camera_position = [cam_pos, look_at, view_up]
     img = p.screenshot()
     p.close()
 
@@ -297,16 +367,31 @@ def render_frame(step: int, slice_pvtu: str,
 
 
 def main(skip: int = 4, max_frames: int | None = None,
-         lag_s: float = 0.0) -> None:
-    global FRAMES, OUT_MP4, LAG_S
+         lag_s: float = 0.0,
+         window_size: tuple[int, int] = (1400, 900)) -> None:
+    global FRAMES, OUT_MP4, LAG_S, WINDOW_SIZE, RES, LIC_LEN
     LAG_S = lag_s
+    WINDOW_SIZE = window_size
+    W, H = window_size
+    # Bump the LIC texture resolution proportionally to the output window so
+    # the slice stays sharp at higher resolutions.  LIC cost scales as
+    # RES² · LIC_LEN; capping RES ≲ 1200 keeps 200-frame renders under
+    # ~75 min wall time.  Keep LIC_LEN modest (RES/30) — the original
+    # 25 was already short relative to RES=500, and longer LIC_LEN here
+    # would balloon the cost without commensurate visual return.
+    if max(W, H) > 1500:
+        RES = int(round((H / 900) * 1000 * (WIN / 20) * 0.75))
+        RES = max(RES, 1000)
+        LIC_LEN = max(25, RES // 30)
+        print(f"  → bumped slice RES={RES}, LIC_LEN={LIC_LEN}")
+    suffix_parts = []
     if lag_s > 0:
-        suffix  = f"_lag{lag_s:g}s".replace(".", "p")
-        FRAMES  = OUT / f"lic_frames_3d_native{suffix}"
-        OUT_MP4 = OUT / f"nokick_landing_3d_native{suffix}.mp4"
-    else:
-        FRAMES  = OUT / "lic_frames_3d_native"
-        OUT_MP4 = OUT / "nokick_landing_3d_native.mp4"
+        suffix_parts.append(f"lag{lag_s:g}s".replace(".", "p"))
+    if (W, H) != (1400, 900):
+        suffix_parts.append(f"{W}x{H}")
+    suffix = ("_" + "_".join(suffix_parts)) if suffix_parts else ""
+    FRAMES  = OUT / f"lic_frames_3d_native{suffix}"
+    OUT_MP4 = OUT / f"nokick_landing_3d_native{suffix}.mp4"
     FRAMES.mkdir(parents=True, exist_ok=True)
     print(f"FRAMES = {FRAMES}")
     print(f"OUT_MP4 = {OUT_MP4}")
@@ -358,5 +443,8 @@ if __name__ == "__main__":
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--lag-s", type=float, default=0.0,
                     help="chase-camera lag (s); 0 = anchored on current CG")
+    ap.add_argument("--width",  type=int, default=1400, help="output width px")
+    ap.add_argument("--height", type=int, default=900,  help="output height px")
     args = ap.parse_args()
-    main(skip=args.skip, max_frames=args.max_frames, lag_s=args.lag_s)
+    main(skip=args.skip, max_frames=args.max_frames,
+         lag_s=args.lag_s, window_size=(args.width, args.height))
