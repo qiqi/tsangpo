@@ -45,9 +45,18 @@ import lic as lic_lib
 
 REPO   = Path("/home/qiqi/himalaya")
 OUT    = REPO / "post/v3/phugoid_runs/landing"
-FRAMES = OUT / "lic_frames_3d_native"
-FRAMES.mkdir(parents=True, exist_ok=True)
 CG_CSV = OUT / "cg_lookup_landing_new.csv"   # extracted from the NEW (surf-per-step) chain
+
+# Per-render output paths (populated in main() from --lag-s).
+FRAMES: Path = OUT / "lic_frames_3d_native"
+FRAMES.mkdir(parents=True, exist_ok=True)
+OUT_MP4: Path = OUT / "nokick_landing_3d_native.mp4"
+# Camera-anchor lag (s).  0.0 ⇒ anchor at current CG (original behaviour).
+LAG_S: float = 0.0
+
+# Fixed camera offset from the (possibly-lagged) anchor in mesh-frame
+# coordinates: 6 m downstream-side (-x), 10 m to the -y side, 5 m above.
+CAM_OFFSET = (-6.0, -10.0, +5.0)
 
 # ── physical constants / appearance ──────────────────────────────────────────
 V_INF = 12.86
@@ -108,6 +117,31 @@ def load_cg_lookup() -> dict[int, tuple[float, float, float]]:
                                   float(r["z_cg_m"]),
                                   float(r["theta_body_deg"]))
     return cg
+
+
+def chase_anchor(step: int, cg: dict[int, tuple[float, float, float]],
+                 lag_s: float) -> tuple[float, float]:
+    """Anchor point for the chase camera, in mesh chase-view coordinates.
+
+    With lag_s == 0 the anchor is the current CG (matches the original
+    fixed-on-body camera).  With lag_s > 0 the anchor is the body's
+    GROUND-FRAME position from lag_s seconds ago, expressed in chase view
+    via the same Galilean shift used for the trajectory polyline:
+
+        anchor_x = x_mesh(s_lag) + V_inf · (t_now − t_lag)
+        anchor_z = z_mesh(s_lag)
+
+    Result: the camera trails behind the body through still air at a
+    fixed time interval, like a real chase aircraft."""
+    if lag_s <= 0:
+        x, z, _ = cg[step]
+        return x, z
+    lag_steps = int(round(lag_s / DT))
+    earliest  = min(cg.keys())
+    s_lag     = max(step - lag_steps, earliest)
+    dt_actual = (step - s_lag) * DT
+    x_m, z_m, _ = cg[s_lag]
+    return (x_m + V_INF * dt_actual, z_m)
 
 
 def build_trajectory_polyline(cg: dict[int, tuple[float, float, float]],
@@ -227,9 +261,10 @@ def render_frame(step: int, slice_pvtu: str,
         p.add_mesh(pv.Sphere(radius=0.20, center=(CGx, 0, CGz)),
                    color="white", smooth_shading=True)
     p.set_background("black")
+    anchor_x, anchor_z = chase_anchor(step, cg, LAG_S)
     p.camera_position = [
-        (CGx - 6, -10, CGz + 5),     # camera behind-left-above CG
-        (CGx, 0, CGz),
+        (anchor_x + CAM_OFFSET[0], CAM_OFFSET[1], anchor_z + CAM_OFFSET[2]),
+        (CGx, 0, CGz),              # always look at the CURRENT body CG
         (0, 0, +1.0),
     ]
     img = p.screenshot()
@@ -261,7 +296,21 @@ def render_frame(step: int, slice_pvtu: str,
     return True
 
 
-def main(skip: int = 4, max_frames: int | None = None) -> None:
+def main(skip: int = 4, max_frames: int | None = None,
+         lag_s: float = 0.0) -> None:
+    global FRAMES, OUT_MP4, LAG_S
+    LAG_S = lag_s
+    if lag_s > 0:
+        suffix  = f"_lag{lag_s:g}s".replace(".", "p")
+        FRAMES  = OUT / f"lic_frames_3d_native{suffix}"
+        OUT_MP4 = OUT / f"nokick_landing_3d_native{suffix}.mp4"
+    else:
+        FRAMES  = OUT / "lic_frames_3d_native"
+        OUT_MP4 = OUT / "nokick_landing_3d_native.mp4"
+    FRAMES.mkdir(parents=True, exist_ok=True)
+    print(f"FRAMES = {FRAMES}")
+    print(f"OUT_MP4 = {OUT_MP4}")
+    print(f"LAG_S = {LAG_S} s")
     cg = load_cg_lookup()
     all_files: list[tuple[int, str]] = []
     # Iterate the NEW per-chunk slice dirs, NOT the legacy slices_chunk*/ ones
@@ -288,7 +337,7 @@ def main(skip: int = 4, max_frames: int | None = None) -> None:
             print(f"  [{i:4d}/{len(all_files)}] step {step}  "
                   f"{'OK' if ok else 'SKIP'}  elapsed={elapsed:.0f}s  ETA={eta:.0f}s")
 
-    out_mp4 = OUT / "nokick_landing_3d_native.mp4"
+    out_mp4 = OUT_MP4
     r = subprocess.run([
         "ffmpeg", "-y", "-framerate", "20", "-pattern_type", "glob",
         "-i", str(FRAMES / "frame_*.png"),
@@ -307,5 +356,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip", type=int, default=4)
     ap.add_argument("--max-frames", type=int, default=None)
+    ap.add_argument("--lag-s", type=float, default=0.0,
+                    help="chase-camera lag (s); 0 = anchored on current CG")
     args = ap.parse_args()
-    main(skip=args.skip, max_frames=args.max_frames)
+    main(skip=args.skip, max_frames=args.max_frames, lag_s=args.lag_s)
