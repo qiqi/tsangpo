@@ -62,16 +62,24 @@ CAM_OFFSET = (-6.0, -10.0, +5.0)
 V_INF = 12.86
 A_INF = 340.29
 M_INF = V_INF / A_INF
-# WIN = half-width of the chase slice plane.  A 2·WIN = 80 m plane is wide
-# enough that the plane's edges are far from any disturbed flow, so the
-# slice texture there has |v_rel|≈0 and fades to black (see fade in
-# build_slice_texture) — the plane edge blends into the black background.
-WIN   = 40.0
-# RES = pixels along each side of the slice LIC texture (covers 2·WIN m).
-# At RES=800/WIN=40 → 10 source-px/m; main() bumps this for higher-res
-# output windows.
-RES   = 800
-LIC_LEN = 30
+# Dual coplanar slice planes around the current CG:
+#   inner (high-res, captures near-body detail)   — 2·WIN_INNER × 2·WIN_INNER m
+#   outer (low-res, fills the background)         — 2·WIN_OUTER × 2·WIN_OUTER m
+# RES* is the LIC source-grid resolution; per-meter density is RES/(2·WIN).
+# At WIN=10/RES=1024 the inner gets 51 source-px/m ⇒ display ratio ~2.5× on a
+# 1440p output near the body.  The outer at WIN=40/RES=400 is only 5 source-
+# px/m but the inferno fade turns near-zero |v_rel| pixels black anyway, so
+# the coarse far-field reads as smooth dark background.
+WIN_INNER = 10.0
+RES_INNER = 1024
+LIC_LEN_INNER = 40
+WIN_OUTER = 40.0
+RES_OUTER = 400
+LIC_LEN_OUTER = 20
+# Aliases kept for older callers and the auto-scale logic in main().
+WIN   = WIN_OUTER
+RES   = RES_OUTER
+LIC_LEN = LIC_LEN_OUTER
 MACH_REL_MAX = 0.10
 DT    = 0.025
 WARMUP_OFFSET = 30
@@ -256,39 +264,44 @@ def nearest_surface_step(step: int, surf_dir: Path) -> int | None:
 
 # ── slice texture (same recipe as before; flipud only — empirically the
 #     fliplr from earlier was wrong for this convention) ─────────────────────
-def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
-                        out_png: Path) -> None:
-    """Sample the y=0 slice over a 2·WIN × 2·WIN m window centred on the
-    current CG and render an LIC+Mach_rel texture.
-
-    Low-magnitude pixels are faded to black: the visible-region cmap
-    intensity is multiplied by mag_norm, so the plane's outer edges
-    (where the flow is undisturbed and |v_rel|→0) approach (0,0,0) and
-    blend seamlessly into the black background outside the plane."""
-    sl = pv.read(pvtu_path)
+def _lic_panel(sl: "pv.PointSet", CGx: float, CGz: float,
+               win: float, res: int, lic_len: int, out_png: Path) -> None:
+    """Sample an already-loaded y=0 slice over a 2·win × 2·win m window and
+    write the LIC+Mach_rel texture (inferno cmap, zero-mag pixels = black)."""
     grid = pv.ImageData()
-    grid.dimensions = (RES, 1, RES)
-    grid.origin     = (CGx - WIN, 0, CGz - WIN)
-    grid.spacing    = (2*WIN/(RES-1), 1, 2*WIN/(RES-1))
+    grid.dimensions = (res, 1, res)
+    grid.origin     = (CGx - win, 0, CGz - win)
+    grid.spacing    = (2*win/(res-1), 1, 2*win/(res-1))
     sampled = grid.sample(sl)
-    v = sampled.point_data["velocity"].reshape(RES, RES, 3)
+    v = sampled.point_data["velocity"].reshape(res, res, 3)
     v_rel = v.copy(); v_rel[:, :, 0] -= M_INF
     vx = v_rel[:, :, 0].astype(np.float32)
     vz = v_rel[:, :, 2].astype(np.float32)
     mag = np.linalg.norm(v_rel, axis=2)
     mag_norm = np.clip(mag / MACH_REL_MAX, 0, 1).astype(np.float32)
-    tex = lic_lib.lic(vz, vx, length=LIC_LEN)
-    # `inferno` is a perceptually-uniform black→dark-red→orange→yellow ramp.
-    # Critically, inferno(0) ≈ (0, 0, 0), so the slice plane's outer band
-    # (where the flow is undisturbed and |v_rel|→0) is rendered as black and
-    # blends seamlessly into the black background outside the plane — no
-    # visible plane-edge artefact.  The wake/slipstream comes out in warm
-    # orange–yellow, matching the natural "hot exhaust" iconography.
+    tex = lic_lib.lic(vz, vx, length=lic_len)
     rgb = (plt.get_cmap("inferno")(mag_norm)[..., :3]
            * (0.45 + 0.55 * tex[..., None]))
     rgb = np.clip(rgb, 0, 1)
     rgb = np.flipud(rgb)   # PIL row 0 = top of PNG; OpenGL v=0 = bottom
     Image.fromarray((rgb*255).astype(np.uint8)).save(out_png)
+
+
+def build_dual_slice_textures(pvtu_path: str, CGx: float, CGz: float,
+                              outer_png: Path, inner_png: Path) -> None:
+    """Read the y=0 slice once, then sample it twice — at the coarse outer
+    window (large area, low source-density) and the fine inner window
+    (small area centred on CG, high source-density).
+
+    The two textures will be applied to two coplanar y≈0 planes; the inner
+    plane is offset 0.05 m toward the camera so it z-orders on top of the
+    outer plane.  `inferno(0) ≈ (0,0,0)` makes both textures' low-|v_rel|
+    pixels black, so the inner→outer transition is essentially invisible
+    in the dark-background regions and the outer's coarse pixels are
+    naturally hidden behind the inner near the body."""
+    sl = pv.read(pvtu_path)
+    _lic_panel(sl, CGx, CGz, WIN_OUTER, RES_OUTER, LIC_LEN_OUTER, outer_png)
+    _lic_panel(sl, CGx, CGz, WIN_INNER, RES_INNER, LIC_LEN_INNER, inner_png)
 
 # ── one-frame render ─────────────────────────────────────────────────────────
 def render_frame(step: int, slice_pvtu: str,
@@ -312,22 +325,32 @@ def render_frame(step: int, slice_pvtu: str,
     look_at = (CGx, 0.0, CGz)
     view_up = (0.0, 0.0, 1.0)
 
-    # Build slice texture and a fixed 2·WIN × 2·WIN m plane centred on the
-    # current CG.  The low-mag fade in build_slice_texture means the plane's
-    # outer ~80 % is essentially black and blends with the background.
-    tex_png = FRAMES / f".tex_{step:05d}.png"
-    build_slice_texture(slice_pvtu, CGx, CGz, tex_png)
-    plane_pts = np.array([
-        [CGx - WIN, 0, CGz - WIN], [CGx + WIN, 0, CGz - WIN],
-        [CGx + WIN, 0, CGz + WIN], [CGx - WIN, 0, CGz + WIN],
-    ])
-    plane = pv.PolyData(plane_pts, faces=np.array([4, 0, 1, 2, 3]))
-    plane.active_texture_coordinates = np.array(
-        [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
-    texture = pv.Texture(str(tex_png))
+    # Build the dual LIC textures (outer = full 80 m background, inner = 20 m
+    # high-resolution near-body region).  Two coplanar y≈0 planes:
+    #   outer at y = 0
+    #   inner at y = -0.05  (toward camera, so it z-orders on top of outer)
+    outer_png = FRAMES / f".tex_{step:05d}_o.png"
+    inner_png = FRAMES / f".tex_{step:05d}_i.png"
+    build_dual_slice_textures(slice_pvtu, CGx, CGz, outer_png, inner_png)
+
+    def _make_plane(half: float, y_offset: float) -> pv.PolyData:
+        pts = np.array([
+            [CGx - half, y_offset, CGz - half], [CGx + half, y_offset, CGz - half],
+            [CGx + half, y_offset, CGz + half], [CGx - half, y_offset, CGz + half],
+        ])
+        pl = pv.PolyData(pts, faces=np.array([4, 0, 1, 2, 3]))
+        pl.active_texture_coordinates = np.array(
+            [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
+        return pl
+
+    plane_outer = _make_plane(WIN_OUTER, y_offset=0.0)
+    plane_inner = _make_plane(WIN_INNER, y_offset=-0.05)
+    tex_outer = pv.Texture(str(outer_png))
+    tex_inner = pv.Texture(str(inner_png))
 
     p = pv.Plotter(off_screen=True, window_size=WINDOW_SIZE)
-    p.add_mesh(plane, texture=texture)
+    p.add_mesh(plane_outer, texture=tex_outer)
+    p.add_mesh(plane_inner, texture=tex_inner)
     # Load body parts at this step's surface_step IN NATIVE WORLD COORDINATES
     for part_name, prefix in PART_PREFIX.items():
         path = surf_dir / f"{prefix}_time_{surf_step}.pvtu"
@@ -370,8 +393,9 @@ def render_frame(step: int, slice_pvtu: str,
     except Exception:
         pass
     pil.save(out_png)
-    try: tex_png.unlink()
-    except Exception: pass
+    for tp in (outer_png, inner_png):
+        try: tp.unlink()
+        except Exception: pass
     return True
 
 
@@ -382,18 +406,12 @@ def main(skip: int = 4, max_frames: int | None = None,
     LAG_S = lag_s
     WINDOW_SIZE = window_size
     W, H = window_size
-    # Bump the LIC texture resolution proportionally to the output window so
-    # the slice stays sharp at higher resolutions.  LIC cost scales as
-    # RES² · LIC_LEN, so we keep LIC_LEN small (RES/30) and cap RES at
-    # 1200 — at WIN=40 m that's 15 source-px/m, giving ~150 source-px in a
-    # ~10 m visible band ⇒ ~8× display ratio on a 1440p output.  Higher
-    # RES blows up total render time without proportionate gains because
-    # the body itself (high-poly 3D geometry) is the sharpest object in the
-    # frame regardless.
-    if max(W, H) > 1500:
-        RES = 1200
-        LIC_LEN = 40
-        print(f"  → bumped slice RES={RES}, LIC_LEN={LIC_LEN}")
+    # Dual-plane mode: the LIC resolution is set per-plane via the
+    # RES_INNER/RES_OUTER module globals (which the renderer reads
+    # directly), independent of the output window size.  No per-frame
+    # bump needed here.
+    print(f"  slice: inner WIN={WIN_INNER} RES={RES_INNER} LIC_LEN={LIC_LEN_INNER}")
+    print(f"  slice: outer WIN={WIN_OUTER} RES={RES_OUTER} LIC_LEN={LIC_LEN_OUTER}")
     suffix_parts = []
     if lag_s > 0:
         suffix_parts.append(f"lag{lag_s:g}s".replace(".", "p"))
