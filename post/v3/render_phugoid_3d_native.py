@@ -62,15 +62,16 @@ CAM_OFFSET = (-6.0, -10.0, +5.0)
 V_INF = 12.86
 A_INF = 340.29
 M_INF = V_INF / A_INF
-# WIN = half-width of the chase slice plane.  A 2·WIN = 40 m plane comfortably
-# covers the visible region in chase view at any practical lag/window size
-# without exposing black borders at the plane's edge.
-WIN   = 20.0
+# WIN = half-width of the chase slice plane.  A 2·WIN = 80 m plane is wide
+# enough that the plane's edges are far from any disturbed flow, so the
+# slice texture there has |v_rel|≈0 and fades to black (see fade in
+# build_slice_texture) — the plane edge blends into the black background.
+WIN   = 40.0
 # RES = pixels along each side of the slice LIC texture (covers 2·WIN m).
-# Defaults to 1000 (= 50 source-px/m, matching the original RES=500 / WIN=10
-# density); main() bumps it further when the output window is large.
-RES   = 1000
-LIC_LEN = 50
+# At RES=800/WIN=40 → 10 source-px/m; main() bumps this for higher-res
+# output windows.
+RES   = 800
+LIC_LEN = 30
 MACH_REL_MAX = 0.10
 DT    = 0.025
 WARMUP_OFFSET = 30
@@ -255,24 +256,35 @@ def nearest_surface_step(step: int, surf_dir: Path) -> int | None:
 
 # ── slice texture (same recipe as before; flipud only — empirically the
 #     fliplr from earlier was wrong for this convention) ─────────────────────
-def build_slice_texture(pvtu_path: str,
-                        x_min: float, x_max: float,
-                        z_min: float, z_max: float,
+def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
                         out_png: Path) -> None:
+    """Sample the y=0 slice over a 2·WIN × 2·WIN m window centred on the
+    current CG and render an LIC+Mach_rel texture.
+
+    Low-magnitude pixels are faded to black: the visible-region cmap
+    intensity is multiplied by mag_norm, so the plane's outer edges
+    (where the flow is undisturbed and |v_rel|→0) approach (0,0,0) and
+    blend seamlessly into the black background outside the plane."""
     sl = pv.read(pvtu_path)
     grid = pv.ImageData()
     grid.dimensions = (RES, 1, RES)
-    grid.origin     = (x_min, 0, z_min)
-    grid.spacing    = ((x_max - x_min) / (RES - 1), 1,
-                       (z_max - z_min) / (RES - 1))
+    grid.origin     = (CGx - WIN, 0, CGz - WIN)
+    grid.spacing    = (2*WIN/(RES-1), 1, 2*WIN/(RES-1))
     sampled = grid.sample(sl)
     v = sampled.point_data["velocity"].reshape(RES, RES, 3)
     v_rel = v.copy(); v_rel[:, :, 0] -= M_INF
     vx = v_rel[:, :, 0].astype(np.float32)
     vz = v_rel[:, :, 2].astype(np.float32)
     mag = np.linalg.norm(v_rel, axis=2)
+    mag_norm = np.clip(mag / MACH_REL_MAX, 0, 1).astype(np.float32)
     tex = lic_lib.lic(vz, vx, length=LIC_LEN)
-    rgb = (plt.get_cmap("turbo")(np.clip(mag/MACH_REL_MAX, 0, 1))[..., :3]
+    # `inferno` is a perceptually-uniform black→dark-red→orange→yellow ramp.
+    # Critically, inferno(0) ≈ (0, 0, 0), so the slice plane's outer band
+    # (where the flow is undisturbed and |v_rel|→0) is rendered as black and
+    # blends seamlessly into the black background outside the plane — no
+    # visible plane-edge artefact.  The wake/slipstream comes out in warm
+    # orange–yellow, matching the natural "hot exhaust" iconography.
+    rgb = (plt.get_cmap("inferno")(mag_norm)[..., :3]
            * (0.45 + 0.55 * tex[..., None]))
     rgb = np.clip(rgb, 0, 1)
     rgb = np.flipud(rgb)   # PIL row 0 = top of PNG; OpenGL v=0 = bottom
@@ -293,24 +305,21 @@ def render_frame(step: int, slice_pvtu: str,
     surf_step = nearest_surface_step(step, surf_dir)
     if surf_step is None: return False
 
-    # Compute the camera anchor and pose now so we can size the slice plane
-    # to exactly cover the camera's view-frustum intersection with y=0.
+    # Camera anchor + pose (lagged in ground-frame chase coords, with the
+    # camera offset added on top); the look-at always tracks the CURRENT CG.
     anchor_x, anchor_z = chase_anchor(step, cg, LAG_S)
     cam_pos = (anchor_x + CAM_OFFSET[0], CAM_OFFSET[1], anchor_z + CAM_OFFSET[2])
     look_at = (CGx, 0.0, CGz)
     view_up = (0.0, 0.0, 1.0)
-    aspect  = WINDOW_SIZE[0] / WINDOW_SIZE[1]
-    x_min, x_max, z_min, z_max = compute_visible_y0_bbox(
-        cam_pos, look_at, view_up, view_angle_deg=30.0, aspect=aspect)
 
-    # Build slice texture at the exact visible bbox
+    # Build slice texture and a fixed 2·WIN × 2·WIN m plane centred on the
+    # current CG.  The low-mag fade in build_slice_texture means the plane's
+    # outer ~80 % is essentially black and blends with the background.
     tex_png = FRAMES / f".tex_{step:05d}.png"
-    build_slice_texture(slice_pvtu, x_min, x_max, z_min, z_max, tex_png)
-
-    # Build textured plane matching the bbox
+    build_slice_texture(slice_pvtu, CGx, CGz, tex_png)
     plane_pts = np.array([
-        [x_min, 0, z_min], [x_max, 0, z_min],
-        [x_max, 0, z_max], [x_min, 0, z_max],
+        [CGx - WIN, 0, CGz - WIN], [CGx + WIN, 0, CGz - WIN],
+        [CGx + WIN, 0, CGz + WIN], [CGx - WIN, 0, CGz + WIN],
     ])
     plane = pv.PolyData(plane_pts, faces=np.array([4, 0, 1, 2, 3]))
     plane.active_texture_coordinates = np.array(
@@ -375,14 +384,15 @@ def main(skip: int = 4, max_frames: int | None = None,
     W, H = window_size
     # Bump the LIC texture resolution proportionally to the output window so
     # the slice stays sharp at higher resolutions.  LIC cost scales as
-    # RES² · LIC_LEN; capping RES ≲ 1200 keeps 200-frame renders under
-    # ~75 min wall time.  Keep LIC_LEN modest (RES/30) — the original
-    # 25 was already short relative to RES=500, and longer LIC_LEN here
-    # would balloon the cost without commensurate visual return.
+    # RES² · LIC_LEN, so we keep LIC_LEN small (RES/30) and cap RES at
+    # 1200 — at WIN=40 m that's 15 source-px/m, giving ~150 source-px in a
+    # ~10 m visible band ⇒ ~8× display ratio on a 1440p output.  Higher
+    # RES blows up total render time without proportionate gains because
+    # the body itself (high-poly 3D geometry) is the sharpest object in the
+    # frame regardless.
     if max(W, H) > 1500:
-        RES = int(round((H / 900) * 1000 * (WIN / 20) * 0.75))
-        RES = max(RES, 1000)
-        LIC_LEN = max(25, RES // 30)
+        RES = 1200
+        LIC_LEN = 40
         print(f"  → bumped slice RES={RES}, LIC_LEN={LIC_LEN}")
     suffix_parts = []
     if lag_s > 0:
