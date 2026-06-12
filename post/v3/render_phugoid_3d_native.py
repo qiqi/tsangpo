@@ -53,6 +53,8 @@ FRAMES.mkdir(parents=True, exist_ok=True)
 OUT_MP4: Path = OUT / "nokick_landing_3d_native.mp4"
 # Camera-anchor lag (s).  0.0 ⇒ anchor at current CG (original behaviour).
 LAG_S: float = 0.0
+# Whether to draw the historical-CG trajectory polyline + current-CG sphere.
+DRAW_TRAJECTORY: bool = True
 
 # Fixed camera offset from the (possibly-lagged) anchor in mesh-frame
 # coordinates: 6 m downstream-side (-x), 10 m to the -y side, 5 m above.
@@ -421,22 +423,26 @@ def render_frame_static(step: int, slice_pvtu: str,
         pts[:, 0] += shift_x
         m.points = pts
         p.add_mesh(m, color=PART_COLORS[part_name], smooth_shading=True)
-    # Ground-frame trajectory polyline (no chase shift).
-    steps_so_far = sorted(s for s in cg.keys() if s <= step)
-    traj_pts = np.empty((len(steps_so_far), 3), dtype=np.float32)
-    for i, s in enumerate(steps_so_far):
-        xm, zm, _ = cg[s]
-        ts = (s - WARMUP_OFFSET) * DT
-        traj_pts[i] = (xm - V_INF * ts, 0.0, zm)
-    if len(traj_pts) >= 2:
-        n = len(traj_pts)
-        lines = np.empty(n + 1, dtype=np.int64)
-        lines[0] = n; lines[1:] = np.arange(n)
-        traj = pv.PolyData(traj_pts, lines=lines)
-        tube = traj.tube(radius=tube_radius)
-        p.add_mesh(tube, color="white", smooth_shading=False)
-        p.add_mesh(pv.Sphere(radius=tube_radius * 2.5, center=(CGx_g, 0, CGz)),
-                   color="white", smooth_shading=True)
+    # Ground-frame trajectory polyline (no chase shift).  Gated on the
+    # DRAW_TRAJECTORY flag — in static-view the body's motion across the
+    # scene IS the trajectory, so the tube can be a distraction.
+    if DRAW_TRAJECTORY:
+        steps_so_far = sorted(s for s in cg.keys() if s <= step)
+        traj_pts = np.empty((len(steps_so_far), 3), dtype=np.float32)
+        for i, s in enumerate(steps_so_far):
+            xm, zm, _ = cg[s]
+            ts = (s - WARMUP_OFFSET) * DT
+            traj_pts[i] = (xm - V_INF * ts, 0.0, zm)
+        if len(traj_pts) >= 2:
+            n = len(traj_pts)
+            lines = np.empty(n + 1, dtype=np.int64)
+            lines[0] = n; lines[1:] = np.arange(n)
+            traj = pv.PolyData(traj_pts, lines=lines)
+            tube = traj.tube(radius=tube_radius)
+            p.add_mesh(tube, color="white", smooth_shading=False)
+            p.add_mesh(pv.Sphere(radius=tube_radius * 2.5,
+                                 center=(CGx_g, 0, CGz)),
+                       color="white", smooth_shading=True)
     p.set_background("black")
     p.camera_position = [cam_pos, look_at, view_up]
     img = p.screenshot()
@@ -523,14 +529,15 @@ def render_frame(step: int, slice_pvtu: str,
         p.add_mesh(m, color=PART_COLORS[part_name], smooth_shading=True)
     # Historical CG trajectory up to this step (polyline in y=0 plane).
     # Rendered as a thin tube in a bright accent colour so it shows through
-    # the slice texture.
-    traj = build_trajectory_polyline(cg, up_to_step=step)
-    if traj.n_points >= 2:
-        tube = traj.tube(radius=0.08)
-        p.add_mesh(tube, color="white", smooth_shading=False)
-        # Highlight the current position with a small sphere
-        p.add_mesh(pv.Sphere(radius=0.20, center=(CGx, 0, CGz)),
-                   color="white", smooth_shading=True)
+    # the slice texture.  Gated on DRAW_TRAJECTORY.
+    if DRAW_TRAJECTORY:
+        traj = build_trajectory_polyline(cg, up_to_step=step)
+        if traj.n_points >= 2:
+            tube = traj.tube(radius=0.08)
+            p.add_mesh(tube, color="white", smooth_shading=False)
+            # Highlight the current position with a small sphere
+            p.add_mesh(pv.Sphere(radius=0.20, center=(CGx, 0, CGz)),
+                       color="white", smooth_shading=True)
     p.set_background("black")
     p.camera_position = [cam_pos, look_at, view_up]
     img = p.screenshot()
@@ -566,10 +573,12 @@ def render_frame(step: int, slice_pvtu: str,
 def main(skip: int = 4, max_frames: int | None = None,
          lag_s: float = 0.0,
          window_size: tuple[int, int] = (1400, 900),
-         static_view: bool = False) -> None:
-    global FRAMES, OUT_MP4, LAG_S, WINDOW_SIZE, RES, LIC_LEN
+         static_view: bool = False,
+         draw_trajectory: bool = True) -> None:
+    global FRAMES, OUT_MP4, LAG_S, WINDOW_SIZE, RES, LIC_LEN, DRAW_TRAJECTORY
     LAG_S = lag_s
     WINDOW_SIZE = window_size
+    DRAW_TRAJECTORY = draw_trajectory
     W, H = window_size
     # Dual-plane mode: the LIC resolution is set per-plane via the
     # RES_INNER/RES_OUTER module globals (which the renderer reads
@@ -582,6 +591,8 @@ def main(skip: int = 4, max_frames: int | None = None,
         suffix_parts.append("static")
     if lag_s > 0:
         suffix_parts.append(f"lag{lag_s:g}s".replace(".", "p"))
+    if not draw_trajectory:
+        suffix_parts.append("notraj")
     if (W, H) != (1400, 900):
         suffix_parts.append(f"{W}x{H}")
     suffix = ("_" + "_".join(suffix_parts)) if suffix_parts else ""
@@ -664,7 +675,12 @@ if __name__ == "__main__":
     ap.add_argument("--static-view", action="store_true",
                     help="fixed overview camera framing the whole trajectory; "
                          "body+slice are translated by −V_inf·t to ground frame")
+    ap.add_argument("--no-trajectory", action="store_true",
+                    help="suppress the historical CG trajectory tube and the "
+                         "current-CG sphere (useful in --static-view where the "
+                         "body's motion across the scene is the trajectory)")
     args = ap.parse_args()
     main(skip=args.skip, max_frames=args.max_frames,
          lag_s=args.lag_s, window_size=(args.width, args.height),
-         static_view=args.static_view)
+         static_view=args.static_view,
+         draw_trajectory=not args.no_trajectory)
