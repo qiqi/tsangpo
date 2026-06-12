@@ -319,8 +319,10 @@ def static_camera_from_bbox(x_min: float, x_max: float,
                                        tuple[float, float, float],
                                        tuple[float, float, float]]:
     """Fixed-camera pose that frames the trajectory bbox.  Camera sits at
-    +Y direction (side view, +20% margin) with a small +Z elevation, and
-    looks at the bbox center.
+    −Y direction (matching the chase-view convention so left/right on
+    screen is consistent between the two animations), at a depth that
+    fits the bbox with a 20 % margin, with a small +Z elevation for an
+    oblique feel.
 
     Returns (camera_pos, look_at, view_up).  The returned pose stays
     constant for every frame in a static-view animation."""
@@ -335,7 +337,7 @@ def static_camera_from_bbox(x_min: float, x_max: float,
     depth = max(d_for_x, d_for_z) * margin
     x_c = 0.5 * (x_min + x_max)
     z_c = 0.5 * (z_min + z_max)
-    cam = (x_c, depth, z_c + 0.10 * depth)   # slight elevation for oblique feel
+    cam = (x_c, -depth, z_c + 0.10 * depth)   # camera at −Y, same side as chase
     return (cam, (x_c, 0.0, z_c), (0.0, 0.0, 1.0))
 
 
