@@ -287,6 +287,58 @@ def _lic_panel(sl: "pv.PointSet", CGx: float, CGz: float,
     Image.fromarray((rgb*255).astype(np.uint8)).save(out_png)
 
 
+def trajectory_ground_bbox(cg: dict[int, tuple[float, float, float]],
+                           ) -> tuple[float, float, float, float, float, float]:
+    """Axis-aligned bbox of the body's ground-frame trajectory over the full
+    CG range.  Used by the static-view renderer to place a fixed camera at
+    a depth that frames the entire phugoid arc.  Returns
+    (x_min, x_max, z_min, z_max, x_center, z_center).
+
+    Ground frame is the inertial frame where the air is at rest:
+        X_ground(t) = x_mesh(t) − V_inf · t
+        Z_ground(t) = z_mesh(t)     (no vertical wind)
+    """
+    xs, zs = [], []
+    for s in sorted(cg.keys()):
+        x_m, z_m, _ = cg[s]
+        t_s = (s - WARMUP_OFFSET) * DT
+        xs.append(x_m - V_INF * t_s)
+        zs.append(z_m)
+    x_min, x_max = min(xs), max(xs)
+    z_min, z_max = min(zs), max(zs)
+    return (x_min, x_max, z_min, z_max,
+            0.5*(x_min + x_max), 0.5*(z_min + z_max))
+
+
+def static_camera_from_bbox(x_min: float, x_max: float,
+                            z_min: float, z_max: float,
+                            window_size: tuple[int, int],
+                            view_angle_deg: float = 30.0,
+                            margin: float = 1.20,
+                            ) -> tuple[tuple[float, float, float],
+                                       tuple[float, float, float],
+                                       tuple[float, float, float]]:
+    """Fixed-camera pose that frames the trajectory bbox.  Camera sits at
+    +Y direction (side view, +20% margin) with a small +Z elevation, and
+    looks at the bbox center.
+
+    Returns (camera_pos, look_at, view_up).  The returned pose stays
+    constant for every frame in a static-view animation."""
+    W, H = window_size
+    aspect = W / H
+    fov_v = math.radians(view_angle_deg)
+    fov_h = 2 * math.atan(math.tan(fov_v / 2) * aspect)
+    dx = x_max - x_min
+    dz = z_max - z_min
+    d_for_x = dx / (2 * math.tan(fov_h / 2))
+    d_for_z = dz / (2 * math.tan(fov_v / 2))
+    depth = max(d_for_x, d_for_z) * margin
+    x_c = 0.5 * (x_min + x_max)
+    z_c = 0.5 * (z_min + z_max)
+    cam = (x_c, depth, z_c + 0.10 * depth)   # slight elevation for oblique feel
+    return (cam, (x_c, 0.0, z_c), (0.0, 0.0, 1.0))
+
+
 def build_dual_slice_textures(pvtu_path: str, CGx: float, CGz: float,
                               outer_png: Path, inner_png: Path) -> None:
     """Read the y=0 slice once, then sample it twice — at the coarse outer
@@ -304,6 +356,116 @@ def build_dual_slice_textures(pvtu_path: str, CGx: float, CGz: float,
     _lic_panel(sl, CGx, CGz, WIN_INNER, RES_INNER, LIC_LEN_INNER, inner_png)
 
 # ── one-frame render ─────────────────────────────────────────────────────────
+def render_frame_static(step: int, slice_pvtu: str,
+                        cg: dict[int, tuple[float, float, float]],
+                        cam_pos: tuple[float, float, float],
+                        look_at: tuple[float, float, float],
+                        view_up: tuple[float, float, float],
+                        tube_radius: float) -> bool:
+    """Static-view render: fixed camera framing the whole trajectory.
+
+    Body geometry and slice plane are translated by Δx = −V_inf·t so they
+    appear at the body's GROUND-frame position at time t.  The trajectory
+    polyline is drawn in ground frame (no chase-view shift).  The same
+    fixed (cam_pos, look_at, view_up) is used for every frame, so the
+    body visibly translates across the scene as the animation plays."""
+    out_png = FRAMES / f"frame_{step:05d}.png"
+    if out_png.exists(): return True
+    if step not in cg:    return False
+    CGx, CGz, TH_DEG = cg[step]
+
+    chunk = step_to_chunk(step)
+    surf_dir = SURF_DIRS[chunk]
+    if not surf_dir.exists(): return False
+    surf_step = nearest_surface_step(step, surf_dir)
+    if surf_step is None: return False
+
+    # Ground-frame x of the body at this step (z is unchanged: no vertical wind)
+    t_s = (step - WARMUP_OFFSET) * DT
+    shift_x = -V_INF * t_s
+    CGx_g   = CGx + shift_x
+
+    # Build the dual LIC textures around the body's MESH position (slice
+    # samples are in mesh coords); we then place the textured planes at the
+    # body's GROUND position so they translate with the aircraft.
+    outer_png = FRAMES / f".tex_{step:05d}_o.png"
+    inner_png = FRAMES / f".tex_{step:05d}_i.png"
+    build_dual_slice_textures(slice_pvtu, CGx, CGz, outer_png, inner_png)
+
+    def _make_plane(cx: float, half: float, y_offset: float) -> pv.PolyData:
+        pts = np.array([
+            [cx - half, y_offset, CGz - half], [cx + half, y_offset, CGz - half],
+            [cx + half, y_offset, CGz + half], [cx - half, y_offset, CGz + half],
+        ])
+        pl = pv.PolyData(pts, faces=np.array([4, 0, 1, 2, 3]))
+        pl.active_texture_coordinates = np.array(
+            [[0, 0], [1, 0], [1, 1], [0, 1]], dtype=np.float32)
+        return pl
+
+    plane_outer = _make_plane(CGx_g, WIN_OUTER, y_offset=0.0)
+    plane_inner = _make_plane(CGx_g, WIN_INNER, y_offset=-0.05)
+    tex_outer = pv.Texture(str(outer_png))
+    tex_inner = pv.Texture(str(inner_png))
+
+    p = pv.Plotter(off_screen=True, window_size=WINDOW_SIZE)
+    p.add_mesh(plane_outer, texture=tex_outer)
+    p.add_mesh(plane_inner, texture=tex_inner)
+    # Body parts in ground frame: shift each vertex by Δx = −V_inf·t
+    for part_name, prefix in PART_PREFIX.items():
+        path = surf_dir / f"{prefix}_time_{surf_step}.pvtu"
+        if not path.exists(): continue
+        m = pv.read(str(path))
+        pts = np.asarray(m.points)
+        pts[:, 0] += shift_x
+        m.points = pts
+        p.add_mesh(m, color=PART_COLORS[part_name], smooth_shading=True)
+    # Ground-frame trajectory polyline (no chase shift).
+    steps_so_far = sorted(s for s in cg.keys() if s <= step)
+    traj_pts = np.empty((len(steps_so_far), 3), dtype=np.float32)
+    for i, s in enumerate(steps_so_far):
+        xm, zm, _ = cg[s]
+        ts = (s - WARMUP_OFFSET) * DT
+        traj_pts[i] = (xm - V_INF * ts, 0.0, zm)
+    if len(traj_pts) >= 2:
+        n = len(traj_pts)
+        lines = np.empty(n + 1, dtype=np.int64)
+        lines[0] = n; lines[1:] = np.arange(n)
+        traj = pv.PolyData(traj_pts, lines=lines)
+        tube = traj.tube(radius=tube_radius)
+        p.add_mesh(tube, color="white", smooth_shading=False)
+        p.add_mesh(pv.Sphere(radius=tube_radius * 2.5, center=(CGx_g, 0, CGz)),
+                   color="white", smooth_shading=True)
+    p.set_background("black")
+    p.camera_position = [cam_pos, look_at, view_up]
+    img = p.screenshot()
+    p.close()
+
+    # Overlay t and θ_body (same as chase-view path)
+    pil = Image.fromarray(img)
+    try:
+        font = None
+        for fp in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+            if os.path.exists(fp):
+                font = ImageFont.truetype(fp, 28); break
+        draw = ImageDraw.Draw(pil)
+        for y, msg in zip((25, 60),
+                          (f"t = {t_s:6.2f} s",
+                           f"θ_body = {TH_DEG:+6.2f}°")):
+            if font is not None:
+                draw.text((25, y), msg, fill="white", font=font,
+                          stroke_width=2, stroke_fill="black")
+            else:
+                draw.text((20, y), msg, fill="white")
+    except Exception:
+        pass
+    pil.save(out_png)
+    for tp in (outer_png, inner_png):
+        try: tp.unlink()
+        except Exception: pass
+    return True
+
+
 def render_frame(step: int, slice_pvtu: str,
                  cg: dict[int, tuple[float, float, float]]) -> bool:
     out_png = FRAMES / f"frame_{step:05d}.png"
@@ -401,7 +563,8 @@ def render_frame(step: int, slice_pvtu: str,
 
 def main(skip: int = 4, max_frames: int | None = None,
          lag_s: float = 0.0,
-         window_size: tuple[int, int] = (1400, 900)) -> None:
+         window_size: tuple[int, int] = (1400, 900),
+         static_view: bool = False) -> None:
     global FRAMES, OUT_MP4, LAG_S, WINDOW_SIZE, RES, LIC_LEN
     LAG_S = lag_s
     WINDOW_SIZE = window_size
@@ -413,6 +576,8 @@ def main(skip: int = 4, max_frames: int | None = None,
     print(f"  slice: inner WIN={WIN_INNER} RES={RES_INNER} LIC_LEN={LIC_LEN_INNER}")
     print(f"  slice: outer WIN={WIN_OUTER} RES={RES_OUTER} LIC_LEN={LIC_LEN_OUTER}")
     suffix_parts = []
+    if static_view:
+        suffix_parts.append("static")
     if lag_s > 0:
         suffix_parts.append(f"lag{lag_s:g}s".replace(".", "p"))
     if (W, H) != (1400, 900):
@@ -424,6 +589,7 @@ def main(skip: int = 4, max_frames: int | None = None,
     print(f"FRAMES = {FRAMES}")
     print(f"OUT_MP4 = {OUT_MP4}")
     print(f"LAG_S = {LAG_S} s")
+    print(f"STATIC_VIEW = {static_view}")
     cg = load_cg_lookup()
     all_files: list[tuple[int, str]] = []
     # Iterate the NEW per-chunk slice dirs, NOT the legacy slices_chunk*/ ones
@@ -441,9 +607,29 @@ def main(skip: int = 4, max_frames: int | None = None,
     if max_frames: all_files = all_files[:max_frames]
     print(f"frames to render: {len(all_files)}")
 
+    # If static-view: precompute fixed camera from the ground-frame trajectory
+    # bbox.  Tube radius scales with depth so the trajectory tube is visible
+    # at low resolutions; tuning to ~depth/450 gives a ~3-px tube at 1440p.
+    static_cam = None
+    if static_view:
+        bbox = trajectory_ground_bbox(cg)
+        cam_pos, look_at, view_up = static_camera_from_bbox(
+            bbox[0], bbox[1], bbox[2], bbox[3], window_size)
+        depth = abs(cam_pos[1] - look_at[1])
+        tube_r = max(depth / 450.0, 0.08)
+        static_cam = (cam_pos, look_at, view_up, tube_r)
+        print(f"static camera at ({cam_pos[0]:.1f}, {cam_pos[1]:.1f}, {cam_pos[2]:.1f})")
+        print(f"           look-at ({look_at[0]:.1f}, {look_at[1]:.1f}, {look_at[2]:.1f})")
+        print(f"           depth = {depth:.1f} m, tube radius = {tube_r:.2f} m")
+
     t0 = time.time()
     for i, (step, slice_pvtu) in enumerate(all_files):
-        ok = render_frame(step, slice_pvtu, cg)
+        if static_view:
+            cam_pos, look_at, view_up, tube_r = static_cam
+            ok = render_frame_static(step, slice_pvtu, cg,
+                                     cam_pos, look_at, view_up, tube_r)
+        else:
+            ok = render_frame(step, slice_pvtu, cg)
         if i % 10 == 0:
             elapsed = time.time() - t0
             eta = elapsed * (len(all_files) - i - 1) / max(i + 1, 1)
@@ -473,6 +659,10 @@ if __name__ == "__main__":
                     help="chase-camera lag (s); 0 = anchored on current CG")
     ap.add_argument("--width",  type=int, default=1400, help="output width px")
     ap.add_argument("--height", type=int, default=900,  help="output height px")
+    ap.add_argument("--static-view", action="store_true",
+                    help="fixed overview camera framing the whole trajectory; "
+                         "body+slice are translated by −V_inf·t to ground frame")
     args = ap.parse_args()
     main(skip=args.skip, max_frames=args.max_frames,
-         lag_s=args.lag_s, window_size=(args.width, args.height))
+         lag_s=args.lag_s, window_size=(args.width, args.height),
+         static_view=args.static_view)
