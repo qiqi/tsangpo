@@ -8,6 +8,8 @@
 \usepackage{multirow}
 \newcommand{\todo}[1]{\textcolor{red}{\textit{[#1]}}}
 \newcommand{\sm}{\mathrm{SM}}
+% paper/build.sh writes gitinfo.tex with the source commit of this build.
+\IfFileExists{gitinfo.tex}{\input{gitinfo}}{\providecommand{\repocommit}{unknown}}
 
 \title{The Useful Emptiness: An Inboard Flap Gap as an Energy
        Concentrator for a Distributed-Propulsion eSTOL}
@@ -891,11 +893,11 @@ actuator-disk and rotor-resolving predictions to diverge.
 Steady CFD with the rigid body fixed underpins
 Secs.~\ref{sec:evolution}--\ref{sec:envelope}, but the eventual
 target is a \emph{dynamic} landing flare with the ground plane.
-We have built and exercised a CFD-coupled 6-DOF longitudinal
+We have built and exercised a CFD-coupled 3-DOF longitudinal
 framework on a v3 cruise phugoid as a stepping stone so the
 flare simulation can be set up with confidence.
 
-\subsection{Method: nested rotation zones + UDD 6-DOF}
+\subsection{Method: nested rotation zones + UDD 3-DOF}
 
 Flow360 couples CFD to user dynamics through (i) rotation volume
 zones (sliding-mesh interfaces about an axis) and (ii) the
@@ -943,21 +945,32 @@ initial-CG world position to minimise lever-arm cancellation.
            $0.85\,c_w$ centred at the htail $c/4$
            ($x=+1.75\,c_w$), giving a $0.10\,c_w$ design gap
            between htail TE and cyl~4 on the $+x$ side.
-           Cyl~2's outer boundary closest to the body lies on
-           the nose side, drawn as the orange arc at $x \approx
-           -3\,c_w$, $0.10\,c_w$ outside cyl~3 there.  Cyl~1's
-           nearest body-frame boundary point is $\sim 313\,c_w$
-           off the airframe and cannot be drawn at this scale;
-           see the left panel.}
+           Cyl~2 (radius $L_2 + 2.9 + 110 = 863\,c_w$) and
+           cyl~1 (radius $1723\,c_w$) cannot be drawn at this
+           scale: the $110\,c_w$ sliding-interface gaps, set by
+           the mesh-resolution matching rule in
+           \texttt{unsteady\_setup.py}, put cyl~2's nearest
+           boundary $113\,c_w$ from the CG on the nose side and
+           cyl~1's about $660\,c_w$ away; see the left panel.}
   \label{fig:phugoid-setup}
 \end{figure}
 
 \paragraph{Two implementation lessons.}
-(i) UDD must read forces from the \emph{last} pseudo-step of
-each physical step, not the first; first-step forces are
-computed against the previous attitude, giving a $\sim 10\%$
-noise floor on $C_{m,\mathrm{CG}}$ that dominates the residual
-signal $\sim 100\times$ after moment translation.  (ii) Pseudo
+(i) The UDD state update must be gated at the \emph{first}
+pseudo-step of each physical step (\texttt{pseudoStep == 0}),
+not the last.  Flow360 snapshots each zone's previous angle at
+pseudo-step~0 and rotates the grid by the difference; a
+last-step gate makes that snapshot copy the already-advanced
+angle, so the mesh never moves and the wing's lift response to
+body attitude silently vanishes.  At pseudo-step~0 the force
+registry still holds the previous step's converged values, so
+the integration is correct with a one-step lag.  That lag must
+be honoured in the moment translation: the lever arm from the
+fixed moment centre to the CG has to be evaluated at the pose
+where the forces were computed (forward kinematics of the
+previous step's link angles), not at the freshly integrated
+position; using the latter biased $M_{y,\mathrm{CG}}$ enough to
+flip the sign of the no-kick response.  (ii) Pseudo
 steps per physical step must be large enough for several
 decades of residual drop; we use $200$ (vs.\ Flow360 default
 $20$--$50$), reaching a $\sim 0.05\%$ noise floor on
@@ -1070,8 +1083,9 @@ demonstrate generalisation outside the training set.
 \section*{Reproducibility and use of AI}
 
 All Flow360 case identifiers, geometry CSM/UDC sources, and
-post-processing scripts are committed to the project repository
-(commit SHA on the title page).  The authors used Anthropic's
+post-processing scripts are committed to the public project
+repository \texttt{github.com/qiqi/tsangpo}; this document was
+built from commit \texttt{\repocommit}.  The authors used Anthropic's
 Claude as an iterative engineering assistant for prose
 drafting, Python scripting (case setup, mesh configuration,
 post-processing, animation), Flow360 UDD authoring

@@ -23,11 +23,14 @@ import matplotlib.pyplot as plt
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import flow360 as fl
+import params as P
 
-L1 = L2 = 1038.215114993035   # 3× R_arm case (was 346.07 in old runs)
-A_INF        = 325.96                          # speed of sound at h = 3658 m
-RHO_INF      = 0.8491                          # kg/m³
-S_REF        = 15.33                           # wing area, m²
+# Cruise phugoid at h = 3658 m with the 750 c_w arm.  Never hard-code
+# rho / a (params.py, "AD delivery" incident): derive them from the ISA.
+ALT_M        = 3658.0
+L1 = L2      = 750.0 * P.WING_MAC_M           # ≈ 1038.2 m (3× the original 250 c_w arm)
+RHO_INF, A_INF = P.isa_atmosphere(ALT_M)      # ≈ 0.8491 kg/m³, 325.96 m/s
+S_REF        = P.WING_AREA_M2                 # 15.33 m²
 F_DIM_PER_ND = RHO_INF * A_INF * A_INF         # solver-non-dim → N
 # Coefficient conversion depends on V_inf (qS).  Provide a helper so plots
 # can be made at the correct V_freestream for each case.

@@ -41,6 +41,7 @@ paper/*.log
 paper/*.bbl
 paper/*.blg
 paper/*.out
+paper/gitinfo.tex
 
 # Phugoid/unsteady scratch: raw per-step slices, frames, probe data (regenerable, GB-scale)
 post/v3/slices_chunk*/

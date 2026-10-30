@@ -39,11 +39,10 @@ Geometry parameters (mid_outer_semispan = 0.39, gap_fraction = 0.40):
 
     post/v2_gapped/
       ├── MANIFEST.md                          (this file)
-      ├── TRIM_RESULTS.md                      (filled in once sweeps land)
+      ├── TRIM_RESULTS.md                      (filled 2026-10-30 from the cached CSVs)
       ├── plot_cruise_sensitivities.py
       ├── plot_takeoff_sensitivities.py
-      ├── plot_landing_sensitivities.py
-      └── _common.py                           (sweep-case discovery helper)
+      └── plot_landing_sensitivities.py
 
     post/out/v2_gapped/
       ├── cruise_sweep_data.csv
@@ -51,6 +50,9 @@ Geometry parameters (mid_outer_semispan = 0.39, gap_fraction = 0.40):
       ├── cruise_thrust_balance.png
       └── …(takeoff / landing analogues)
 
-The plot scripts use `_common.discover_sweep_cases()` to pull sweep case
-IDs from the project by name pattern (`gap40_{cruise,TO,LD}_{sweep}_{tok}`),
-so they keep working as forks land — no hardcoded case-ID list to update.
+The plot scripts are thin `PhaseSpec` declarations driven by the shared
+`post/_phase_plot.py` (`run(SPEC, refresh=...)`).  Without `--refresh` they
+read the cached CSVs in `post/out/v2_gapped/`; with `--refresh` they pull
+the sweep cases from the project by name pattern
+(`gap40_{cruise,TO,LD}_{sweep}_{tok}`), so there is no hardcoded case-ID
+list to update.

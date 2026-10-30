@@ -12,12 +12,11 @@ All text labels, titles, and axis labels are intentionally suppressed;
 the caption carries that information.
 """
 from __future__ import annotations
-import importlib.util, sys, math
+import importlib.util, sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mp
-import numpy as np
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -28,13 +27,30 @@ spec = importlib.util.spec_from_file_location("bcm", HERE / "_build_config_monta
 bcm = importlib.util.module_from_spec(spec); spec.loader.exec_module(bcm)
 
 c    = P.WING_MAC_M
-R_ARM_C = 750.0
+
+# Cylinder constants are read from flow360/unsteady_setup.py (section 1) by
+# regex rather than imported, because importing that module pulls in the
+# Flow360 SDK, which the offline paper build does not require.  An earlier
+# version of this script hard-coded 0.10 c_w interface gaps; the production
+# mesh uses 110 c_w (see the gap-sizing rule in unsteady_setup.py).
+import re as _re
+_src = (REPO / "flow360" / "unsteady_setup.py").read_text()
+def _const(name: str) -> float:
+    m = _re.search(rf"^{name}\s*=\s*([0-9.]+)", _src, _re.M)
+    if not m:
+        raise RuntimeError(f"{name} not found in flow360/unsteady_setup.py")
+    return float(m.group(1))
+R_ARM_C     = _const("R_ARM_C")        # 750 c_w
+R_GAP_2_3_C = _const("R_GAP_2_3_C")    # 110 c_w
+R_GAP_1_2_C = _const("R_GAP_1_2_C")    # 110 c_w
+R_CYL3_C    = _const("R_CYL3_C")       # 2.90 c_w
+R_CYL4_C    = _const("R_CYL4_C")       # 0.85 c_w
 L1 = R_ARM_C * c
 L2 = R_ARM_C * c
-R_CYL3 = 2.90 * c
-R_CYL4 = 0.85 * c
-R_CYL2 = L2 + R_CYL3 + 0.10 * c
-R_CYL1 = L1 + R_CYL2 + 0.10 * c
+R_CYL3 = R_CYL3_C * c
+R_CYL4 = R_CYL4_C * c
+R_CYL2 = L2 + R_CYL3 + R_GAP_2_3_C * c
+R_CYL1 = L1 + R_CYL2 + R_GAP_1_2_C * c
 
 AIRFRAME_X = +L1
 AIRFRAME_Z = -L2
@@ -142,21 +158,11 @@ axR.add_patch(mp.Circle((0, 0), 2.90, fill=False, ec=COL_CYL3, lw=1.6, zorder=6)
 axR.add_patch(mp.Circle((X_HTAIL_PIVOT, Z_HTAIL_PIVOT), 0.85,
                          fill=False, ec=COL_CYL4, lw=1.6, zorder=6))
 
-# cyl 2 (elbow) outer boundary in body frame: cyl_2 centre is at body
-# (+L1, 0, 0) (i.e., +750 c_w in the tail direction, off the +x side of
-# this panel by a wide margin).  Cyl_2's outer radius is L1 + R_CYL3 +
-# 0.10 c_w = 753 c_w, so its boundary closest to the body CG is on the
-# **-x (nose) side** at body x = +L1 − R_CYL2 = -3.00 c_w, 0.10 c_w
-# outside cyl_3's nose-side edge (-2.90 c_w).
-zs_arc  = np.linspace(-2.15, +2.15, 200)
-xs_cyl2 = +750.0 - np.sqrt(753.0**2 - zs_arc**2)   # nose-side arc at x ≈ -3 c
-axR.plot(xs_cyl2, zs_arc, ls="-", color=COL_CYL2, lw=1.4, zorder=0)
-
-# cyl 1 (shoulder) outer boundary in body frame: centred at (-L1, +L1) =
-# (-750, +750) c_w with radius R_CYL1 ≈ 1503 c_w.  The boundary's nearest
-# point to the airframe is at body (+313, -313) c_w, well off this panel.
-# At body-airframe scale cyl 1 simply cannot be drawn; the caption tells
-# the reader so and the left panel shows cyl 1 at full scale.
+# cyl 2 (elbow) and cyl 1 (shoulder) cannot be drawn at airframe scale.
+# With the production interface gaps (R_GAP_2_3_C, R_GAP_1_2_C = 110 c_w)
+# cyl 2's nearest boundary point is R_CYL2 - L1 ≈ 113 c_w from the CG on
+# the nose side, and cyl 1's nearest point is R_CYL1 - sqrt(2)·L ≈ 660 c_w
+# away.  The caption carries these numbers; the left panel shows them.
 
 axR.set_axis_off()
 

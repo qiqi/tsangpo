@@ -1,3 +1,6 @@
+# v1 script (May 2026). It imports params.study1_matrix(), which was
+# removed from params.py on 2026-10-30 with the rest of the v1 2x2 study;
+# recover both from git history if you ever need to re-run this.
 """
 Pull CL/Cm from each completed Flow360 run, compute the pitching-moment
 slope C_m_alpha, write a CSV, and print a console summary that calls out

@@ -51,10 +51,14 @@ python3 paper/figures/_build_combined_sens.py | tail -6
 echo
 echo "=== 4. LaTeX build ==="
 cd paper
+# Source commit for the reproducibility statement (\repocommit in the tex).
+printf '\\newcommand{\\repocommit}{%s}\n' \
+    "$(git -C "$REPO" rev-parse --short HEAD)$(git -C "$REPO" diff --quiet -- . ':!paper/extended_abstract.pdf' || echo '-dirty')" \
+    > gitinfo.tex
 pdflatex -interaction=nonstopmode extended_abstract.tex > /dev/null
 bibtex extended_abstract                                > /dev/null || true
 pdflatex -interaction=nonstopmode extended_abstract.tex > /dev/null
 pdflatex -interaction=nonstopmode extended_abstract.tex > /dev/null
-rm -f extended_abstract.{aux,log,bbl,blg,out}
+rm -f extended_abstract.{aux,log,bbl,blg,out} gitinfo.tex
 echo "Output: $(pwd)/extended_abstract.pdf"
 ls -la extended_abstract.pdf

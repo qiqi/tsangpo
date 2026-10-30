@@ -285,7 +285,7 @@ def _build_per_zone_udds(
                                      # user log emits them per physical step.
 ):
     """Author 4 UDDs (one per rotating cylinder), each running an identical
-    8-state forward-Euler integration of the longitudinal 6-DOF + 2 IK
+    8-state symplectic (Euler–Cromer) integration of the longitudinal 3-DOF + 2 IK
     dynamics, and each publishing only the rotation angle for its own
     `output_target`.
 
@@ -1165,7 +1165,7 @@ def build_unsteady_params(
                 CG_X_FWD_IK,
                 CG_Z_FWD_IK,
                 # state[2,3] = 0 (CG velocity unused for moment translation
-                # and we're not integrating 6DOF translation here).
+                # and we're not integrating translation here).
                 "0.0",
                 "0.0",
                 # state[4] = θ_body integrated.  GATED at pseudoStep==0 so

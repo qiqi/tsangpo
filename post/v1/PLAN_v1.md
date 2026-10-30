@@ -1,3 +1,10 @@
+> **v1 document (May 2026), kept for history.** Moved from the repo root on
+> 2026-10-30. The status dashboard, the 2×2 study matrix, `gap_fraction = 0.35`
+> and the script names below describe the v1 plan, which was superseded by the
+> v2 four-configuration campaign and the v3 short-boom work. For the current
+> state of the project read `README.md` and `CLAUDE.md`; for the paper's actual
+> structure read `paper/README.md`.
+
 # Tsangpo eSTOL — Project Plan & Technical Nuggets
 
 This file is the running ledger of the **physical phenomena** the CFD campaign

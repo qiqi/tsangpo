@@ -24,7 +24,7 @@ Tight-iter settings inherited from v1: parent gets 1000 pseudo iters
   - Verified: htail surface = `htail_pitch_zone/htail` (not `farfield/htail`).
     main_wing CL=+0.929, htail CL=+0.0004, htail CMy_CG=+0.029 (θ_ht=0).
 
-_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
+_Note (2026-10-30): the case IDs below are from the superseded BROKEN_CSM run and were never refreshed. The live sweep data are the cached CSVs in `post/out/v2_continuous/` (`*_sweep_data.csv`, written by the plotters with `--refresh`), which is what every result in `TRIM_RESULTS.md` uses._
 
 | sweep | values | case IDs |
 |---|---|---|
@@ -43,7 +43,7 @@ by all three sweeps via Flow360 dedup.
   - Verified: htail CL=−0.517, htail CMy_CG=+1.995 (big pitch-up at θ_ht=−5°).
 - **Note**: htail sweep extended from v1's (−12..+9) to **(−15..+30)** to bracket positive-deflection unstall territory.
 
-_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
+_Note (2026-10-30): the case IDs below are from the superseded BROKEN_CSM run and were never refreshed. The live sweep data are the cached CSVs in `post/out/v2_continuous/` (`*_sweep_data.csv`, written by the plotters with `--refresh`), which is what every result in `TRIM_RESULTS.md` uses._
 
 | sweep | values | case IDs |
 |---|---|---|
@@ -60,7 +60,7 @@ _⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has
 - **Parent** (α=+8°, θ_ht=−6°, T_mult=+12, V=12.86 m/s, γ=−30°, phase-2 flap): `case-fed9edf1-681b…` (RUNNING as of 2026-05-14)
 - **Note**: htail sweep extended dramatically from v1's (−15..+12) to **(−10..+50)** to find the unstalled region; v1 analysis showed the entire sweep range was inside the stalled regime due to ~−45° downwash from wing+flap.
 
-_⚠ STALE — case IDs below were from the BROKEN_CSM run; the live project has different IDs. Refresh after live forks complete._
+_Note (2026-10-30): the case IDs below are from the superseded BROKEN_CSM run and were never refreshed. The live sweep data are the cached CSVs in `post/out/v2_continuous/` (`*_sweep_data.csv`, written by the plotters with `--refresh`), which is what every result in `TRIM_RESULTS.md` uses._
 
 | sweep | values | case IDs |
 |---|---|---|

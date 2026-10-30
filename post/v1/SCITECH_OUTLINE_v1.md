@@ -1,3 +1,9 @@
+> **v1 outline (May 2026), kept for history.** Moved from the repo root on
+> 2026-10-30. This is the 2×2-matrix version of the story (C1–C4, gap 0.35,
+> htail 2.5 c high); the paper as written follows cont-low → cont-high →
+> gap-high → gap-low → v3 → phugoid. The live structure is the section list in
+> `paper/extended_abstract.tex`, summarized in `paper/README.md`.
+
 # AIAA SciTech Paper Outline — Tsangpo eSTOL
 
 > **Working title.** *The Useful Emptiness: A Distributed-Propulsion eSTOL

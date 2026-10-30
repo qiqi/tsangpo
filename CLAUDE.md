@@ -76,8 +76,10 @@ If you add a new `submit_*.py`, the y=0 slice goes in by default.
 - **Name every element's faces with `attribute capsGroup $<name>`**
   (right after `extrude`, via `select face / attribute capsGroup …`).
   Flow360's geometry processor exposes `capsGroup` as a face attribute
-  tag; `submit_cruise.py` calls `geo.group_faces_by_tag("capsGroup")`
-  and looks up surfaces by their .csm-given names. Do NOT rely on body
+  tag; the shared lookups `cfd_setup.get_geometry_surfaces` /
+  `cfd_setup.get_gapped_geometry_surfaces` call
+  `geo.group_faces_by_tag("capsGroup")` and find surfaces by their
+  .csm-given names. Do NOT rely on body
   dump order or `body0000N` renaming — it's fragile across configs.
 - Upload to Flow360 by inlining UDCs into `tsangpo.csm` and passing a
   single `.csm` file to `from_geometry`. Multi-file STEP uploads only

@@ -1,40 +1,55 @@
 # SciTech 2027 paper
 
+`extended_abstract.tex` is the AIAA SciTech 2027 extended abstract
+(`\documentclass[conf]{new-aiaa}`; `new-aiaa.cls` is committed). The
+PDF in this folder is the last build; rebuild with the script below.
+
 ## Deadlines
 
-- **Abstract / extended abstract**: 21 May 2026, 8:00 PM ET
-- Author notifications: 24 Aug 2026
-- **Final manuscript**: 1 Dec 2026, 8:00 PM ET
-
-(Confirm at https://scitech.aiaa.org/call-for-content/call-for-papers/ — dates are subject to change.)
+- Abstract / extended abstract: 21 May 2026 (submitted).
+- Author notification: 24 Aug 2026. **Outcome not recorded here; add it.**
+- **Final manuscript: 1 Dec 2026, 8:00 PM ET.**
 
 ## Build
 
 ```
-cd paper
-pdflatex extended_abstract.tex
-bibtex extended_abstract
-pdflatex extended_abstract.tex
-pdflatex extended_abstract.tex
+bash paper/build.sh
 ```
 
-Current template is plain `article`. To switch to the AIAA template, drop
-`new-aiaa.cls` into the folder and change the `\documentclass` line.
+The script refits every per-phase sensitivity from the cached sweep CSVs
+under `post/out/`, rebuilds the gap-low and v3 equilibrium grids,
+re-renders the generated figures, writes `gitinfo.tex` with the source
+commit (quoted in the reproducibility section), and runs pdflatex and
+bibtex. No Flow360 access is needed. The downwash slice figures
+(`figures/downwash_*.png`) and the phugoid setup / trace figures are
+committed outputs of `post/v3/render_downwash*.py` and
+`figures/_build_phugoid_{setup,traces}.py`; the first needs the slice
+caches that `figures/_retrieve_slices.py` downloads, the second only
+`flow360/unsteady_setup.py` and the committed UDD logs.
 
-## TODOs for the extended abstract
+## Structure (as written)
 
-- [ ] Fill the `\todo{...}` placeholders with the actual SM / sensitivity numbers from `post/out/v2_continuous_high/*` once those sweeps finish. cont-high cruise is mostly done; takeoff and landing still finishing as of 2026-05-15.
-- [ ] Replace `figures/upwash_mechanism_placeholder.png` with the actual y-slice CFD figure once the gap40 slice forks land (slice forks submitted 2026-05-15; ~97 cases).
-- [ ] Confirm the Electra reference — looking for the most-citable SciTech / Aviation paper on EL2/EL9 blown-lift flight test.
-- [ ] Drop in `new-aiaa.cls` and re-render.
-- [ ] Author list / affiliations / co-author confirmations.
+1. Introduction.
+2. Configurational evolution: Step 0 cont-low → Step 1 cont-high →
+   Step 2 gap-high → Step 3 gap-low → Step 4 v3 short boom.
+3. Analysis of v3: trimmable envelope, slipstream coverage, flare
+   geometry, cautions.
+4. CFD-based dynamic maneuver simulation: nested rotation zones + UDD
+   3-DOF, the cruise phugoid (T = 17.4 s, ζ ≈ 0.026), two implementation
+   lessons.
+5. Expected full-paper contributions.
+6. Geometry reference.
 
-## Story arc (one paragraph each, mapped to sections)
+## Open items for the final manuscript
 
-1. **Intro.** uSTOL + DEP; Electra; the empennage problem.
-2. **Method.** 4 configs × 3 phases; Flow360 RANS + actuator disks.
-3. **cont-high.** Necessary but not sufficient — landing still unstable; htail stall = nose-diver.
-4. **Flap gap.** Stability fix via flap-edge vortices → centerline upwash. Costs ~10% $C_{L,\max}$, tiny cruise drag win.
-5. **gap-low.** Htail back in slipstream — both stability and authority roughly double.
-6. **v3.** Shortened tail boom: aggressive flare, shorter landing, easier go-around.
-7. **Full paper.** Phugoid dynamics (3 configs) + ground-effect landing CFD.
+- Record the acceptance decision above.
+- The landing open-loop result (statically unstable trim, half-loop
+  divergence; `post/v3/phugoid_runs/landing/OPEN_LOOP_LANDING.md`) and
+  the θ_eq(θ_ht, V_inf) grid are not in the abstract and belong in the
+  dynamics section of the full paper.
+- The integrator has since changed to symplectic Euler–Cromer
+  (`flow360/unsteady_setup.py`); the abstract's phugoid number was produced
+  with explicit Euler. Say so if the number is kept.
+- `paper/sections/phugoid_dynamics_plan.md` and
+  `adaptive_sampling_paradox_map_plan.md` are the full-paper plans; the
+  first predates the UDD method and is marked superseded.

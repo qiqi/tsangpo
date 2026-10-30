@@ -7,7 +7,10 @@
 # in newtons, pressures in pascals.
 #
 # Geometry version: v2 (design revision after v1 trim-infeasibility
-# finding documented in post/TAKEOFF_PLAN.md and post/LANDING_PLAN.md).
+# finding documented in post/v1/TAKEOFF_PLAN.md and post/v1/LANDING_PLAN.md).
+# Sibling files: airframe_v2.yaml (all four v2 configurations + per-phase
+# conditions) and airframe_v3.yaml (short boom + mass properties for the
+# UDD).  This file describes the v2 continuous-flap LOW-htail airframe.
 # v1 (sibling commit ~e10892f) had:
 #   - Origin at wing-root c/4; CG assumed under wing c/4 and 0.4 c below
 #   - H-tail at 3.5 c arm with chord ≈ 0.62 c_w and span 0.35 b_w (V_H = 0.76)
@@ -84,7 +87,8 @@ htail:
     x_LE_m:           +4.845             # 4 c_wing aft of wing LE
     x_cquarter_m:     +5.191             # ℓ_h to CG = +3.75 c_wing
     z_low_m:          +0.554             # in wing chord plane (low htail)
-    z_high_m:         +4.014             # 2.5 c above wing chord plane (high htail)
+    z_high_m:         +2.631             # 1.5 c above wing chord plane = +1.9 c above CG
+                                         # (high htail; params.Z_TAIL_HIGH_CHORDS, CSM htail_z_chords 1.9)
   l_h_from_CG_m:      5.191
   l_h_from_wing_cquarter_m: 5.537        # = 4.0 c_wing — standard V_H definition
   Sh_over_Sw:         0.400              # v1 was 0.218
@@ -183,7 +187,7 @@ source_files:
   numerical_constants:    params.py
   airfoil_geometry:       geometry/airfoils/estol_config.yaml
   csm_construction:       geometry/tsangpo.csm
-  cruise_sensitivities:   post/SENSITIVITIES.md         (v1 — to be redone for v2)
-  takeoff_sensitivities:  post/TAKEOFF_PLAN.md          (v1 — to be redone for v2)
-  landing_sensitivities:  post/LANDING_PLAN.md          (v1 — to be redone for v2)
+  cruise_sensitivities:   post/v2_continuous/TRIM_RESULTS.md   (v1 version: post/v1/SENSITIVITIES.md)
+  takeoff_sensitivities:  post/v2_continuous/TRIM_RESULTS.md   (v1 version: post/v1/TAKEOFF_PLAN.md)
+  landing_sensitivities:  post/v2_continuous/TRIM_RESULTS.md   (v1 version: post/v1/LANDING_PLAN.md)
   v1_reference_commit:    e10892f                       (params.py / geometry / docs at v1)

@@ -2,7 +2,7 @@
 
 **Project:** Tsangpo eSTOL longitudinal free-flight (phugoid) in Flow360
 (SDK v25.9.x, solver release-25.9, beta in-house mesher), driven by
-User-Defined-Dynamics (UDD) that integrate 6-DOF rigid-body motion from the
+User-Defined-Dynamics (UDD) that integrate longitudinal 3-DOF rigid-body motion from the
 CFD-reported aerodynamic loads and feed it back to a 4-cylinder sliding-mesh
 "robot-arm" that pitches and translates the airframe through a fixed freestream.
 
@@ -53,7 +53,7 @@ path), `nokick_lagfix_slices.mp4` (t=30-60 s y=0 Mach flow animation),
 |---|---|
 | Calendar span of UDD/phugoid work | **~15 days** (2026-05-12 → 05-27) |
 | of which chasing the two root-cause bugs | ~2 weeks (the "wing-CL-frozen" misdiagnosis dominated) |
-| Distinct CFD cases in the debug effort | **~100+** (66 in the unsteady registry + ~40 reproducer/warmup/pitch-step cases) |
+| Distinct CFD cases in the debug effort | **~100+** (66 in the unsteady registry at the time, 170 after the landing campaign, + ~40 reproducer/warmup/pitch-step cases) |
 | Typical unsteady multi-zone chunk | 200 physical steps × ≤200 pseudo-steps, **40–77 min wall** each |
 | Reproducer families built (mostly dead ends) | 3-cyl concentric, eccentric 3-cyl, NACA0012 single-wing, pitch-ramp, pitch-step (×4 variants), actuator-disk delivery — ~10 families |
 
@@ -113,7 +113,7 @@ fl.UserDefinedDynamic(
 Our airframe rides a chain of four `Cylinder` sliding-mesh zones
 (shoulder→elbow→airframe→htail). Because **Flow360 allows one `output_target`
 per UDD**, we author **four identical UDDs** (one per cylinder); each runs the
-same 8–10-slot forward-Euler integrator of the longitudinal 6-DOF plus a 2-link
+same 8–10-slot forward-Euler integrator of the longitudinal 3-DOF plus a 2-link
 inverse kinematics (IK) that turns CG translation into shoulder/elbow rotations,
 and each publishes only its own cylinder's `theta/omega/omegaDot`. Cylinders use
 `spec=fl.FromUserDefinedDynamics()` in their `fl.Rotation`. State is in Flow360
@@ -391,7 +391,7 @@ and report worst-cell location/zone for high mesh-aspect-ratio warnings.
   state integrators; forward-IK lever arm in the `state[5]` / `state[8,9]` moment
   terms; mandated y=0 `SliceOutput` with a `slice_frequency` knob; `diagnostics`
   flag routing `state[*]` to the four `omegaDot` channels. Shared geometry/trim in
-  `flow360/cfd_setup.py`, `params.py`. Final phugoid submitters:
+  `cfd_setup.py` (repo root), `params.py`. Final phugoid submitters:
   `submit_unsteady_warmup.py`, `submit_gap110_nokick_diag.py`,
   `submit_gap110_chunkN_nokick_diag.py`. Post: `post/v3/plot_running_case.py`,
   `viz_nokick_lagfix.py`, `render_phugoid_slices.py`.

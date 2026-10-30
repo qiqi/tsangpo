@@ -1,3 +1,12 @@
+> **Superseded 2026-05-27.** This plan recommended the linearised
+> four-state model ("Option A") and priced direct CFD ("Option B") as
+> 50–100× more expensive. Option B was then built: the UDD free-flight rig
+> in `flow360/unsteady_setup.py` ran the v3 cruise phugoid
+> (`flow360/PHUGOID_UDD_POSTMORTEM.md`) and, from 2026-05-29, the landing
+> open-loop dynamics (`post/v3/phugoid_runs/landing/OPEN_LOOP_LANDING.md`).
+> What remains of this plan is the cross-configuration comparison
+> (cont-high v2, gap-low v2) at the same disturbance.
+
 # Phugoid dynamics simulation plan (full paper, §7.1)
 
 ## Goal

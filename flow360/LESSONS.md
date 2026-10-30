@@ -118,9 +118,12 @@ Last reviewed: 2026-10-30 — all cases ran on SDK v25.9.x / release-25.9.
   encloses the static wing surfaces plus the inner cylinder geometry.
 
 - **Actuator disk thickening + refinement.** Disk thickness = 0.10 c,
-  with `fl.UniformRefinement(entities=prop_cyls, spacing=0.05*MAC)` —
-  fixes the ~60 % over-thrust caused by under-resolved actuator-disk
-  zones.
+  with `fl.UniformRefinement(entities=prop_cyls, spacing=0.05*MAC)`.
+  Keep it for delivered-thrust accuracy (~2 % on a converged mesh, ~8 %
+  coarse). The "~60 % over-thrust" once attributed to under-resolved disks
+  was a unit error in the measurement script (the 1.572 sea-level /
+  12 kft factor), see the AD entry below and
+  `paper/figures/FLOW360_AD_DELIVERY_RESOLVED.md`.
 
 - **Reference geometry vector lengths.** `moment_length = (b/2, c, b/2)`
   so roll & yaw normalize by semi-span and pitch normalizes by chord.

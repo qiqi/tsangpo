@@ -22,7 +22,6 @@ Coordinate system: origin at CG; +X aft, +Y starboard, +Z up.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from math import pi, sqrt
 
 # Wing — Hershey bar (rectangular, no taper/sweep/twist/dihedral) -------
@@ -61,10 +60,6 @@ PROP_Y_M      = tuple(eta * WING_SEMI_SPAN_M for eta in PROP_Y_NONDIM)
 PROP_X_M      = WING_X_LE_M - 0.20 * WING_MAC_M   # 0.2 c ahead of wing LE  (= -0.70 c)
 PROP_Z_M      = WING_Z_M    - 0.30 * WING_MAC_M   # 0.3 c below wing chord plane (= +0.10 c above CG)
 PROP_HEIGHT_M = 0.10 * WING_MAC_M                 # disk thickness, set wide enough to resolve
-
-# Flap / inboard gap ---------------------------------------------------
-GAP_FRACTION_BASELINE = 0.0
-GAP_FRACTION_PROPOSED = 0.35
 
 # H-tail (v2: bigger, full-chord, longer arm) --------------------------
 HTAIL_SPAN_FRAC   = 0.40                   # was 0.35
@@ -156,27 +151,6 @@ RHO_LANDING_KG_M3   = RHO_CRUISE_KG_M3
 A_SOUND_LANDING_M_S = A_SOUND_CRUISE_M_S
 Q_LANDING_PA        = 0.5 * RHO_LANDING_KG_M3 * V_LANDING_M_S ** 2
 DESCENT_ANGLE_DEG   = -30.0                # target descent (negative = downward) flight-path angle
-
-
-@dataclass(frozen=True)
-class Case:
-    name:          str
-    label:         str
-    gap_fraction:  float
-    z_tail_chords: float
-    x_tail_m:      float = X_TAIL_DEFAULT_M
-    alpha_deg:     float = ALPHA_DESIGN_DEG
-    tw:            float = TW_DESIGN
-
-
-def study1_matrix() -> tuple[Case, ...]:
-    """The 2×2 SciTech matrix: gap_fraction × Z_tail_chords."""
-    return (
-        Case("industry_baseline",  "Industry Baseline",  GAP_FRACTION_BASELINE, Z_TAIL_HIGH_CHORDS),
-        Case("downwash_failure",   "Downwash Failure",   GAP_FRACTION_BASELINE, Z_TAIL_LOW_CHORDS),
-        Case("bad_tradeoff",       "Bad Trade-off",      GAP_FRACTION_PROPOSED, Z_TAIL_HIGH_CHORDS),
-        Case("proposed_synthesis", "Proposed Synthesis", GAP_FRACTION_PROPOSED, Z_TAIL_LOW_CHORDS),
-    )
 
 
 if __name__ == "__main__":

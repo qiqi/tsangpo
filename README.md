@@ -68,10 +68,8 @@
 ```
 .
 ├── CLAUDE.md               ལས་གཞིའི་ཚུལ་ལུགས་དང་ས་བཀྲ། (ཐོག་མར་ཀློག)
-├── plan.md                 ལག་རྩལ་གྱི་གནད་གལ་གྱི་ཐོ་གཞུང་།
 ├── params.py               ཚད་འཇོག་གི་མཛོད་ཁང་གཙོ་བོ (SI: m, kg, N, s, rad; ISA; non-dim → SI)
 ├── cfd_setup.py            བརྟན་པོའི་ SimulationParams སྦྱོར་བྱེད། (actuator disk, སྐྱོར་སྒྱུར་ཁྱམས་ 2)
-├── scitech_outline.md      ཡིག་ཚགས་ཀྱི་གཞི་རྩ།
 ├── wu-wei.mdc              གནས་ལུགས། ཡང་དག་པར་བྱེད་པའི་ཆ་ཉུང་ཤོས་ལ་སྦྱོར་བ།
 ├── geometry/
 │   ├── airfoils/            3-ཡན་ལག་མཁའ་འདབ། estol_config.yaml + build_estol_geometry.py
@@ -99,6 +97,7 @@
 │   └── submit_fine_ad_parents.py   actuator-disk དྲ་མིག་ཞིབ་མོའི་ཚོད་ལྟ།
 ├── post/
 │   ├── _phase_plot.py, cg_shift_trim.py
+│   ├── v1/                  v1 (2026-05) ཁོ་ནའི་ལོ་རྒྱུས། PLAN_v1.md, SCITECH_OUTLINE_v1.md, SENSITIVITIES.md
 │   ├── v2_gapped/           v2 བར་སྟོང་ཅིན་ཡིའི་ཐིག་གཞི་དང་ TRIM_RESULTS.md
 │   ├── v3/                  phugoid གི་ཐིག་གཞི་ (plot_running_case, viz_nokick_lagfix,
 │   │                        render_phugoid_slices, render_phugoid_3d_{lic,native})
