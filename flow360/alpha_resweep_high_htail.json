@@ -1,0 +1,198 @@
+[
+  {
+    "cfg": "cont_low",
+    "phase": "takeoff",
+    "project": "prj-9cd3ad10-ea47-41d9-9e33-0096fc30d6c1",
+    "parent": "case-3d97afde-3272-441a-aad9-786aa0b394ad",
+    "theta_ht_pin": 10.0,
+    "alpha": [
+      [
+        -2.0,
+        "case-730ff2b2-0529-4d79-9a60-35f9b11f9ee0"
+      ],
+      [
+        2.0,
+        "case-183f103a-db57-4432-92f8-20286211aeff"
+      ],
+      [
+        5.0,
+        "case-70e2dd47-5741-4374-83c1-8a52062e9f96"
+      ],
+      [
+        8.0,
+        "case-1d0ed9a5-91fa-4546-8030-85127219a1aa"
+      ],
+      [
+        11.0,
+        "case-fa70a008-4cab-4234-baea-bf27b52804bf"
+      ],
+      [
+        14.0,
+        "case-ca8ffd51-ecb4-4d29-b133-48604b2dd0c3"
+      ],
+      [
+        17.0,
+        "case-4a7c3005-77fe-450f-ae99-f158828d7885"
+      ],
+      [
+        20.0,
+        "case-926926a3-81dd-4419-aa3f-d97f064c7d92"
+      ],
+      [
+        25.0,
+        "case-e786acf3-0196-4cf1-a6b3-a1384a117e15"
+      ],
+      [
+        30.0,
+        "case-1684775d-0411-4ce8-ad70-e3b803967b2e"
+      ]
+    ]
+  },
+  {
+    "cfg": "cont_low",
+    "phase": "landing",
+    "project": "prj-e7dc7d6d-4baf-4101-8818-1173da5a359a",
+    "parent": "case-d69a3590-a537-442a-8c71-f03927645d9b",
+    "theta_ht_pin": 20.0,
+    "alpha": [
+      [
+        -2.0,
+        "case-39c636c5-5ed4-4dac-a880-887146d1cd1b"
+      ],
+      [
+        2.0,
+        "case-df7d12cc-8d38-4221-bc90-7709a5de0898"
+      ],
+      [
+        5.0,
+        "case-534921c3-4a74-46b5-8dda-0e1af71d4f6d"
+      ],
+      [
+        8.0,
+        "case-6a0e2ecd-fcda-412a-b5d2-f1c43bb42a96"
+      ],
+      [
+        11.0,
+        "case-f25203ae-77e7-4cf2-8f35-478adb95822d"
+      ],
+      [
+        14.0,
+        "case-8f5e969f-1e2e-44fa-9695-22a0a5fa40c7"
+      ],
+      [
+        17.0,
+        "case-05f6b831-33ae-4f58-baaf-08ffd224a4c7"
+      ],
+      [
+        20.0,
+        "case-6195eda9-9309-47e6-8ba8-671c99713988"
+      ],
+      [
+        25.0,
+        "case-b3eec616-3365-4c98-ab2c-b23df0f41a90"
+      ],
+      [
+        30.0,
+        "case-6b14b173-5925-4683-824a-970e4ff1d0a1"
+      ]
+    ]
+  },
+  {
+    "cfg": "cont_high",
+    "phase": "takeoff",
+    "project": "prj-3505c35f-0a58-4aa2-9b0e-75af2f2143f6",
+    "parent": "case-ad854db9-c8b2-4254-81f6-a3e01ec830b9",
+    "theta_ht_pin": 10.0,
+    "alpha": [
+      [
+        -2.0,
+        "case-ccbc3772-9360-42e2-895f-3769b0f6d56e"
+      ],
+      [
+        2.0,
+        "case-17e7944e-a491-41b4-89f0-0f44edd98d34"
+      ],
+      [
+        5.0,
+        "case-4cf69ce1-3aca-4aea-b0be-b7d36f257a8e"
+      ],
+      [
+        8.0,
+        "case-775a25d2-2b2f-450c-b88a-529e4d5d1f30"
+      ],
+      [
+        11.0,
+        "case-088ebe73-ab82-4b4b-b72d-6af3bef34382"
+      ],
+      [
+        14.0,
+        "case-6725f099-ea6c-4b0d-8253-3ab69a1f672a"
+      ],
+      [
+        17.0,
+        "case-3bc2d0bd-0026-4c5b-8c3b-e1551012f64e"
+      ],
+      [
+        20.0,
+        "case-c114ac0a-6811-45fd-897a-4d840065889c"
+      ],
+      [
+        25.0,
+        "case-a634c8ae-84bb-49dc-9ecc-ddc6b313ae92"
+      ],
+      [
+        30.0,
+        "case-c5d2965c-5b95-449f-b5cb-8ad069b1cacc"
+      ]
+    ]
+  },
+  {
+    "cfg": "cont_high",
+    "phase": "landing",
+    "project": "prj-121d08b0-626c-475b-8c53-9d2ab54765d7",
+    "parent": "case-0584e25d-5bae-43c6-b2af-bf40b2c07cae",
+    "theta_ht_pin": 20.0,
+    "alpha": [
+      [
+        -2.0,
+        "case-ebb791e4-a834-4f81-ac4b-223a6c568383"
+      ],
+      [
+        2.0,
+        "case-ac2e5310-6449-4a98-9613-d20d3775635a"
+      ],
+      [
+        5.0,
+        "case-f397e246-9578-45a5-aa39-c66792b7b7ea"
+      ],
+      [
+        8.0,
+        "case-9d26ea0c-2a07-4033-af64-18868889315f"
+      ],
+      [
+        11.0,
+        "case-5951afbb-a9ba-4d28-aced-a5f7fda42a60"
+      ],
+      [
+        14.0,
+        "case-1b0f1ab4-20e5-4031-92b7-b9b6fd3f5f27"
+      ],
+      [
+        17.0,
+        "case-5864dd0f-220c-4401-8990-3e607e2efe1b"
+      ],
+      [
+        20.0,
+        "case-cea9c0d6-d3ad-4d85-bea9-100c534b3c6c"
+      ],
+      [
+        25.0,
+        "case-7fbd411a-cc5b-46ef-afb9-e200d4abca66"
+      ],
+      [
+        30.0,
+        "case-8f2557cb-466a-478f-868c-6b644d9419e3"
+      ]
+    ]
+  }
+]

@@ -72,6 +72,20 @@ PART_COLORS = dict(
 
 # ── load + body-frame transform of every surface part ─────────────────────────
 def load_body_parts() -> dict[str, pv.PolyData]:
+    """Loads surfaces (world coords at end-of-chunk2 pose) and converts to
+    body-frame by un-rotating around (CG_REF, TH_REF_DEG).
+
+    Empirically verified convention by checking the body-frame extents
+    of the loaded surfaces against the known aircraft layout:
+      htail body-X ∈ [-3.41, -2.06]  → aft of CG along body -X ✓
+      flap  body-X ∈ [-0.84, -0.63]  → aft of wing trailing edge ✓
+      wing  body-X centered ~0       → leading edge at +0.7 chord, etc.
+    The rotation matrix that yields these is
+        R_y(θ) = [ cos θ   0  -sin θ ]
+                 [   0     1     0   ]
+                 [ sin θ   0   cos θ ]
+    Body +X is the nose direction; positive θ = nose-up.
+    """
     parts: dict[str, pv.PolyData] = {}
     th_ref = math.radians(TH_REF_DEG)
     cR, sR = math.cos(th_ref), math.sin(th_ref)
@@ -137,7 +151,15 @@ def build_slice_texture(pvtu_path: str, CGx: float, CGz: float,
     rgb = (plt.get_cmap("turbo")(np.clip(mag/MACH_REL_MAX, 0, 1))[..., :3]
            * (0.45 + 0.55 * tex[..., None]))
     rgb = np.clip(rgb, 0, 1)
-    rgb = np.flipud(rgb)                                              # ← key fix
+    # Two orientation fixes so the texture matches world X-Z in the y=0 plane
+    # AS THE AIRPLANE SEES IT:
+    #   np.flipud  — Z axis: PIL saves row 0 as top of PNG; OpenGL reads v=0
+    #                from the bottom; so the array's Z axis needs flipping.
+    #   np.fliplr  — X axis: empirically, the X-direction of the slice
+    #                ended up mirrored relative to the airplane geometry
+    #                (a 180° rotation about Z in the y=0 plane).
+    rgb = np.flipud(rgb)
+    rgb = np.fliplr(rgb)
     Image.fromarray((rgb*255).astype(np.uint8)).save(out_png)
     return out_png
 
@@ -175,11 +197,16 @@ def render_frame(step: int, pvtu_path: str,
         placed = place_body(part, CGx, CGz, TH_DEG)
         p.add_mesh(placed, color=PART_COLORS[name], smooth_shading=True)
     p.set_background("black")
-    # Camera: behind-left-above for an aircraft-side oblique view
+    # Camera convention.  Empirically the trim θ=-2.4° corresponds to nose
+    # slightly DOWN (matches design's γ_trim=-30° + α=27.6° = -2.4°), so
+    # body +X at θ=-2.4° must map to world (cos, 0, sin(-2.4°)) with the
+    # OLD matrix, which gives world Z slightly NEGATIVE.  In Z-UP convention
+    # that means body nose slightly downward in altitude — consistent.
+    # So Z is UP here.  view_up = (0, 0, +1).
     p.camera_position = [
-        (CGx - 6, -10, CGz + 5),    # camera position
+        (CGx - 6, -10, CGz + 5),    # camera above + left + behind
         (CGx, 0, CGz),               # focal point at CG
-        (0, 0, 1.0),                 # up = +Z (Z-up convention)
+        (0, 0, +1.0),                # up = +Z (Z-up convention)
     ]
     img = p.screenshot()
     p.close()

@@ -111,16 +111,24 @@ def render_frame(step: int, pvtu_path: str) -> bool:
     v_rel[:, :, 0] -= M_INF
     mag_rel = np.linalg.norm(v_rel, axis=2)
 
-    # Component arrays for LIC (vx in screen-x, vz in screen-y).
-    # The regular-grid axes are (X, Y, Z) flattened as (i, j, k) with
-    # j=0 (singleton y), so v_rel[i, 0, k, :] corresponds to grid
-    # coords (x[i], 0, z[k]).  After dropping j=0, axes are (X, Z).
+    # Reshape orientation (verified empirically):
+    #   v_rel has shape (RES, RES, 3) AFTER reshape; the VTK ImageData
+    #   dims were (NX=RES, NY=1, NZ=RES) so the flat index is i + k*RES
+    #   with X fastest.  After reshape, v_rel[a, b, :] = velocity at
+    #   (zidx=a, xidx=b).  So axis-0 = Z (row in image, vertical), axis-1
+    #   = X (col in image, horizontal).
     vx = v_rel[:, :, 0].astype(np.float32)
     vz = v_rel[:, :, 2].astype(np.float32)
     mag2d = mag_rel.astype(np.float32)
 
-    # Build LIC texture from the velocity field (lic uses its own noise)
-    tex = lic_lib.lic(vx, vz, length=LIC_LEN)
+    # Build LIC texture from the velocity field.
+    # lic.lic(u, v, ...) convention (verified by unit test):
+    #   - First arg (u) is row-direction velocity (vertical in image).
+    #   - Second arg (v) is col-direction velocity (horizontal in image).
+    # Our image axes (after origin='lower'): row = Z, col = X.
+    # So we want first-arg = vz (Z-velocity) and second-arg = vx
+    # (X-velocity).  Passing (vx, vz) produces 90°-rotated streamlines.
+    tex = lic_lib.lic(vz, vx, length=LIC_LEN)
     # tex is in [0, 1]
 
     # Compose: LIC as grayscale brightness, modulated by Mach_rel turbo color

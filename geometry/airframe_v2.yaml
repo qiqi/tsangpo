@@ -1,0 +1,126 @@
+# Tsangpo v2 airframe — design parameters for the four-configuration
+# study (extended-abstract Steps 0-3).  All dimensions in SI; coordinate
+# frame: origin at the CG, +x aft, +y starboard, +z up.
+
+reference:
+  wing_area_m2:        15.33             # ≈ 165 ft²
+  wing_AR:             8.0
+  wing_span_m:         11.074            # = sqrt(AR · S)
+  wing_chord_m:        1.385             # = S / b  (Hershey-bar, no taper)
+  wing_MAC_m:          1.385
+
+# CG sits at the wing's HALF-chord and 0.4 c below the wing chord
+# plane.  Therefore wing LE is 0.5 c forward of CG, wing TE is
+# 0.5 c aft, and wing chord plane is +0.4 c above CG.
+geometry_origin:
+  wing_LE_x_m:         -0.692            # -0.5 c
+  wing_TE_x_m:         +0.692            # +0.5 c
+  wing_plane_z_m:      +0.554            # +0.4 c
+  CG_x_m:               0.0              # by construction
+  CG_z_m:               0.0              # by construction
+
+mass_properties:
+  gross_weight_N:      11565.0           # ≈ 2,600 lbf
+  mass_kg:              1179.0           # = W / g
+  # NOTE: pitch moment of inertia I_yy not measured for v2 — see v3
+  # for a typical eSTOL estimate.  Static-aero campaigns don't need it.
+
+propulsion:
+  N_props:             10
+  prop_diameter_m:      1.067            # ≈ 3.5 ft
+  prop_radius_m:        0.5335
+  prop_eta:            [0.1, 0.3, 0.5, 0.7, 0.9]   # y / (b/2) per semispan
+  prop_x_m:            -0.969            # 0.2 c forward of wing LE  (= -0.7 c)
+  prop_z_m:            +0.138            # 0.3 c below wing chord plane (= +0.1 c above CG)
+  design_TW:           0.5
+  cruise_total_thrust_N: 543.0           # ≈ q_cruise · S · 0.04 — sizing reference
+
+htail_v2:
+  span_frac:            0.40
+  chord_frac:           1.00             # c_htail == c_wing
+  span_m:               4.430
+  chord_m:              1.385
+  area_m2:              6.135
+  AR:                   3.20
+  airfoil:              "LS(1)-0417 inverted"   # negative camber for down-force at α=0
+
+# Four study1 configurations (the 2×2 matrix in the extended abstract):
+configurations:
+
+  cont_low:           # Step 0 — naive low-htail / X-57-class
+    label:             "cont-low (X-57-class)"
+    csm:               "geometry/tsangpo.csm"
+    flap:              "continuous"
+    gap_fraction:      0.0
+    htail_LE_x_m:      +4.847            # +3.5 c_w (= +4 c aft of wing LE)
+    htail_TE_x_m:      +6.231            # +4.5 c_w
+    htail_c4_x_m:      +5.193            # +3.75 c_w
+    htail_z_m:         +0.554            # +0.4 c (in wing chord plane)
+    htail_z_chords:    0.0               # relative to wing plane
+
+  cont_high:          # Step 1 — T-tail with continuous flap
+    label:             "cont-high (T-tail, continuous flap)"
+    csm:               "geometry/tsangpo_high_htail.csm"
+    flap:              "continuous"
+    gap_fraction:      0.0
+    htail_LE_x_m:      +4.847
+    htail_TE_x_m:      +6.231
+    htail_c4_x_m:      +5.193
+    htail_z_m:         +2.630            # +1.9 c (above wing chord plane by 1.5 c)
+    htail_z_chords:    1.5
+
+  gap_high:           # Step 2 — gap + T-tail
+    label:             "gap-high (T-tail, 40% inboard flap gap)"
+    csm:               "geometry/tsangpo_gapped_high_htail.csm"
+    flap:              "40% inboard gap"
+    gap_fraction:      0.40
+    htail_LE_x_m:      +4.847
+    htail_TE_x_m:      +6.231
+    htail_c4_x_m:      +5.193
+    htail_z_m:         +2.630
+    htail_z_chords:    1.5
+
+  gap_low:            # Step 3 — gap + low htail (proposed v2 synthesis)
+    label:             "gap-low (40% gap + low htail in slipstream)"
+    csm:               "geometry/tsangpo_gapped.csm"
+    flap:              "40% inboard gap"
+    gap_fraction:      0.40
+    htail_LE_x_m:      +4.847
+    htail_TE_x_m:      +6.231
+    htail_c4_x_m:      +5.193
+    htail_z_m:         +0.554            # +0.4 c (in wing chord plane)
+    htail_z_chords:    0.0
+
+# Atmosphere (ISA, 12,000 ft / 3,658 m) — same for all phases.
+atmosphere:
+  altitude_m:           3658.0
+  density_kg_m3:        0.8491
+  speed_of_sound_m_s:   325.95
+  viscosity_Pa_s:       1.6928e-5
+  rho_a2_N_m2:          90250.0          # rho · a² (Flow360 AD solver-unit scaling)
+
+# Per-phase flight conditions (apply to all four configurations).
+phases:
+  cruise:
+    V_inf_m_s:          45.72
+    altitude_m:         3658.0
+    gamma_deg:           0.0
+    BO_alpha_deg:       +7.0
+    BO_theta_ht_deg:     0.0
+    BO_T_mult:           1.0
+
+  takeoff:
+    V_inf_m_s:          18.00
+    altitude_m:           0.0
+    gamma_deg:          +30.0
+    BO_alpha_deg:       +8.0
+    BO_theta_ht_deg:    -5.0
+    BO_T_mult:          16.0
+
+  landing:
+    V_inf_m_s:          12.86
+    altitude_m:           0.0
+    gamma_deg:          -30.0
+    BO_alpha_deg:       +8.0
+    BO_theta_ht_deg:    -6.0
+    BO_T_mult:          12.0

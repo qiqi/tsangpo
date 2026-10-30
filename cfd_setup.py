@@ -161,7 +161,7 @@ def _load_folder_ids() -> dict:
     try:
         with open(path) as f:
             return json.load(f)
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return {}
 
 

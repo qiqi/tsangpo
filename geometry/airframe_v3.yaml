@@ -1,0 +1,119 @@
+# Tsangpo v3 airframe — gap-low planform with the shortened tail boom
+# (htail 1 c behind wing TE).  Inherits all wing / prop / atmosphere
+# specs from v2; only the htail x-position changes, and we add the
+# mass properties needed for dynamic-flight simulation.
+
+inherits: "airframe_v2.yaml"           # reference, mass_properties.gross_weight,
+                                       # propulsion, atmosphere; the htail planform
+                                       # and the per-phase V_inf / γ.
+
+mass_properties:
+  gross_weight_N:      11565.0
+  mass_kg:              1179.0          # = W / g
+  # Pitch moment of inertia about the CG (kg · m²).  For v3 the htail
+  # aerodynamic centre is only 2.49 m from the CG (vs ≈ 5.2 m on a
+  # conventional GA single), so the pitch radius-of-gyration is
+  # substantially smaller than a typical STOL.  Using k_y ≈ 1.6 m:
+  #   I_yy = m · k_y² = 1179 · 1.6²  ≈ 3018 kg·m²  →  3000 kg·m²
+  # The phugoid period is essentially independent of I_yy (it's a
+  # slow gravity-airspeed exchange); short-period coupling is what
+  # actually scales as 1/sqrt(I_yy).
+  I_yy_kg_m2:           3000.0
+
+htail_v3:
+  span_frac:            0.40
+  chord_frac:           1.00
+  span_m:               4.430
+  chord_m:              1.385
+  area_m2:              6.135
+  AR:                   3.20
+  airfoil:              "LS(1)-0417 inverted"
+  # HTAIL X-POSITION — the v3 design change vs gap-low (Step 3)
+  htail_LE_x_m:        +2.077            # +1.5 c_w  (htail LE 1 c aft of wing TE)
+  htail_TE_x_m:        +3.462            # +2.5 c_w
+  htail_c4_x_m:        +2.424            # +1.75 c_w
+  htail_z_m:           +0.554            # same as gap-low (in wing chord plane)
+  htail_z_chords:       0.0
+  # Moment arm from wing c/4 (= CG) to htail c/4
+  l_t_m:               +2.770            # ≈ 2 c_w  (was +5.193 m / ≈ 3.75 c_w in v2)
+
+configuration:
+  label:               "v3 (gap-low, short-boom)"
+  csm:                 "geometry/tsangpo_v3.csm"
+  flap:                "40% inboard gap"
+  gap_fraction:         0.40
+
+# CFD rotation-cylinder geometry overrides for v3 (consumed by
+# cfd_setup.build_params via htail_x_m and ht_radius_m kwargs).
+cfd_rotation_zones:
+  htail_pitch_zone:
+    center_x_m:        +2.424            # htail c/4
+    center_z_m:        +0.554
+    axis:              [0, 1, 0]
+    height_m:           5.759            # 1.30 × htail_span
+    radius_m:           1.385            # = 1.0 c_htail (shrunk from v2's 1.5 c_htail)
+  ac_pitch_zone:
+    center_x_m:          0.0
+    center_z_m:          0.0
+    axis:              [0, 1, 0]
+    height_m:          13.842            # 1.25 × wing_span
+    radius_m:           5.770            # = 1.10 × (htail_c4_x + 1.5 × c_htail) for v3
+                                          # ≈ 1.10 × (2.424 + 2.077) = 4.95 m  → bump to 5.77
+                                          # for margin (still > min-enclosure of htail cyl).
+
+# Per-phase BO trim points for the v3 campaign (deliberately at the
+# high-α "low-slow pass" frontier of the envelope; sweep cases probe
+# the high-α behavior of the short-boom directly).
+phases:
+  cruise:
+    V_inf_m_s:          45.72
+    altitude_m:         3658.0
+    gamma_deg:           0.0
+    BO_alpha_deg:       +7.0
+    BO_theta_ht_deg:    +2.0
+    BO_T_mult:           2.17            # = T/W = 0.10 commanded, scaled by 0.046
+    BO_T_W_commanded:   0.10
+
+  takeoff:
+    V_inf_m_s:          18.00
+    altitude_m:           0.0
+    gamma_deg:          +30.0
+    BO_alpha_deg:       +15.0
+    BO_theta_ht_deg:    -5.0
+    BO_T_mult:          15.21
+    BO_T_W_commanded:   0.70
+
+  landing:
+    V_inf_m_s:          12.86
+    altitude_m:           0.0
+    gamma_deg:          -30.0
+    BO_alpha_deg:       +25.0
+    BO_theta_ht_deg:    +5.0
+    BO_T_mult:           8.69
+    BO_T_W_commanded:   0.40
+
+# Phugoid-simulation sizing (consumed by flow360/v3_phugoid_dynamic.py
+# and ultimately by the four-nested-rotation CFD).  All lengths in
+# c_wing units multiplied by reference.wing_chord_m at runtime.
+phugoid_nested_rotation_zones:
+  # Robotic-arm metaphor: cyl 1 = shoulder pivot (stationary), cyl 2
+  # = shoulder-elbow, cyl 3 = elbow-wrist (CG, == ac_pitch_zone),
+  # cyl 4 = wrist-fingertip (htail, == htail_pitch_zone).
+  R_arm_chords:        250.0             # distance between cyl 1↔2 and cyl 2↔3 centers
+  R_gap_chords:          0.10            # mesh-clearance gap between every pair of nested
+                                         # cylinders.  Not aerodynamically required, but the
+                                         # Flow360 mesher needs a thin fluid sleeve between
+                                         # nested rotating volumes to avoid degenerate cells
+                                         # at the shared interface.
+  R_cyl4_chords:         0.85            # cyl 4 radius — just encloses htail with 0.1 c gap
+                                         # to the trailing edge.  Htail c/4 is at the cyl 4
+                                         # geometric center; the TE is 0.75 c chordwise from
+                                         # c/4, so 0.75 + 0.1 = 0.85 c keeps the requested
+                                         # 0.1 c clearance ring around the htail surface.
+  R_cyl3_chords:         2.90            # cyl 3 radius — encloses cyl 4 with 0.1 c gap:
+                                         #   sqrt(1.75² + 0.4²) + R_cyl4 + R_gap
+                                         #   = 1.795 + 1.0 + 0.1 ≈ 2.90 c_w.
+  # Derived (computed in v3_phugoid_dynamic.py):
+  #   R_cyl2 = R_arm + R_cyl3 + R_gap = 253.0 c_w
+  #   R_cyl1 = R_arm + R_cyl2 + R_gap = 503.1 c_w
+  # Workspace of CG: anywhere within 2·R_arm = 500 c_w of cyl 1 center.
