@@ -6,6 +6,15 @@ User-Defined-Dynamics (UDD) that integrate 6-DOF rigid-body motion from the
 CFD-reported aerodynamic loads and feed it back to a 4-cylinder sliding-mesh
 "robot-arm" that pitches and translates the airframe through a fixed freestream.
 
+**Solver version / axis caveat (added 2026-10-30).** All cases ran on
+release-25.9. All four rotation zones (and the two in `cfd_setup.py`) rotate
+about the same axis, `(0, 1, 0)`, so this work was NOT exposed to FXC-11747
+(fixed in 25.12): before 25.12, a nested zone rotating about a different axis
+from its parent gets its per-step geometry metrics (face normals, gradients,
+wall distance) updated with the inner zone's original axis; node positions are
+right, metrics drift. Rule: non-parallel nested axes (roll or yaw inside pitch,
+i.e. any full 6-DOF extension of this rig) → run 25.12 or later.
+
 **Outcome (2026-05-27):** a clean, physically-correct phugoid — period
 **17.4 s** (classic estimate π√2·V/g = 18.6 s), damping ratio **ζ ≈ 0.026**
 (lightly damped, stable). Peaks decay +44.6°→+38.7°→+33.4°→+28.9°. The airframe

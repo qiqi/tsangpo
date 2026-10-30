@@ -5,8 +5,9 @@ flow360/unsteady_setup.py
 Builds the Flow360 SimulationParams for the v3 phugoid unsteady-CFD-coupled
 case.  Adds the robot-arm cylinders (cyl 1 shoulder + cyl 2 elbow) on top of
 the existing cyl 3 (airframe pitch) + cyl 4 (htail) static-CFD topology, and
-authors a single master User-Defined-Dynamics block that integrates the
-6-DOF longitudinal dynamics and drives all four rotation angles.
+authors four lockstep User-Defined-Dynamics blocks (one per cylinder, since
+Flow360 allows one output_target per UDD) that each integrate the same
+longitudinal 3-DOF dynamics and drive their own cylinder's rotation angle.
 
 TOPOLOGY (per the design dialog, "Topology X — 4 rotating cylinders"):
 
@@ -215,9 +216,9 @@ def _build_per_zone_udds(
     initial_x_cg_m: float = None,
     initial_z_cg_m: float = None,
     use_analytic_omegaDot: bool = False,
-    max_pseudo_steps: int = 200,    # forwarded so we can fire the UDD state update
-                                     # at the LAST pseudo step (= converged forces)
-                                     # rather than the first (= un-converged).
+    max_pseudo_steps: int = 200,    # accepted for signature compatibility; the
+                                     # state update is gated at pseudoStep == 0
+                                     # (see POSTMORTEM §4), NOT at the last step.
     diagnostics: bool = False,      # if True: repurpose state[8,9] to cache
                                      # M_about_CG_nd and Q_DOT_nd; expose all state
                                      # slots and these via custom output_vars so the
@@ -302,14 +303,15 @@ def _build_per_zone_udds(
     theta_link1_0, theta_link2_0 = _ik_initial(
         initial_x_cg_m, initial_z_cg_m, L1_M, L2_M)
 
-    # ---- "Last pseudo step" trigger for state integration --------------------
-    # CFD forces and moments are NOT yet converged at the start of each
-    # physical step (pseudo step 0).  Reading forces there gave the UDD
-    # ~10-25% noise, and the small M_about_CG signal got swamped by the
-    # catastrophic-cancellation of (huge M_about_mc) + (huge translation).
-    # Move the integration trigger to the LAST pseudo step so the UDD reads
-    # the converged forces.  pseudoStep is zero-indexed (range 0..max-1).
-    last_pseudo_step = max_pseudo_steps - 1
+    # ---- State-integration gate: pseudoStep == 0 (POSTMORTEM §4) -------------
+    # Flow360 auto-inserts a `<udd>_previousTheta_recorder` that snapshots
+    # theta at pseudoStep 0; rotateGrid() then rotates by theta - previousTheta.
+    # Gating the update at the LAST pseudo step (an earlier version of this
+    # file did) makes the recorder copy the already-advanced theta, so
+    # deltaTheta == 0 and the mesh never rotates (wing CL frozen at trim).
+    # At pseudoStep 0 the force registry still holds the PREVIOUS physical
+    # step's converged values, so integrating there is correct, with one
+    # physical step of lag that the lever arm below honours.
 
     # ---- Actuator-disk reaction thrust ---------------------------------------
     # The UDD's `forceX` input is a surface integral on `input_boundary_patches`
@@ -352,9 +354,6 @@ def _build_per_zone_udds(
         "g_nd":      9.81 / (a_inf * a_inf),
         # Htail held at trim deflection (relative to body).
         "theta_ht_rel": theta_ht_rad,
-        # Pseudo-step index at which to apply state integration.  Set to
-        # max_pseudo_steps - 1 so forces have time to converge.
-        "last_pseudo_step": float(last_pseudo_step),
         # Actuator-disk total reaction thrust magnitude (positive scalar).
         # Direction is BODY-FIXED (body -X = nose direction), so the world-
         # frame components depend on state[4] = θ_body.  See state[2]/[3]/[5]
@@ -379,12 +378,13 @@ def _build_per_zone_udds(
         "theta_link2_0": theta_link2_0,
     }
 
-    # state[6] = theta_link2 (computed first; depends only on x_cg, z_cg).
-    # state[7] = theta_link1 (computed second; references state[6]).
-    # Both are updated at end of update_law from OLD state[0], state[1] (Flow360's
-    # batch-update semantics) — i.e., theta_link1/2 lag the dynamics by one
-    # physical step.  At Δt = 0.01 s and a phugoid period of ~21 s, the lag
-    # is ~0.05% of the period — negligible.
+    # state[6] = theta_link2 (IK from x_cg, z_cg); state[7] = theta_link1
+    # (references state[6]).  update_law is evaluated SEQUENTIALLY in slot
+    # order, in place (POSTMORTEM §5.1): slot k sees the NEW value of state[j]
+    # for j < k and the OLD value for j >= k.  So slots 6,7 read the freshly
+    # updated state[0,1] of THIS step, while slots 0-5 (which reference only
+    # higher slots) see OLD state[6,7] = the pose at which the forces being
+    # integrated were evaluated.  Slot order is load-bearing: do not reorder.
 
     # FWD-IK lever-arm expressions for M_about_CG (temporal-consistency fix):
     # In update_law, references to state[6], state[7] resolve to OLD values

@@ -17,8 +17,40 @@
 > ཡར་འཕུར་དང་ པན་ཤི་ཤི་སུ་ (Whip-Stall) མར་འབབ་ཀྱི་ཡུལ་སྐོར་གཉིས་
 > ཀའི་སྒྲུབ་ཐུབ་པར་འདང་གི་ཡོད།
 
-ཡོངས་ཁྱབ་ཀྱི་གསལ་ཁ་དང་། ཚད་འཇོག་གི་ཐོ་གཞུང་། ཡིག་ཚགས་ཀྱི་གཞི་རྩ་
-བཅས་ལས་གཞིའི་རྩ་བར་ཡོད་པའི་ཁུངས་ལྡན་ཡིག་ཆ་གསུམ་པོའི་ནང་དུ་གནས་ཡོད།
+---
+
+## ལས་གཞིའི་འཕེལ་རིམ།
+
+ལས་གཞི་འདི་རིམ་པ་གསུམ་གྱིས་འཕེལ་ཡོད།
+
+1. **བརྟན་པོའི་ aero ལས་གཞི།** — cruise / takeoff / landing གི་ སའོ་མེའོ་
+   (sweep) རྣམས། SciTech ཡིག་ཚགས་ཀྱི་ཆེད་དུ། *ལེགས་གྲུབ།* འབྲས་བུ་ནི་
+   `post/v2_gapped/TRIM_RESULTS.md` དང་ `paper/` ནང་ཡོད།
+2. **རང་འཕུར་ phugoid།** — UDD (User-Defined Dynamics) ཡིས་ CFD ཡི་
+   ཤུགས་ནས་ longitudinal 3-DOF (x, z, pitch) ཀྱི་འགུལ་སྐྱོད་སྒྲིག་ནས།
+   sliding-mesh སྐྱོར་སྒྱུར་ཁྱམས་ (rotation zone) བཞི་ལ་ཕྱིར་སྤྲོད་བྱེད།
+   *2026-05-27 ལེགས་གྲུབ་ཅིང་ར་སྤྲོད་ཟིན།* phugoid གི་དུས་ཡུན་ T = 17.4 s
+   (ཚོད་དཔག་ 18.6 s), ζ ≈ 0.026.
+3. **མར་འབབ་ཀྱི་ controller།** — དམིགས་ཡུལ། UDD ཞིག་གིས་གནས་སྟངས་ལས་
+   ཚོད་འཛིན་གྱི་ནང་འཇུག་སྤྲོད་ནས་ CFD ནང་དུ་མར་འབབ་འཕུར་སྐྱོད་བྱེད་པ།
+   *མ་འགོ་བཙུགས།*
+
+## ཀློག་པའི་གོ་རིམ།
+
+གནས་མཛོད་འདི་ཐོག་མར་ཀློག་མཁན་ (མི་དང་ agent གཉིས་ཀ) གིས་གོ་རིམ་འདི་
+ལྟར་ཀློག་དགོས།
+
+1. `CLAUDE.md` — ལས་གཞིའི་ཚུལ་ལུགས་དང་ཡིག་ཆ་གང་དུ་ཡོད་པའི་ས་བཀྲ།
+2. `flow360/PHUGOID_UDD_POSTMORTEM.md` — **ཡིག་ཆ་གལ་ཆེ་ཤོས།** UDD
+   ཡིས་འགུལ་སྐྱོད་སྒྲིག་པའི་ལམ་ལུགས། རྩ་བའི་སྐྱོན་གཉིས་ (§4, §5) དང་
+   ལག་ལེན་གྱི་ཐོ་གཞུང་ (§8)།
+3. `flow360/LESSONS.md` — Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས། (case ID
+   དང་བཅས།)
+4. `flow360/unsteady_setup.py` — སྐྱོར་སྒྱུར་ཁྱམས་བཞིའི་ topology དང་
+   UDD བཞིའི་སྦྱོར་སྒྲིག (`mode='warmup'` དང་ `mode='phugoid'` ཁོ་ན་
+   གལ་ཆེ། `pitch_*` modes རྣམས་ནི་སྐྱོན་འཚོལ་གྱི་ཤུལ་ལྷག་ཡིན།)
+5. `cfd_setup.py` དང་ `params.py` — བརྟན་པོའི་ SimulationParams དང་
+   ཚད་འཇོག་གི་མཛོད་ཁང་།
 
 ---
 
@@ -26,36 +58,42 @@
 
 ```
 .
+├── CLAUDE.md               ལས་གཞིའི་ཚུལ་ལུགས་དང་ས་བཀྲ། (ཐོག་མར་ཀློག)
 ├── plan.md                 ལག་རྩལ་གྱི་གནད་གལ་གྱི་ཐོ་གཞུང་།
-├── params.py               ཚད་འཇོག་གི་མཛོད་ཁང་གཙོ་བོ (SI: m, kg, N, s, rad)
+├── params.py               ཚད་འཇོག་གི་མཛོད་ཁང་གཙོ་བོ (SI: m, kg, N, s, rad; ISA; non-dim → SI)
+├── cfd_setup.py            བརྟན་པོའི་ SimulationParams སྦྱོར་བྱེད། (actuator disk, སྐྱོར་སྒྱུར་ཁྱམས་ 2)
 ├── scitech_outline.md      ཡིག་ཚགས་ཀྱི་གཞི་རྩ།
 ├── wu-wei.mdc              གནས་ལུགས། ཡང་དག་པར་བྱེད་པའི་ཆ་ཉུང་ཤོས་ལ་སྦྱོར་བ།
-├── CLAUDE.md               ལས་གཞིའི་ཚུལ་ལུགས་སྡོམ་བསྒྲིགས།
 ├── geometry/
-│   ├── airfoils/
-│   │   ├── estol_config.yaml       3-ཡན་ལག་མཁའ་འདབ་སྦྱོར་སྒྲིག་གི་ཁུངས་ལྡན།
-│   │   ├── build_estol_geometry.py UDC ཡང་ཐའོ་ (spline) + Selig .dat སྦྱོར་བྱེད།
-│   │   └── *.udc / *.dat            main_wing / vane / aft_flap / tail
-│   ├── tsangpo.csm                  ESP ཚད་འཛིན་གྱི་དཔེ་མཚོན། phase 0/1/2 → ཡུ་འདུག/ཡར་འཕུར/མར་འབབ།
-│   ├── render.py                    STL → 2 × 3 PNG (སྐབས་གསུམ་གྱི་སྟེང་ངོས་ + ངོས་སྒོ)
-│   ├── README.md                    ESP ཚད་འཇོག་གི་ཐོ་གཞུང་དང་འགུལ་སློང་གི་ཟུར་མིང་།
-│   └── out/{stowed,takeoff,landing}/ སྐབས་རེ་རེའི་ STL + ཡན་ལག་རེ་རེའི་ STEP (རང་འགུལ)
+│   ├── airfoils/            3-ཡན་ལག་མཁའ་འདབ། estol_config.yaml + build_estol_geometry.py
+│   ├── tsangpo.csm          v2 རྒྱུན་མཐུད་ཅིན་ཡི། phase 0/1/2 → ཡུ་འདུག/ཡར་འཕུར/མར་འབབ།
+│   ├── tsangpo_gapped.csm   v2 བར་སྟོང་ཅིན་ཡི།
+│   ├── tsangpo_*_high_htail.csm   H-མཇུག་མཐོན་པོའི་ཁྱད་པར།
+│   ├── tsangpo_v3.csm       v3 boom ཐུང་བ། (phugoid ལ་སྤྱད་པ)
+│   ├── render*.py           STL → PNG
+│   └── README.md            ESP ཚད་འཇོག་གི་ཐོ་གཞུང་།
 ├── flow360/
-│   ├── submit_cruise.py             cruise གི་ parent གནད་དོན་གཙོ་བོ།
-│   ├── submit_alpha_sweep.py        α ཀྱི་ སའོ་མེའོ་ (sweep)
-│   ├── submit_htail_sweep.py        θ_htail ཀྱི་སའོ་མེའོ།
-│   ├── submit_thrust_sweep.py       ཤེད་ (thrust) ཀྱི་སའོ་མེའོ།
-│   ├── submit_gai_trim_campaign.py  GAI དྲ་མིག་གིས་ ཕེ་ཕིང་ (trim) ལ་གཞན།
-│   ├── submit_takeoff_coarse_campaign.py phase 1 ཡར་འཕུར་ལས་གཞི།
-│   ├── submit_rotation_test.py      སྐྱོར་སྒྱུར་ཁྱམས་ཀྱི་ཚོད་ལྟ།
-│   ├── generate_surface_mesh_gai.py GAI ངོས་གཟུགས་དྲ་མིག་གི་ཚོད་ལྟ།
-│   └── LESSONS.md                   Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས།
-└── post/
-    ├── plot_sweep_sensitivities.py  སའོ་མེའོ་ནས་ མིན་ཀན་ (sensitivity) གི་ཐིག་གཞི།
-    ├── SENSITIVITIES.md             ཐིག་གཞིའི་ཕབ་གཞུང་།
-    ├── TAKEOFF_PLAN.md              ཡར་འཕུར་ལས་གཞིའི་ཕྱོགས་ལས།
-    └── extract_stability.py         C_m(α) + ཙོང་ཤིང་ཏན་ (neutral point) གི་གཡོ་འགུལ།
+│   ├── PHUGOID_UDD_POSTMORTEM.md   UDD འགུལ་སྐྱོད་ཀྱི་ལམ་སྟོན། (ཡིག་ཆ་གལ་ཆེ་ཤོས)
+│   ├── LESSONS.md                  Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས།
+│   ├── AGENT_USABILITY_REPORT_v2.md  SDK ལ་ agent གིས་འཕྲད་པའི་དཀའ་ངལ།
+│   ├── unsteady_setup.py           སྐྱོར་སྒྱུར་ཁྱམས་ 4 + UDD 4 (phugoid གི་རྨང་གཞི)
+│   ├── submit_unsteady_warmup.py   phugoid གི་ warmup (དྲ་མིག་སྦྱོར་བ)
+│   ├── submit_gap110_nokick_diag.py       phugoid chunk 1 (warmup ནས་ fork)
+│   ├── submit_gap110_chunkN_nokick_diag.py phugoid chunk N (chunk N-1 ནས་ fork)
+│   ├── submit_cruise.py / submit_v3.py    བརྟན་པོའི་ parent གནད་དོན།
+│   ├── submit_*_sweep*.py / submit_*_campaign.py   བརྟན་པོའི་ སའོ་མེའོ།
+│   └── submit_fine_ad_parents.py   actuator-disk དྲ་མིག་ཞིབ་མོའི་ཚོད་ལྟ།
+├── post/
+│   ├── _phase_plot.py, cg_shift_trim.py
+│   ├── v2_gapped/           v2 བར་སྟོང་ཅིན་ཡིའི་ཐིག་གཞི་དང་ TRIM_RESULTS.md
+│   └── FLOW360_GAI_BUG_REPORT.md
+└── paper/                   SciTech extended abstract + figures (paper/build.sh)
 ```
+
+**མ་ཚང་བ།** `post/v3/` (phugoid གི་ཐིག་གཞི་དང་ `unsteady_project_ids.json`),
+`flow360/UDD_DYNAMICS_GUIDE.md`, `slidingInterfaceToUDD.py` བཅས་ 2026-06
+ཀྱི་ལས་ཀ་རྣམས་ད་དུང་ 014-v100-dev ཁོ་ནར་ཡོད་ལ། GitHub ལ་མ་ཕུལ།
+དེའི་རྐྱེན་གྱིས་ `submit_gap110_*` གཉིས་ clone གསར་པའི་ཐོག་ནས་འཁོར་མི་ཐུབ།
 
 ---
 
@@ -69,12 +107,12 @@ python params.py
 python geometry/airfoils/build_estol_geometry.py
 ```
 
-ESP ཁུངས་སུ་བཀོད་ཟིན་ལ་ Flow360 SDK བཙུགས་ཟིན་པའི་སྐབས།
+ESP ཁུངས་སུ་བཀོད་ཟིན་ལ་ Flow360 SDK (v25.9.x ཡན) བཙུགས་ཟིན་པའི་སྐབས།
 
 ```bash
 source ~/esp/ESP129/EngSketchPad/ESPenv.sh
 
-# phase 0/1/2 རེ་རེའི་གཟུགས་སྦྱོར་བ
+# phase 0/1/2 རེ་རེའི་གཟུགས་སྦྱོར་བ (ས་གནས་སུ་ལྟ་བའི་ཆེད། Flow360 ལ་ .csm ཐད་ཀར་ཕུལ)
 for p in 0 1 2; do
     name=$(printf "stowed\ntakeoff\nlanding\n" | sed -n "$((p+1))p")
     mkdir -p geometry/out/$name
@@ -84,80 +122,66 @@ for p in 0 1 2; do
      serveCSM ../../tsangpo.csm -batch -despmtrs phase.despmtrs -outLevel 0)
 done
 
-# 2 × 3 ས་གཞིའི་ PNG
-env -u PYTHONPATH python3 geometry/render.py
-
-# parent cruise གནད་དོན་ Flow360 ལ་ཕུལ་བ
-python flow360/submit_cruise.py
-
-# སའོ་མེའོ་གསུམ་ (fork-based)
+# ---- བརྟན་པོའི་ལས་གཞི ----
+python flow360/submit_cruise.py                 # parent cruise གནད་དོན
 TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_alpha_sweep.py
 TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_htail_sweep.py
 TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_thrust_sweep.py
 
-# མིན་ཀན་གྱི་སྒྲིག་སྦྱོར་དང་ཐིག་གཞི་སྦྱོར་བ
-python post/plot_sweep_sensitivities.py
+# ---- phugoid (unsteady, UDD) ----
+python flow360/submit_unsteady_warmup.py        # ཁྱམས་བཞི་ trim ལ་བརྟན་པོར་བཞག་ནས་དྲ་མིག་ + བརྟན་པོའི་འཁོར་སྐྱོད
+python flow360/submit_gap110_nokick_diag.py     # chunk 1: warmup ནས་ fork, UDD སློང་བ (200 × 0.05 s)
+python flow360/submit_gap110_chunkN_nokick_diag.py <parent_case_id> <N>   # chunk N
 ```
 
----
-
-## ལས་གཞིའི་ད་ལྟའི་གནས་སྟངས།
-
-- **Phase 3a — cruise calibration** — *ལེགས་གྲུབ།* α, θ_htail, ཤེད་
-  ཀྱི་སའོ་མེའོ་ 30 (parent + fork 10×3) ཁྲོམ་འདུས་ལ་སྦྲུབ་ཟིན། ཕབ་
-  གཞུང་ནི་ `post/SENSITIVITIES.md`-ནང་ཡོད། ངོས་ཟིན་པའི་ངོ་སྦྱོར་གཙོ་བོ་
-  རྣམས་ — α=+7°-ལ་ $C_L$=0.868, L/W=1.02, $dC_L/d\alpha$=+5.08/rad,
-  $dC_{m_y}/d\alpha$=−0.0318/° (གཏན་ཚད་ 35.8 % MAC),
-  $dC_{m_y}/d\theta_{ht}$=−0.0480/°.
-- **Phase 3b — GAI ཕེ་ཕིང** — *གྲ་སྒྲིག།* ཕེ་ཕིང་ (trim) གི་གནས་སྟངས་
-  གཙོ་བོ་ (α=+6.78°, θ_ht=−0.54°, T_mult=+2.13) ལ་ `submit_gai_trim_campaign.py`
-  གིས་ GAI དྲ་མིག་གསར་པོ་ལ་འཕུར་འགྲོ།
-- **Phase 3c — ཡར་འཕུར་ལས་གཞི** — *ཕྱོགས་ལས་ཟིན།* phase 1 ཀྱི་གཟུགས་
-  ཐོག་ལ་སའོ་མེའོ་གསུམ་ངེས་པར་གཏོང་འཆར། ཕབ་གཞུང་ནི་
-  `post/TAKEOFF_PLAN.md`-ནང་ཡོད།
-- **Phase 3d — ཞིབ་འཇུག་དང་པོ་ — 2x2 རྩིས་སྒྲིག** — *མ་གཏོང་།*
-  `params.study1_matrix()`-གི་གནད་དོན་བཞི། འདིར་འདྲིལ་འཕུར་སའོ་མེའོ་
-  མིན་པར། geometry 4 ལན་སྦྱོར་དགོས་ལ། SI-units submit_* driver
-  ཞིག་གསར་སྦྱོར་དགོས།
+phugoid གི་ chunk རེ་རེ་ནི་སྔ་མའི་ chunk ནས་ fork བྱེད་པ་ཡིན། Flow360 ཡིས་
+fork སྐབས་ UDD ཡི་ state ཉར་ཚགས་བྱེད་པས་འགུལ་སྐྱོད་རྒྱུན་མཐུད་ཡིན།
 
 ---
 
-## ཞིབ་འཇུག་དང་པོ་ — 2x2 རྩིས་སྒྲིག །
+## Solver གི་པར་གཞི་དང་སྐྱོར་སྒྱུར་ཚིག་གཅིག་གི་ཐད།
 
-བརྟན་པོའི་གནས་སྟངས་སུ་ RANS, $\alpha = 10^\circ$, $T/W = 0.5$, དྭངས་
-ཚད་ཀྱི་མཐོ་ཚད་ 3,658 m (≈ 12,000 ft)། རྩིས་སྒྲིག་འདིས་བཀོད་པའི་ཕྱིན་
-ཆོད་གཉིས་ (ནང་ཕྱོགས་ ཅིན་ཡི་ གི་བར་སྟོང་དང་ H-མཇུག་གི་ས་མཐོ) བར་གྱི་
-**དྲང་མིན་ཟུང་འབྲེལ་** (non-linear coupling) གསལ་པོར་སྟོན་གི་ཡོད།
+- གནད་དོན་ཚང་མ་ Flow360 **release-25.9** (SDK v25.9.x, beta mesher) ཐོག་
+  འཁོར་བ་ཡིན།
+- སྐྱོར་སྒྱུར་ཁྱམས་བཞི་པོ་ (shoulder, elbow, airframe, htail) ཚང་མའི་
+  ཚིག་ (axis) ནི་ `(0, 1, 0)` ཡིན་ཏེ་ **མཉམ་འགྲོ་** (parallel) ཡིན།
+  `cfd_setup.py` ནང་གི་ཁྱམས་གཉིས་ཀྱང་དེ་བཞིན།
+- **FXC-11747** (25.12 ལ་བཅོས་ཟིན): 25.12 སྔོན་གྱི་པར་གཞིར། ནང་གི་ཁྱམས་
+  ཤིག་ཕ་མའི་ཁྱམས་དང་ཚིག་མི་མཉམ་པར་སྐྱོར་སྒྱུར་བྱེད་ཚེ། གོམ་པ་རེ་རེའི་
+  གཟུགས་ཀྱི་གསར་བཅོས་ (ངོས་ཀྱི་ normal, gradient, wall distance) ཀྱིས་
+  ནང་གི་ཁྱམས་ཀྱི་ཚིག་རྙིང་པ་སྤྱོད། node ཀྱི་གནས་ས་འགྲིག་ཀྱང་ metric
+  དལ་བུར་འཁྱོག ལས་གཞི་འདི་ཚིག་མཉམ་འགྲོ་ཡིན་པས་སྐྱོན་དེ་ལ་མ་འཕྲད།
+- **roll ཡང་ན་ yaw ཞིག་ pitch ནང་དུ་འཛུད་ན་ (6-DOF ཆ་ཚང་) 25.12 ཡན་
+  ངེས་པར་སྤྱོད་དགོས།**
 
-|                              | ཅིན་ཡི་རྒྱུན་མཐུད (gap = 0.00)    | ནང་ཕྱོགས་བར་སྟོང (gap = 0.35)         |
-|------------------------------|-------------------------------------|----------------------------------------|
-| **T-མཇུག་མཐོན་པོ**           | C1 **བཟོ་ལས་ཀྱི་གཞི་མ།**           | C3 **མི་ཕན་པའི་བསྒྱུར་སྒྲིག །**       |
-| ($Z_{tail} = +2.5\,c$)       | བརྟན་ལྷིང་། ལྗིད་ཆེ།               | བརྟན་ལྷིང་། ལྗིད་ཆེ། ཤེང་ལི་ཆག །     |
-| **H-མཇུག་དམའ་པོ**            | C2 **མར་རླབས་ཀྱི་ཕམ་ཁ།**          | C4 **སྒྲིགས་སྦྱོར་གྱི་འཆར་གཞི།**     |
-| ($Z_{tail} = 0\,c$)          | མི་བརྟན (མཇུག་དམའ་མར་རླབས་ནང)     | བརྟན་ལྷིང་། ལྗིད་ཡང་། སྟོབས་ཆེ།     |
+---
 
-ཡིག་ཚགས་ཀྱི་ངོ་སྦྱོར་གཙོ་བོའི་ཚོད་ལྟ་ནི་ C2 དང་ C4 བསྡུར་བ་ཡིན།
-ནང་ཕྱོགས་ ཅིན་ཡི་ ཞིག་གི་ཚབ་ཏུ་བར་སྟོང་ཞིག་བཞག་པས། མཇུག་དམའ་པོ་དེ་
-*མི་བརྟན་པའི་གནས་ནས་* ལྗིད་ཆེ་བའི་ T-མཇུག་གཞི་མ་ལས་ཀྱང་ *བརྟན་ལྷིང་
-ཆེ་བར་* འགྱུར་བ་ཡིན། ནུས་པ་གཉིས་ (Z དང་ gap, སོ་སོར་ཚད་འཇལ་བ)
-ཕྱོགས་མཚུངས་ཀྱི་སྟེང་འདྲིལ་ནས་འདི་འགྲེལ་མི་ཐུབ་ལ། དྲང་མིན་གྱི་གནས་
-སྟངས་འདི་ནི་ཟུང་འབྲེལ་ལས་འབྱུང་བའི་གྲུབ་འབྲས་ཡིན།
+## ལས་གཞིའི་ད་ལྟའི་གནས་སྟངས། (2026-10-30)
+
+| རིམ་པ | འབྲས་བུ | གནས་སྟངས |
+|------|---------|----------|
+| v2 cruise / takeoff / landing སའོ་མེའོ (རྒྱུན་མཐུད་ + བར་སྟོང་, H-མཇུག་དམའ་ + མཐོ) | `post/v2_gapped/TRIM_RESULTS.md`, `paper/figures/` | ལེགས་གྲུབ |
+| v3 boom ཐུང་བའི་ trim | `flow360/submit_v3.py`, `paper/figures/v3_combined_sens.png` | ལེགས་གྲུབ |
+| actuator-disk ཤེད་ཀྱི་མི་མཐུན་པ | `paper/figures/FLOW360_AD_DELIVERY_RESOLVED.md` | ཐག་བཅད (ཚད་འཇལ་གྱི་ཚད་གཞིའི་ནོར་འཁྲུལ, solver གི་སྐྱོན་མིན) |
+| phugoid རང་འཕུར (v3 cruise, 60 s) | `PHUGOID_UDD_POSTMORTEM.md` | ལེགས་གྲུབ, T = 17.4 s, ζ ≈ 0.026 |
+| 2026-06 ཀྱི་ animation + UDD guide | 014-v100-dev:~/himalaya | GitHub ལ་མ་ཕུལ |
+| མར་འབབ་ཀྱི་ controller | — | མ་འགོ་བཙུགས |
 
 ---
 
 ## གོམས་སྲོལ།
 
-- ཚད་གཞི། SI: m / kg / N / s / rad.
-- ཐིག་ཁུངས་ནི་ ཡུ་འདུག་གི་ 3-ཡན་ལག་ ཤན་ (chord) གི་འདབ་མའི་རྩ་བའི་
-  c/4 ཡིན། +X རྒྱབ། +Y གཡས། +Z སྟེང་།
+- ཚད་གཞི། SI: m / kg / N / s / rad. UDD ནང་དུ་ནི་ solver གི་ non-dim
+  ཁོ་ན (`params.nd_force_to_si` སོགས་ལ་གཟིགས)།
+- ཐིག་ཁུངས་ནི་ **CG** ཡིན (v2 ནས)། +X རྒྱབ། +Y གཡས། +Z སྟེང་། སྐྱོར་སྒྱུར་
+  +θ = མགོ་ཡར (nose up)།
 - གྲངས་ཐོ་རྣམས་ `params.py` ནང་དུ་ཡོད། གཞན་ས་གང་དུ་ཡང་ཚད་འཇོག་འཁོད་
-  ཡོད་ན་སྐྱོན་ཆ་ཡིན།
+  ཡོད་ན་སྐྱོན་ཆ་ཡིན། ρ, a ཡང་ `params.isa_atmosphere` ནས་ལེན་དགོས་ལ།
+  ནམ་ཡང་མཐོ་ཚད་ངེས་ཅན་ཞིག་གི་གྲངས་ཀ་ཐད་ཀར་མ་འབྲི།
+- Flow360 ལ་ `use_beta_mesher=True` ངེས་པར་སྦྱོར། གནད་དོན་རེ་རེར་ y=0
+  `SliceOutput` ངེས་པར་འཇོག (`CLAUDE.md`)།
 
 ### 3-ཡན་ལག་མཁའ་འདབ་ཀྱི་མཛོད།
-
-ད་ལྟའི་མཁའ་འདབ་ཀྱི་འགྲིགས་སྦྱོར་ནི་ 3-ཡན་ལག་ ཀའོ་ཤེང་ལི་ (high-lift)
-མཁའ་འདབ་གསར་པོ་ཞིག་ཡིན། (སྔོན་གྱི་ McDonnell-Douglas 30P30N ལ་ཚབ་
-བརྗེས་ཟིན།)
 
 | ཡན་ལག        | མཁའ་འདབ                                | སྦྱོར་ལམ                                  |
 |--------------|------------------------------------------|---------------------------------------------|
@@ -166,14 +190,14 @@ python post/plot_sweep_sensitivities.py
 | `aft_flap`   | NACA 6311                                | vane དང་མཉམ་དུ་གཞན་སྦྱོར།                  |
 | `htail`      | LS(1)-0417 ལྡོག་པ                        | $\alpha = 0$ ལ་མར་ཤེད་ (downforce) སྟེར།   |
 
-vane དང་ aft_flap གཉིས་ནི་ ཕུ་ལེ་ཀྱི་ཡན་ལག་གཅིག་ལྟར་སྐྱོར་སྒྱུར་དང་
+vane དང་ aft_flap གཉིས་ནི་ ཕུ་ལེའི་ཡན་ལག་གཅིག་ལྟར་སྐྱོར་སྒྱུར་དང་
 ས་སྤོ་བྱེད་པ་ཡིན། ཕུ་ལེའི་ phase ནི་ `phase` despmtr-ཀྱིས་ངེས་པ་
 (0=ཡུ་འདུག, 1=ཡར་འཕུར, 2=མར་འབབ); ངེས་ཚད་རྣམས་
 `estol_config.yaml`-ནང་གནས་ཡོད།
 
 ### ESP / OpenCSM གི་གྱོང་གུད (ཉམས་མྱོང་ངན་པ་ལས་ཤེས་པ)
 
-འདི་རྣམས་ `geometry/tsangpo.csm` ལ་ཀློག་པའམ་ཞུ་བཅོས་བྱེད་སྐབས་སུ་
+འདི་རྣམས་ `geometry/tsangpo*.csm` ལ་ཀློག་པའམ་ཞུ་བཅོས་བྱེད་སྐབས་སུ་
 སོ་རྒྱག་པ་ཡིན།
 
 - **`capsGroup` ངེས་པར་སྦྱོར།** ཡན་ལག་རེ་རེའི་ `extrude` རྗེས་སུ་
@@ -188,14 +212,54 @@ vane དང་ aft_flap གཉིས་ནི་ ཕུ་ལེ་ཀྱི་�
 - **ཕུ་ལེ་སྦྱོར་གྱི་གོ་རིམ།** vane + aft_flap ལ་སྐྱོར་སྒྱུར་
   (`rotatez`) དང་ས་སྤོ་ (`translate`) ནི་ ཤན་ཚད་མཐུན་ (normalized)
   ངོས་སུ་ངེས་པར་སྦྱོར་དགོས་ལ། `scale wing_chord` སྔོན་ལ་སྦྱོར།
-  ཤན་ཚད་སྒྱུར་རྗེས་ལ་སྦྱོར་ཚེ་ ས་སྤོའི་ཚད་ལོག་ཟློས་འགྱུར།
-- **beta mesher ངེས་པར་སྤྱོད།** Flow360 ལ་ `use_beta_mesher=True`
-  ངེས་པར་སྦྱོར་དགོས། legacy mesher ཡིས་
-  `curvature_resolution_angle` ལ་ལན་མི་གཏོང་ལ། LS(1)-0417 / NACA
-  ཡང་ཐའོ་ངོས་ལ་ ཆན་ཡུན་ (leading edge) གི་ངོས་གཟུགས་སུ་ཁྱད་པར་
-  ཆེན་པོ་འབྱུང་། (`CLAUDE.md` ནང་འཁོད།)
-- **ཡིག་ཆ་གཅིག་ཁོ་ནའི་ inlined CSM ཕུལ་དགོས།** Flow360 ལ་ STEP
-  ཡིག་ཆ་མང་པོ་ཕུལ་ཚེ་ `body00001` ཁོ་ན་ལ་དྲ་མིག་སྦྱོར་གི།
-  ངེས་པའི་སྦྱོར་ལམ་ནི། UDC རྣམས་ `tsangpo.csm` ནང་དུ་ inline སྦྱོར་
-  ནས་ `.csm` ཡིག་ཆ་གཅིག་པོ་ཕུལ་བ་ཡིན (`submit_cruise.py`-ནང་
-  `inline_udcs()` གི་སྒྲིག་སྦྱོར།)
+- **`set` ནང་དུ་མིང་ཡོད་པའི་འགྱུར་གྲངས་གཉིས་ `+`/`-` གིས་མ་སྦྲེལ།**
+  OpenCSM གིས་ཁ་རོག་ངང་གྲངས་ནོར་བ་སྟེར། (`LESSONS.md` ལ་གཟིགས།)
+- **beta mesher ངེས་པར་སྤྱོད།** legacy mesher ཡིས་
+  `curvature_resolution_angle` ལ་ལན་མི་གཏོང་ལ། ཆན་ཡུན་ (leading edge)
+  གི་ངོས་གཟུགས་ངན།
+- **ཡིག་ཆ་གཅིག་ཁོ་ནའི་ inlined CSM ཕུལ་དགོས།** STEP མང་པོ་ཕུལ་ཚེ་
+  `body00001` ཁོ་ན་ལ་དྲ་མིག་སྦྱོར་གི། `cfd_setup.inline_udcs()` སྤྱོད།
+
+---
+
+## English postscript — for readers adapting this to another problem
+
+Everything above is in Tibetan by the author's choice; this section is the
+minimum an outside reader (human or agent) needs.
+
+**What this repo demonstrates.** Closed-loop rigid-body motion inside
+Flow360: four nested sliding-mesh rotation zones driven by four lockstep
+`UserDefinedDynamic` blocks that integrate longitudinal 3-DOF (x, z, pitch)
+from the CFD wall forces. Translation is obtained from rotations via a
+two-link "robot arm" (shoulder + elbow cylinders, inverse kinematics in the
+UDD). Result: a validated free-flight phugoid, T = 17.4 s, ζ ≈ 0.026.
+
+**Read in this order.** `CLAUDE.md` → `flow360/PHUGOID_UDD_POSTMORTEM.md`
+(§4, §5, §8 are the hard-won rules) → `flow360/LESSONS.md` →
+`flow360/unsteady_setup.py` (`mode='warmup'` and `mode='phugoid'` only; the
+`pitch_*` modes are debugging leftovers) → `cfd_setup.py`, `params.py`.
+
+**Reusable.** The rotation-chain topology and interface-gap sizing rule
+(`unsteady_setup.py` §1); the per-zone lockstep-UDD pattern
+(`_build_per_zone_udds`); the non-dim conversions; every rule in the
+postmortem (gate at `pseudoStep == 0`, sequential `update_law` evaluation,
+lag-correct lever arm, publish `omega` with `theta`, world-frame forces at
+`moment_center`, one `output_target` per UDD, ≤10 state slots, no `atan2`);
+body forces (actuator disks, engines) are NOT in the wall integral and must
+be added by hand.
+
+**Tsangpo-specific, replace wholesale.** `params.py`, the ESP/OpenCSM
+airfoil pipeline under `geometry/`, the Flow360 folder IDs in
+`cfd_setup.py`, every `submit_*.py` except the three phugoid ones.
+
+**Solver version.** All runs used release-25.9 with all rotation axes
+parallel (`(0, 1, 0)`). FXC-11747 (fixed in 25.12) corrupts per-step
+geometry metrics when a nested zone rotates about a different axis from its
+parent. Any 6-DOF extension (roll or yaw nested inside pitch) must run on
+25.12 or later.
+
+**Known gaps in this GitHub snapshot.** `post/v3/` (including
+`unsteady_project_ids.json`, read by both `submit_gap110_*` scripts),
+`flow360/UDD_DYNAMICS_GUIDE.md` and `slidingInterfaceToUDD.py` exist only on
+the author's workstation and have not been pushed. The fork scripts
+therefore do not run from a fresh clone until the IDs file is supplied.

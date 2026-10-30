@@ -4,7 +4,20 @@ Running log of Flow360 quirks paid for in case-credit on this project.
 Each lesson cites the caseId(s) that proved or disproved it.
 Trim entries when Flow360 ships a fix; do not leave "no longer needed" comments.
 
-Last reviewed: 2026-05-13 — SDK v25.9.x.
+Last reviewed: 2026-10-30 — all cases ran on SDK v25.9.x / release-25.9.
+
+## Solver version & rotation-axis caveat
+
+- Every rotation zone in this repo has `axis=(0, 1, 0)` — all nested axes
+  are parallel. The actuator-disk cylinders (`axis=(-1, 0, 0)`) are enclosed
+  entities, not `Rotation` targets, so they do not count.
+- **FXC-11747 (fixed in 25.12):** before 25.12, a nested zone rotating about
+  a different axis from its parent has its per-step metrics (face normals,
+  gradients, wall distance) computed with the inner zone's ORIGINAL axis.
+  Node positions stay right; metrics drift over the run. Parallel axes are
+  unaffected, so nothing here was hit.
+- **Rule:** roll or yaw nested inside pitch (any 6-DOF extension) → Flow360
+  25.12 or later. Pin the version in the submit script.
 
 ## Gotchas (silently wrong)
 
