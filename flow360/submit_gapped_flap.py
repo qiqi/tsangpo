@@ -125,7 +125,8 @@ def submit_one(phase_key: str) -> tuple[str, str]:
         )
         print(f"  → project {project.id}")
         folder_id = C.move_project_to_folder(project, "3_v2_gapped_low_htail")
-        print(f"  Moved into folder 3_v2_gapped_low_htail ({folder_id[:24]}…)")
+        if folder_id:
+            print(f"  Moved into folder 3_v2_gapped_low_htail ({folder_id[:24]}…)")
 
     surfaces = C.get_gapped_geometry_surfaces(project)
     print(f"  Surfaces: main_wing={surfaces.wing_main_surfs[0].name}, "

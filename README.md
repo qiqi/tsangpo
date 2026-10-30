@@ -262,8 +262,9 @@ body forces (actuator disks, engines) are NOT in the wall integral and must
 be added by hand.
 
 **Tsangpo-specific, replace wholesale.** `params.py`, the ESP/OpenCSM
-airfoil pipeline under `geometry/`, the Flow360 folder IDs in
-`cfd_setup.py`, every `submit_*.py` except the three phugoid ones.
+airfoil pipeline under `geometry/`, the Flow360 folder names in
+`cfd_setup.py` (the IDs themselves come from an optional, gitignored
+`flow360_folders.json`), every `submit_*.py` except the three phugoid ones.
 
 **Solver version.** All runs used release-25.9 with all rotation axes
 parallel (`(0, 1, 0)`). FXC-11747 (fixed in 25.12) corrupts per-step

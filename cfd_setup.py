@@ -135,21 +135,48 @@ def get_gapped_geometry_surfaces(project):
 #   3  v2 gapped     low-htail   (htail in wing chord plane)
 #   4  v2 gapped     high-htail
 #   5  v2 continuous low-htail
-TSANGPO_FOLDER_IDS = {
-    "Tsangpo":                     "folder-4ba7bf56-581f-4b41-b8ee-af8d80c27d11",
-    "1_v1_historical":             "folder-8375dac1-f190-48af-82f2-1cfa0dd054f2",
-    "2_v2_continuous_high_htail":  "folder-503c0720-2d4b-4a26-859d-9aa949264944",
-    "3_v2_gapped_low_htail":       "folder-df67b6aa-c96a-4512-be09-ef8618b26dc3",
-    "4_v2_gapped_high_htail":      "folder-b5b13549-2e59-4bf1-9114-edb38ebe5e29",
-    "5_v2_continuous_low_htail":   "folder-2c582dd7-918a-430f-a0f8-e28e036451ad",
-    "6_v3_short_boom":             "folder-f764b689-2ea5-49dd-88c7-0811ca0b6d38",
-}
+#   6  v3 short boom (phugoid work)
+#
+# The folder IDs are account-specific and are NOT in the repo.  Put a JSON
+# mapping {folder_name: "folder-..."} at the path named by the environment
+# variable TSANGPO_FOLDER_IDS_JSON, or at <repo>/flow360_folders.json
+# (gitignored).  With neither present, move_project_to_folder is a no-op,
+# so every submit script still runs; projects just land in the account root.
+FOLDER_NAMES = (
+    "Tsangpo",
+    "1_v1_historical",
+    "2_v2_continuous_high_htail",
+    "3_v2_gapped_low_htail",
+    "4_v2_gapped_high_htail",
+    "5_v2_continuous_low_htail",
+    "6_v3_short_boom",
+)
+
+
+def _load_folder_ids() -> dict:
+    import json
+    import os
+    path = os.environ.get("TSANGPO_FOLDER_IDS_JSON",
+                          str(REPO / "flow360_folders.json"))
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
 
 
 def move_project_to_folder(project, folder_name: str):
-    """Move a Flow360 Project into the named Tsangpo subfolder."""
+    """Move a Flow360 Project into the named Tsangpo subfolder.
+
+    Returns the folder ID, or None (after printing a note) when no mapping
+    for `folder_name` is configured; see FOLDER_NAMES above.
+    """
+    folder_id = _load_folder_ids().get(folder_name)
+    if folder_id is None:
+        print(f"  (no Flow360 folder ID configured for {folder_name!r}; "
+              f"leaving project in the account root)")
+        return None
     from flow360.cloud.http_util import http
-    folder_id = TSANGPO_FOLDER_IDS[folder_name]
     http.patch(f"v2/projects/{project.id}",
                json={"parentFolderId": folder_id})
     return folder_id

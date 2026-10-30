@@ -92,7 +92,8 @@ def upload_and_mesh(cfg_key: str, phase_key: str):
     )
     print(f"  → project {project.id}")
     folder_id = C.move_project_to_folder(project, cfg["folder"])
-    print(f"  moved into {cfg['folder']} ({folder_id[:24]}…)")
+    if folder_id:
+        print(f"  moved into {cfg['folder']} ({folder_id[:24]}…)")
 
     surfaces = cfg["get_surfs"](project)
     params = C.build_params(
