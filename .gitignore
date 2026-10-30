@@ -49,3 +49,9 @@ post/v3/phugoid_runs/**/slice_frames/
 post/v3/phugoid_slice_probe/
 post/v3/pitch_step_v2_slices/
 post/v3/mesh_slice_y0*/
+
+# Rendered animation frames (regenerable from the render_* scripts; the
+# mp4s are tracked).  June 2026 committed 1.25 GB of these on the author's
+# workstation; they were stripped before the history was pushed.
+post/v3/phugoid_runs/**/lic_frames*/
+post/v3/phugoid_runs/**/slices_pitch_only/

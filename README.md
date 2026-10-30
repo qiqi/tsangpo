@@ -33,7 +33,12 @@
    (ཚོད་དཔག་ 18.6 s), ζ ≈ 0.026.
 3. **མར་འབབ་ཀྱི་ controller།** — དམིགས་ཡུལ། UDD ཞིག་གིས་གནས་སྟངས་ལས་
    ཚོད་འཛིན་གྱི་ནང་འཇུག་སྤྲོད་ནས་ CFD ནང་དུ་མར་འབབ་འཕུར་སྐྱོད་བྱེད་པ།
-   *མ་འགོ་བཙུགས།*
+   *སྔོན་འགྲོ་ལེགས་གྲུབ། controller མ་འགོ་བཙུགས།* 2026-05-29 ལ་མར་འབབ་ཀྱི་
+   trim གྱི་ open-loop འགུལ་སྐྱོད་བརྟག་དཔྱད་བྱས་ཟིན། trim དེ་བརྟན་པོ་མིན་
+   (∂CMy/∂θ > 0, θ ∈ [−5°, +30°])། kick མེད་པར་ 9 s ནང་ θ = +98° བར་
+   མགོ་ཡར་འཁོར། θ_ht retrim (−3.67° ནས་ +3°) གིས་སྐྱོན་སེལ་མི་ཐུབ།
+   ཞིབ་ཕྲ་ `post/v3/phugoid_runs/landing/OPEN_LOOP_LANDING.md` དང་
+   θ_eq(θ_ht, V_inf) གི་དྲ་མིག་ `pitch_eq_grid.csv` ལ་གཟིགས།
 
 ## ཀློག་པའི་གོ་རིམ།
 
@@ -48,8 +53,8 @@
    དང་བཅས།)
 4. `flow360/unsteady_setup.py` — སྐྱོར་སྒྱུར་ཁྱམས་བཞིའི་ topology དང་
    UDD བཞིའི་སྦྱོར་སྒྲིག (`mode='warmup'` དང་ `mode='phugoid'` གཉིས་
-   ཁོ་ན་ལྷག་ཡོད། སྔོན་གྱི་ `pitch_*` modes རྣམས་ commit d1dacc8 ནས་
-   ཕྱིར་ལེན་ཐུབ།)
+   དང་ 1-DOF `pitch_step_cyl3_integrated` ལྷག་ཡོད། སྔོན་གྱི་ `pitch_*`
+   modes གཞན་བཞི་ commit c263a1d ནས་ཕྱིར་ལེན་ཐུབ།)
 5. `cfd_setup.py` དང་ `params.py` — བརྟན་པོའི་ SimulationParams དང་
    ཚད་འཇོག་གི་མཛོད་ཁང་།
 6. `flow360/ADAPTING_TO_TWO_BODY_SEPARATION.md` — ལུས་གཉིས་ཁ་འབྲལ་
@@ -85,6 +90,10 @@
 │   ├── submit_unsteady_warmup.py   phugoid གི་ warmup (དྲ་མིག་སྦྱོར་བ)
 │   ├── submit_gap110_nokick_diag.py       phugoid chunk 1 (warmup ནས་ fork)
 │   ├── submit_gap110_chunkN_nokick_diag.py phugoid chunk N (chunk N-1 ནས་ fork)
+│   ├── submit_landing_*.py         མར་འབབ་ཀྱི་ warmup / chunk (θ_ht retrim ལྔ)
+│   ├── run_landing_phugoid_chain.py  མར་འབབ་ chunk འབྲེལ་མཐུད་ཀྱི་ orchestrator
+│   ├── pitch_eq_grid.py            1-DOF pitch-only θ_eq(θ_ht, V_inf) དྲ་མིག
+│   ├── ADAPTING_TO_TWO_BODY_SEPARATION.md  ལུས་གཉིས་ཁ་འབྲལ་ལ་བཀོལ་སྤྱོད་ཀྱི་ལམ་སྟོན།
 │   ├── submit_cruise.py / submit_v3.py    བརྟན་པོའི་ parent གནད་དོན།
 │   ├── submit_*_sweep*.py / submit_*_campaign.py   བརྟན་པོའི་ སའོ་མེའོ།
 │   └── submit_fine_ad_parents.py   actuator-disk དྲ་མིག་ཞིབ་མོའི་ཚོད་ལྟ།
@@ -92,15 +101,18 @@
 │   ├── _phase_plot.py, cg_shift_trim.py
 │   ├── v2_gapped/           v2 བར་སྟོང་ཅིན་ཡིའི་ཐིག་གཞི་དང་ TRIM_RESULTS.md
 │   ├── v3/                  phugoid གི་ཐིག་གཞི་ (plot_running_case, viz_nokick_lagfix,
-│   │                        render_phugoid_slices) + unsteady_project_ids.json + mp4/png
+│   │                        render_phugoid_slices, render_phugoid_3d_{lic,native})
+│   │                        + unsteady_project_ids.json + mp4/png
+│   │   └── phugoid_runs/landing/   OPEN_LOOP_LANDING.md, pitch_eq_grid.csv, mp4/png
 │   └── FLOW360_GAI_BUG_REPORT.md
+├── share/udd_starter/       UDD rigid-body ལམ་སྟོན་སྤྱིར་བཏང་ + དཔེ་མཚོན་ script གསུམ།
 └── paper/                   SciTech extended abstract + figures (paper/build.sh)
 ```
 
-**མ་ཚང་བ།** 2026-06 ཀྱི་ལས་ཀ་ (`flow360/UDD_DYNAMICS_GUIDE.md`,
-`slidingInterfaceToUDD.py`, animation གི་ chase-camera ཡིག་ཆ་རྣམས) ད་དུང་
-014-v100-dev ཁོ་ནར་ཡོད་ལ། GitHub ལ་མ་ཕུལ། `post/v3/` (phugoid གི་ཐིག་གཞི་
-དང་ `unsteady_project_ids.json`) ནི་གནས་མཛོད་ནང་ཡོད།
+**2026-10-30 ནས་ GitHub ཆ་ཚང་ཡིན།** 2026-05-28 ནས་ 06-12 བར་གྱི་ commit 52
+(མར་འབབ་ཀྱི་ open-loop ལས་གཞི། Euler–Cromer integrator། `share/udd_starter/`།
+3D animation) 014-v100-dev ནས་ GitHub ལ་ཕུལ་ཟིན། animation གི་ frame PNG
+(1.25 GB) ཁོ་ན་བསྐྱུར། mp4 རྣམས་ཡོད།
 
 ---
 
@@ -172,8 +184,10 @@ fork སྐབས་ UDD ཡི་ state ཉར་ཚགས་བྱེད་པ
 | v2 cruise / takeoff / landing སའོ་མེའོ (རྒྱུན་མཐུད་ + བར་སྟོང་, H-མཇུག་དམའ་ + མཐོ) | `post/v2_gapped/TRIM_RESULTS.md`, `paper/figures/` | ལེགས་གྲུབ |
 | v3 boom ཐུང་བའི་ trim | `flow360/submit_v3.py`, `paper/figures/v3_combined_sens.png` | ལེགས་གྲུབ |
 | actuator-disk ཤེད་ཀྱི་མི་མཐུན་པ | `paper/figures/FLOW360_AD_DELIVERY_RESOLVED.md` | ཐག་བཅད (ཚད་འཇལ་གྱི་ཚད་གཞིའི་ནོར་འཁྲུལ, solver གི་སྐྱོན་མིན) |
-| phugoid རང་འཕུར (v3 cruise, 60 s) | `PHUGOID_UDD_POSTMORTEM.md` | ལེགས་གྲུབ, T = 17.4 s, ζ ≈ 0.026 |
-| 2026-06 ཀྱི་ animation + UDD guide | 014-v100-dev:~/himalaya | GitHub ལ་མ་ཕུལ |
+| phugoid རང་འཕུར (v3 cruise, 60 s) | `PHUGOID_UDD_POSTMORTEM.md` | ལེགས་གྲུབ, T = 17.4 s, ζ ≈ 0.026 (explicit Euler; 2026-05-28 ནས་ Euler–Cromer) |
+| མར་འབབ་ trim གྱི་ open-loop འགུལ་སྐྱོད | `post/v3/phugoid_runs/landing/OPEN_LOOP_LANDING.md` | བརྟག་དཔྱད་ཟིན (2026-05-29): བརྟན་པོ་མིན, 9 s ནང་ θ = +98° |
+| θ_eq(θ_ht, V_inf) 1-DOF དྲ་མིག (15 cell) | `flow360/pitch_eq_grid.py`, `.../landing/pitch_eq_grid.csv` | ལེགས་གྲུབ (2026-06-02) |
+| UDD starter pack + 3D animation | `share/udd_starter/`, `post/v3/render_phugoid_3d_native.py` | ལེགས་གྲུབ (2026-06-12) |
 | མར་འབབ་ཀྱི་ controller | — | མ་འགོ་བཙུགས |
 
 ---
@@ -245,8 +259,9 @@ UDD). Result: a validated free-flight phugoid, T = 17.4 s, ζ ≈ 0.026.
 
 **Read in this order.** `CLAUDE.md` → `flow360/PHUGOID_UDD_POSTMORTEM.md`
 (§4, §5, §8 are the hard-won rules) → `flow360/LESSONS.md` →
-`flow360/unsteady_setup.py` (only `mode='warmup'` and `mode='phugoid'`
-remain; the old `pitch_*` diagnostics are recoverable from commit d1dacc8) →
+`flow360/unsteady_setup.py` (`mode='warmup'`, `mode='phugoid'` and the 1-DOF
+`pitch_step_cyl3_integrated`; the other four `pitch_*` diagnostics are
+recoverable from commit c263a1d) →
 `cfd_setup.py`, `params.py`. If you are here for a two-body separation, read
 `flow360/ADAPTING_TO_TWO_BODY_SEPARATION.md` next: it states which topologies
 the nested-cylinder constraint allows and the two open questions to settle
@@ -264,7 +279,8 @@ be added by hand.
 **Tsangpo-specific, replace wholesale.** `params.py`, the ESP/OpenCSM
 airfoil pipeline under `geometry/`, the Flow360 folder names in
 `cfd_setup.py` (the IDs themselves come from an optional, gitignored
-`flow360_folders.json`), every `submit_*.py` except the three phugoid ones.
+`flow360_folders.json`), every `submit_*.py` except the phugoid and landing
+chains and `pitch_eq_grid.py`.
 
 **Solver version.** All runs used release-25.9 with all rotation axes
 parallel (`(0, 1, 0)`). FXC-11747 (fixed in 25.12) corrupts per-step
@@ -272,10 +288,22 @@ geometry metrics when a nested zone rotates about a different axis from its
 parent. Any 6-DOF extension (roll or yaw nested inside pitch) must run on
 25.12 or later.
 
-**Known gaps in this GitHub snapshot.** The June 2026 additions
-(`flow360/UDD_DYNAMICS_GUIDE.md`, `slidingInterfaceToUDD.py`, the
-chase-camera animation scripts) exist only on the author's workstation and
-have not been pushed. Everything the phugoid chain needs is here: the two
+**What the 2026-10-30 merge brought in, and what it changes.** The 52
+commits from the author's workstation (2026-05-28 to 06-12) are now on
+GitHub, minus 1.25 GB of regenerable animation frames. Three things an
+adapter must know. (1) The UDD integrator is now symplectic Euler–Cromer
+with velocity slots first: `[0] Vx, [1] Vz, [2] q, [3] x, [4] z, [5] θ,
+[6,7] link angles`. The postmortem's slot numbers (x in slot 0, q in slot 5,
+"read dynamics from Δstate5/dt") describe the explicit-Euler layout the
+published cruise phugoid ran with; the rules are unchanged, the indices are
+not. (2) Two fixes the pre-merge snapshot lacked: the actuator-disk
+cylinders are no longer listed in `enclosed_entities` (the mesher rejected
+them, so new meshes could not be built), and the phugoid initial state now
+includes `gamma_trim`, so takeoff and landing phases no longer snap by 30° on
+the first step. (3) The landing trim is open-loop unstable; the 1-DOF mode
+`pitch_step_cyl3_integrated` with `quasi_static_q=True` is the production
+tool for mapping θ_eq(θ_ht, V_inf). `share/udd_starter/README.md` is the
+generalized how-to. Everything the phugoid chain needs is here: the two
 `submit_gap110_*` fork scripts default to the IDs in
 `post/v3/unsteady_project_ids.json` (the author's cloud projects) and take
 `--project-id` / `--parent-case-id` to fork from a warmup you ran yourself.

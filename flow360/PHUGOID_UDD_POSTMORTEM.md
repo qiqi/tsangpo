@@ -6,6 +6,18 @@ User-Defined-Dynamics (UDD) that integrate 6-DOF rigid-body motion from the
 CFD-reported aerodynamic loads and feed it back to a 4-cylinder sliding-mesh
 "robot-arm" that pitches and translates the airframe through a fixed freestream.
 
+**Slot layout changed after this document (note added 2026-10-30).** On
+2026-05-28 (commit 9c2a835) the integrator became symplectic Euler–Cromer and
+the state slots were reordered to `[0] Vx, [1] Vz, [2] q, [3] x_cg, [4] z_cg,
+[5] θ_body, [6] θ_link2, [7] θ_link1`. Every slot number below (x in slot 0,
+θ in slot 4, q in slot 5, "read the dynamics from Δstate5/dt") refers to the
+explicit-Euler layout that produced the T = 17.4 s cruise phugoid. The rules
+(§4 gate, §5 sequential evaluation, lag-correct lever arm) are unchanged;
+translate the indices using the current docstring of `unsteady_setup.py`.
+Also fixed after this document: the actuator-disk cylinders must NOT be in
+`enclosed_entities` (mesher error 7221), and the phugoid initial state must
+include `gamma_trim` (5a98590); see LESSONS.md.
+
 **Solver version / axis caveat (added 2026-10-30).** All cases ran on
 release-25.9. All four rotation zones (and the two in `cfd_setup.py`) rotate
 about the same axis, `(0, 1, 0)`, so this work was NOT exposed to FXC-11747

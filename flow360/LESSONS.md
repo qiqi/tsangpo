@@ -261,6 +261,31 @@ Last reviewed: 2026-10-30 — all cases ran on SDK v25.9.x / release-25.9.
   `nd_moment_to_si`, passing **each case's own altitude**. The AD kernel
   itself delivers commanded thrust to ~2% (fine) / ~8% (coarse) — no bug.
 
+## Fixes after the cruise phugoid (merged to GitHub 2026-10-30)
+
+- **Actuator-disk cylinders must NOT be in `enclosed_entities`** of the
+  airframe rotation volume. Listing them makes the mesher emit
+  `slidingInterface-disk_R1` with no backing zone → `(ERROR 7221) … not a
+  known volume entity` (vm-87916f15, vm-f8cbe461, 2026-05-28). Reverted in
+  5ee4aab / 9ce6f15. Tradeoff: the disk axis stays world-fixed while the body
+  pitches; small at cruise (≤±10°), noticeable at landing (±30°).
+- **Phugoid initial state must include γ_trim** (5a98590): with
+  `gamma_rad = radians(gamma_kick_deg)` alone, takeoff/landing (γ_trim = ±30°)
+  start with a pose that disagrees with the warmup and the airframe cylinder
+  snaps 30° on step 1 (case-b90b56e5, CL spike to 13.9). `PHASE_TRIM` entries
+  also need `V_init_m_s`.
+- **Integrator is symplectic Euler–Cromer** (9c2a835): velocity slots before
+  position slots, so positions read NEW velocities and `omega · dt ≡ Δθ`
+  exactly (no GCL residual). Explicit Euler anti-damps oscillators.
+- **1-DOF pitch-only mode** (`pitch_step_cyl3_integrated`): implicit damping
+  `q_new = (q + Q·dt)/(1 + D·dt)` is unconditionally stable; explicit damping
+  needs `dt < 2·I/D`. With `quasi_static_q=True` the θ relaxation needs
+  `dt < 2·D/k_local`. Grid used D = 30 kN·m·s/rad, dt = 2 s.
+- **Landing warmup convention flaw**: holding the body at θ = α_BO + γ_trim
+  in a flat freestream puts the wing at α = −2.4°, not the design +27.6°.
+  Fix by tilting the body (`theta_body_trim = alpha_BO_rad`) or the freestream
+  (`AerospaceCondition(alpha=gamma_trim)`); see OPEN_LOOP_LANDING.md.
+
 ## Open / unverified
 
 - Does the AngleExpression parser accept C-style ternary `?:`? Not

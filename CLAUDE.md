@@ -3,9 +3,12 @@
 ## Project arc & where things live
 
 Trajectory of the work: **steady aero campaign** (cruise/takeoff/landing
-sweeps for the SciTech paper) → **free-flight phugoid** (closed-loop 6-DOF
-via UDD — done, validated) → **landing-maneuver controller in CFD** (the
-goal: a UDD that applies control inputs from state feedback to fly a landing).
+sweeps for the SciTech paper) → **free-flight phugoid** (closed-loop
+longitudinal 3-DOF via UDD — done, validated) → **landing open-loop
+dynamics** (characterized 2026-05-29: statically unstable, see
+`post/v3/phugoid_runs/landing/OPEN_LOOP_LANDING.md`) → **landing-maneuver
+controller in CFD** (the goal: a UDD that applies control inputs from state
+feedback to fly a landing; not started).
 
 Map:
 - `params.py` — single source of truth for all dimensions, trim points, and
@@ -13,13 +16,21 @@ Map:
 - `cfd_setup.py` — geometry-surface lookup + steady `SimulationParams` builder
   (actuator disks, rotation zones, reference geometry).
 - `flow360/unsteady_setup.py` — the **embedded-dynamics UDD framework** (4-cyl
-  sliding-mesh + 6-DOF integrator). **This is the foundation for the landing
-  controller**; read `flow360/PHUGOID_UDD_POSTMORTEM.md` before touching it.
+  sliding-mesh + 3-DOF symplectic Euler–Cromer integrator; slot order in the
+  module docstring). **This is the foundation for the landing controller**;
+  read `flow360/PHUGOID_UDD_POSTMORTEM.md` before touching it.
 - `flow360/submit_*.py` — submitters (steady campaign + the phugoid pipeline:
-  `submit_unsteady_warmup` → `submit_gap110_nokick_diag` → `..._chunkN_...`).
-- `post/v3/{plot_running_case,viz_nokick_lagfix,render_phugoid_slices}.py` —
-  trajectory / attitude / y=0-Mach post-processing.
+  `submit_unsteady_warmup` → `submit_gap110_nokick_diag` → `..._chunkN_...`;
+  landing: `submit_landing_*` + `run_landing_phugoid_chain.py`;
+  `pitch_eq_grid.py` for the 1-DOF θ_eq grid).
+- `post/v3/{plot_running_case,viz_nokick_*,render_phugoid_slices*,render_phugoid_3d_*}.py`
+  — trajectory / attitude / slice and 3D post-processing; landing results in
+  `post/v3/phugoid_runs/landing/`.
 - `flow360/{LESSONS.md, AGENT_USABILITY_REPORT_v2.md}` — Flow360 gotchas.
+- `flow360/ADAPTING_TO_TWO_BODY_SEPARATION.md` — what carries over to a
+  two-body separation problem and what the nested-cylinder constraint forbids.
+- `share/udd_starter/` — generalized UDD rigid-body how-to + three example
+  scripts, for people outside this project.
 
 ## Flow360
 

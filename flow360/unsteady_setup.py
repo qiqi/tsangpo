@@ -31,23 +31,23 @@ cyl-2 rotations (the 2-link arm), so the CFD sees the airplane physically
 translating through the freestream.  Forces from CFD are reported in cyl
 1's rotating frame and rotated to inertial in the UDD update law.
 
-STATE (6 dynamics + 2 IK-cache, all in radians/SI/inertial-frame):
-    state[0] = x_cg      (m)
-    state[1] = z_cg      (m)
-    state[2] = Vx        (m/s, inertial)
-    state[3] = Vz        (m/s, inertial)
-    state[4] = theta_body (rad, absolute body pitch in inertial)
-    state[5] = q         (rad/s, body pitch rate)
-    state[6] = theta_link2 (rad, IK auxiliary)
-    state[7] = theta_link1 (rad, IK auxiliary)
+STATE (6 dynamics + 2 IK-cache; semi-implicit / Euler–Cromer slot order):
+    state[0] = Vx        (m/s, inertial)        ← integrated FIRST
+    state[1] = Vz        (m/s, inertial)
+    state[2] = q         (rad/s, body pitch rate)
+    state[3] = x_cg      (m)                    ← reads NEW Vx
+    state[4] = z_cg      (m)                    ← reads NEW Vz
+    state[5] = theta_body (rad, absolute pitch) ← reads NEW q (GCL: ω·dt≡Δθ)
+    state[6] = theta_link2 (rad, IK from NEW x, z)
+    state[7] = theta_link1 (rad, IK from NEW x, z, link2)
 
 INITIAL CONDITIONS for the v3-cruise phugoid γ₀ = +10° kick:
-    state[0] = -L = -750·c_w     (L-pose, Jacobian-safe)
-    state[1] = -L = -750·c_w
-    state[2] = V_∞·(1 − cos γ₀)  ≈ +0.69 m/s     (small +x drift)
-    state[3] = V_∞·sin γ₀        ≈ +7.94 m/s     (climb in inertial)
-    state[4] = α_BO + γ₀ (in rad) ≈ +0.272 rad   (body pitched up to maintain α)
-    state[5] = 0
+    state[0] = V_∞·(1 − cos γ₀)  ≈ +0.69 m/s     (small +x drift)
+    state[1] = V_∞·sin γ₀        ≈ +7.94 m/s     (climb in inertial)
+    state[2] = 0
+    state[3] = -L = -750·c_w     (L-pose, Jacobian-safe)
+    state[4] = -L = -750·c_w
+    state[5] = α_BO + γ₀ (in rad) ≈ +0.272 rad   (body pitched up to maintain α)
     state[6] = θ_link2_0 = π/2
     state[7] = θ_link1_0 = π/2
 
@@ -153,6 +153,7 @@ PHASE_TRIM = {
     ),
     "takeoff": dict(
         V_inf_m_s    = 18.00,
+        V_init_m_s   = 18.00,    # = V_inf: no wind-tunnel drift
         altitude_m   = 0.0,
         alpha_BO_deg = +11.31,
         theta_ht_deg = -3.21,
@@ -160,11 +161,69 @@ PHASE_TRIM = {
         gamma_trim_deg = +30.0,
     ),
     "landing": dict(
-        V_inf_m_s    = 12.86,
+        V_inf_m_s    = 12.86,    # 25 kt approach airspeed (matches steady
+                                  # landing campaign at SL).
+        V_init_m_s   = 12.86,    # = V_inf: airplane initial airspeed equals
+                                  # freestream → no world-frame drift at t=0.
+                                  # (Phugoid evolves; γ_trim = −30° steep
+                                  # descent translates the body downward.)
         altitude_m   = 0.0,
         alpha_BO_deg = +27.63,
         theta_ht_deg = -3.67,
         T_mult       = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
+    # Same landing trim, retrimmed htail experiment.  θ_ht moved from
+    # −3.67° (the steady 2-cyl campaign's trim) toward less LE-down so the
+    # htail sees more α and produces more nose-down moment about CG —
+    # counters the residual nose-up CMy=+1.24 we saw on the 4-cyl warmup.
+    "landing_thtN2": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = -2.0,        # ← retrim experiment
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
+    # More aggressive retrim: θ_ht = 0° (neutral incidence, vs baseline
+    # -3.67° LE-down).  Slope from -3.67 → -2.0 gave ΔCMy/Δθ ≈ -0.14/deg.
+    # Extrapolating: at θ_ht=0°, CMy_warmup ≈ +1.24 - 0.14·3.67 ≈ +0.73.
+    # Closer to zero than the previous retrim's +1.01, but still positive
+    # — so the no-kick phugoid should still depart, just more slowly.
+    "landing_tht0": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = 0.0,         # ← neutral htail incidence
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
+    # Continuing the retrim sweep: θ_ht=+3° LE-UP.  Slope through 3
+    # prior data points is locked at -0.13/deg, so predicted
+    # CMy_warmup ≈ +0.758 - 0.13·3 ≈ +0.37.  Still nose-up but
+    # getting close to zero.
+    "landing_thtP3": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = +3.0,        # ← aggressive LE-up retrim
+        T_mult         = +14.17,
+        gamma_trim_deg = -30.0,
+    ),
+    # In between baseline (nose-up div at -3.67°) and +3° (nose-down div).
+    # +3° showed apparent oscillation (apex θ=-22.7° at t=2.75s, returning
+    # by t=5s).  +1° should be even closer to a true natural-stability
+    # crossover; predicted CMy_warmup ≈ +0.611 from slope.
+    "landing_thtP1": dict(
+        V_inf_m_s      = 12.86,
+        V_init_m_s     = 12.86,
+        altitude_m     = 0.0,
+        alpha_BO_deg   = +27.63,
+        theta_ht_deg   = +1.0,        # ← in-between retrim
+        T_mult         = +14.17,
         gamma_trim_deg = -30.0,
     ),
 }
@@ -251,9 +310,20 @@ def _build_per_zone_udds(
     """
     trim = PHASE_TRIM[phase]
     V_inf = trim["V_inf_m_s"]
-    alpha_BO_rad = radians(trim["alpha_BO_deg"])
-    gamma_rad    = radians(gamma_kick_deg)
-    theta_ht_rad = radians(trim["theta_ht_deg"])
+    alpha_BO_rad   = radians(trim["alpha_BO_deg"])
+    gamma_trim_rad = radians(trim["gamma_trim_deg"])
+    # γ_total = the TOTAL flight-path angle the body sees at t=0.  γ_trim
+    # is the steady-state path angle (e.g., −30° steep approach); γ_kick
+    # is the additional perturbation that excites the phugoid mode.
+    # In the flat-freestream wind-tunnel BC, both must enter the body's
+    # initial velocity AND its initial pitch to keep α=α_BO at trim;
+    # otherwise the warmup pose (θ=α_BO+γ_trim) doesn't match the
+    # phugoid's UDD initial state and Flow360 snaps the airframe cylinder
+    # by γ_trim at the first chunk1 step (see case-b90b56e5 transient,
+    # 26-05-28).  The pitch_step modes already do this — phugoid was the
+    # only path left over from the cruise-only era when γ_trim was always 0.
+    gamma_rad      = gamma_trim_rad + radians(gamma_kick_deg)
+    theta_ht_rad   = radians(trim["theta_ht_deg"])
 
     # L-pose default initial position (Jacobian-safe).  (+L, −L) maps to
     # (θ_link1, θ_link2) = (+π/2, +π/2) via the Option E IK.
@@ -357,7 +427,7 @@ def _build_per_zone_udds(
         "theta_ht_rel": theta_ht_rad,
         # Actuator-disk total reaction thrust magnitude (positive scalar).
         # Direction is BODY-FIXED (body -X = nose direction), so the world-
-        # frame components depend on state[4] = θ_body.  See state[2]/[3]/[5]
+        # frame components depend on state[5] = θ_body.  See state[0]/[1]/[2]
         # update_law expressions below for the body-orientation-aware decomposition.
         "T_disk_nd": T_disk_nd,
         # Disk z-offset in body frame (= PROP_Z_M, the perpendicular distance
@@ -379,32 +449,59 @@ def _build_per_zone_udds(
         "theta_link2_0": theta_link2_0,
     }
 
-    # state[6] = theta_link2 (IK from x_cg, z_cg); state[7] = theta_link1
-    # (references state[6]).  update_law is evaluated SEQUENTIALLY in slot
-    # order, in place (POSTMORTEM §5.1): slot k sees the NEW value of state[j]
-    # for j < k and the OLD value for j >= k.  So slots 6,7 read the freshly
-    # updated state[0,1] of THIS step, while slots 0-5 (which reference only
-    # higher slots) see OLD state[6,7] = the pose at which the forces being
-    # integrated were evaluated.  Slot order is load-bearing: do not reorder.
+    # state[6] = theta_link2 (computed first; depends only on NEW x_cg, z_cg).
+    # state[7] = theta_link1 (computed second; references NEW state[6]).
+    # In the symplectic slot order, link angles read NEW x = state[3], z =
+    # state[4] (both updated earlier in the sequential eval), so they are
+    # coherent with the body's end-of-step position — no lag.
 
-    # FWD-IK lever-arm expressions for M_about_CG (temporal-consistency fix):
-    # In update_law, references to state[6], state[7] resolve to OLD values
-    # (= published at step N-1).  Forward IK on those recovers state[0,1]
-    # from the END of step N-2 -- which is exactly the body position where
-    # the wall forces (read at step N's pseudoStep==0 = end of step N-1's
-    # converged values) were evaluated.  Using these for the lever arm makes
-    # the moment-translation temporally consistent with the forces.
+    # ---------------------------------------------------------------------
+    # SLOT ORDER — semi-implicit (symplectic Euler–Cromer) integration.
+    # ---------------------------------------------------------------------
+    # Flow360 evaluates update_law SEQUENTIALLY by slot index (slot k reads
+    # NEW values for any state[j] with j < k, OLD values for j ≥ k).  We
+    # exploit that by placing VELOCITY slots BEFORE POSITION slots so the
+    # position updates read the NEW velocities — i.e.:
+    #     V_new = V_old + a(forces_OLD) · dt         (velocity update)
+    #     x_new = x_old + V_NEW · dt                 (position uses NEW V)
+    # This is Euler–Cromer (= symplectic Euler), which avoids the
+    # artificial anti-damping of explicit Euler on oscillators and makes
+    # the commanded grid velocity (omega) match the discrete mesh
+    # displacement exactly (GCL):
+    #     omega_published = q_NEW                    [output_vars]
+    #     Δθ_per_step     = q_NEW · dt               [update_law slot 5]
+    #     ⇒ omega · dt ≡ Δθ                          (no GCL residual)
+    #
+    # Slots:
+    #   [0] Vx, [1] Vz   (velocities — integrated first from OLD forces)
+    #   [2] q            (angular velocity)
+    #   [3] x_cg, [4] z_cg, [5] θ_body
+    #                    (positions/angle — read NEW velocities above)
+    #   [6] θ_link2,  [7] θ_link1
+    #                    (IK from NEW x, z — link angles always coherent
+    #                     with the body position at end of step)
+    #   [8] ω̇_airframe cache  /  M_about_CG_nd (diagnostics)
+    #   [9] ω̇_shoulder cache  /  Q_DOT_nd      (diagnostics)
+    #
+    # FWD-IK lever-arm expressions for M_about_CG (temporal-consistency fix
+    # — independent of integration scheme):
+    # In update_law, state[6], state[7] referenced from slot 2 (q-update,
+    # slot 2 < 6,7) resolve to OLD values = the IK of NEW x,z at the END
+    # of step N−1 = exactly the body position where the converged wall
+    # forces (read here at step N's pseudoStep==0) were evaluated.  Using
+    # these for the lever arm makes the moment-translation temporally
+    # consistent with the forces it is integrating.
     X_CG_IK = ("(cos(state[7])*(L1 - L2*cos(state[6])) "
                 "+ sin(state[7])*L2*sin(state[6]))")
     Z_CG_IK = ("(-sin(state[7])*(L1 - L2*cos(state[6])) "
                 "+ cos(state[7])*L2*sin(state[6]))")
     state_vars_initial_value = [
-        "x_cg_0",            # state[0]
-        "z_cg_0",            # state[1]
-        "Vx_0",              # state[2]
-        "Vz_0",              # state[3]
-        "theta_body_0",      # state[4]
-        "0.0",               # state[5] = q
+        "Vx_0",              # state[0]
+        "Vz_0",              # state[1]
+        "0.0",               # state[2] = q
+        "x_cg_0",            # state[3]
+        "z_cg_0",            # state[4]
+        "theta_body_0",      # state[5]
         "theta_link2_0",     # state[6]
         "theta_link1_0",     # state[7]
         # state[8..9] cache the analytic ω̇ for the two actively-rotating
@@ -432,29 +529,31 @@ def _build_per_zone_udds(
     #     forceX_log  =  0.0408
     #     forceZ_log  =  0.1549
     #     momentY_log = -67.71
-    #     state[0]   = +346.07,  state[1] = -346.07
-    #     M_about_CG = momentY + state[0]·forceZ - state[1]·forceX
+    #     state[3]   = +346.07,  state[4] = -346.07     (CG position)
+    #     M_about_CG = momentY + state[3]·forceZ - state[4]·forceX
     #                = -67.71 + 346·0.1549 - (-346)·0.0408
     #                = -67.71 + 53.60 + 14.12 ≈ 0   ✓ (trim)
     #   With the WORLD-frame interpretation, the dynamics integrate trivially
     #   in world coordinates — no cyl-frame rotation of forces is needed.
-    #   state[6] and state[7] are output-only: pure functions of state[0],
-    #   state[1] used to drive the cylinder rotations that physically move
+    #   state[6] and state[7] are output-only: pure functions of state[3],
+    #   state[4] used to drive the cylinder rotations that physically move
     #   the airframe through the (fixed) freestream.
 
     # ---- Analytic ω̇ expressions (defined here so update_law can cache them
     # in state[8..10]; same definitions are also referenced by per-cyl
     # output_vars further below).  All use forceX/Z/momentY which is only
     # allowed inside update_law, hence the caching pattern.
+    # New slots: Vx=state[0], Vz=state[1], q=state[2],
+    #            x=state[3],  z=state[4],  θ=state[5], link2=state[6].
     AX_EXPR    = "(forceX/m_nd)"
     AZ_EXPR    = "(forceZ/m_nd - g_nd)"
-    N_EXPR     = "(state[0]*state[2] + state[1]*state[3])"
-    A_EXPR     = "(state[0]*state[3] - state[1]*state[2])"
-    R2_EXPR    = "(state[0]*state[0] + state[1]*state[1])"
-    NDOT_EXPR  = (f"(state[2]*state[2] + state[3]*state[3] "
-                   f"+ state[0]*{AX_EXPR} + state[1]*{AZ_EXPR})")
-    ADOT_EXPR  = f"(state[0]*{AZ_EXPR} - state[1]*{AX_EXPR})"
-    OMEGA_ELBOW_LOCAL = ("((state[0]*state[2] + state[1]*state[3]) "
+    N_EXPR     = "(state[3]*state[0] + state[4]*state[1])"   # x·Vx + z·Vz
+    A_EXPR     = "(state[3]*state[1] - state[4]*state[0])"   # x·Vz − z·Vx
+    R2_EXPR    = "(state[3]*state[3] + state[4]*state[4])"   # x² + z²
+    NDOT_EXPR  = (f"(state[0]*state[0] + state[1]*state[1] "
+                   f"+ state[3]*{AX_EXPR} + state[4]*{AZ_EXPR})")
+    ADOT_EXPR  = f"(state[3]*{AZ_EXPR} - state[4]*{AX_EXPR})"
+    OMEGA_ELBOW_LOCAL = ("((state[3]*state[0] + state[4]*state[1]) "
                           "/ (L1*L2*sin(state[6])))")
     OMEGA_DOT_ELBOW = (f"({NDOT_EXPR} / (L1*L2*sin(state[6])) "
                         f"- {OMEGA_ELBOW_LOCAL} * {OMEGA_ELBOW_LOCAL} "
@@ -463,92 +562,102 @@ def _build_per_zone_udds(
                           f"- {ADOT_EXPR}/{R2_EXPR} "
                           f"+ 2.0*{A_EXPR}*{N_EXPR}/({R2_EXPR}*{R2_EXPR}))")
 
+    # update_law follows slot order [0..9]; sequential evaluation gives
+    # NEW-velocity-into-position (Euler–Cromer / symplectic).
     update_law = [
-        # state[0]: x_cg += Vx · dt          (m, m/s → all non-dim)
-        "if (pseudoStep == 0) state[0] + state[2] * timeStepSize; else state[0];",
-        # state[1]: z_cg += Vz · dt
-        "if (pseudoStep == 0) state[1] + state[3] * timeStepSize; else state[1];",
-        # state[2]: Vx += ((Fx_surface + T_x_world) / m_nd) · dt
-        # T_x_world = -T_disk_nd · cos(state[4])  -- thrust in body -X direction
-        # (nose), which in world frame at body pitch θ has x-component -T·cos θ.
-        # The CFD-reported `forceX` is the airframe-wall surface integral
-        # only and does NOT include the disk reaction; we add it here.
-        "if (pseudoStep == 0) state[2] + "
-        "( (forceX - T_disk_nd * cos(state[4])) / m_nd ) * timeStepSize; else state[2];",
-        # state[3]: Vz += ((Fz_surface + T_z_world) / m_nd - g_nd) · dt
-        # T_z_world = +T_disk_nd · sin(state[4])  -- z-component of body-fixed
-        # thrust as the body pitches.  At trim θ_body ≈ +5.57° this is ~+0.10·T
-        # (small but non-zero; matters during phugoid excursions where θ can
-        # reach ±30°).
-        "if (pseudoStep == 0) state[3] + "
-        "( (forceZ + T_disk_nd * sin(state[4])) / m_nd - g_nd ) * timeStepSize; else state[3];",
-        # state[4]: theta_body += q · dt
-        "if (pseudoStep == 0) state[4] + state[5] * timeStepSize; else state[4];",
-        # state[5]: q += (M_y_about_CG / I_yy_nd) · dt
-        # Moment translation (world frame) of WALL-SURFACE forces+moments:
-        #   r_CG  = (state[0], 0, state[1])      (moves with airframe)
-        #   r_mc  = (mc_x, 0, mc_z)               (FIXED in world)
-        # M_wall_about_CG = momentY + (r_mc − r_CG) × F
-        # (cross)_y       = (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
-        # We set mc = initial CG = (+L1, 0, −L2) so the lever arm starts
-        # at zero (eliminates catastrophic cancellation when subtracting
-        # large M_origin terms) and only grows with airframe displacement.
+        # state[0]: Vx_new = Vx_old + (a_x) · dt
+        # a_x = (forceX + T_x_world) / m_nd,
+        # T_x_world = −T_disk_nd · cos(state[5])  (body −X thrust → world X).
+        # state[5]=θ_body at slot 5 > 0 → OLD value, consistent with "force
+        # is from end of step N−1 where the body was at θ_old". Disk
+        # reaction is NOT in CFD's wall forceX (disk is a volume body force,
+        # not a surface) — we add it here.
+        "if (pseudoStep == 0) state[0] + "
+        "( (forceX - T_disk_nd * cos(state[5])) / m_nd ) * timeStepSize; else state[0];",
+        # state[1]: Vz_new = Vz_old + (a_z) · dt
+        # a_z = (forceZ + T_disk_nd·sin(state[5])) / m_nd − g_nd
+        # state[5]=θ_body OLD. At trim θ_body ≈ +5.57° (cruise) /
+        # +27.6° (landing) the body-frame thrust has non-negligible Z.
+        "if (pseudoStep == 0) state[1] + "
+        "( (forceZ + T_disk_nd * sin(state[5])) / m_nd - g_nd ) * timeStepSize; else state[1];",
+        # state[2]: q_new = q_old + (M_about_CG / I_yy_nd) · dt
+        # state[6], state[7] (link angles) read OLD (slot 6,7 > 2): these
+        # encode the body position at the END of step N−1 = where the
+        # converged forces were evaluated.  See FWD-IK comment above.
         #
-        # PLUS the disk-reaction moment about CG (which is NOT in the wall
-        # forces — disk is a volume body force, not a surface):
-        #   M_disk_about_CG = -prop_z_m · T_disk_nd  (constant, since
-        #     rotation axis = +y preserves the y-moment of any disk-attached
-        #     force pair).  Disk in body frame at (PROP_X_M, 0, PROP_Z_M)
-        #     with force (-T, 0, 0); (r × F)_y = z·F_x - x·F_z =
-        #     PROP_Z_M·(-T) - PROP_X_M·0 = -PROP_Z_M·T.
-        f"if (pseudoStep == 0) state[5] + "
+        # Moment translation (world frame) of WALL-SURFACE forces+moments:
+        #   r_CG  = forward_IK(state[6], state[7])  (moves with airframe)
+        #   r_mc  = (mc_x, 0, mc_z)                  (FIXED in world =
+        #                                            initial CG to zero
+        #                                            the lever arm at trim)
+        # M_wall_about_CG = momentY + (r_mc − r_CG) × F
+        # (cross)_y       = (mc_z − Z_CG_IK)·forceX − (mc_x − X_CG_IK)·forceZ
+        #
+        # PLUS the disk-reaction moment about CG (NOT in wall forces —
+        # disk is a volume body force):
+        #   M_disk_about_CG = −prop_z_m · T_disk_nd
+        # (Disk in body frame at (PROP_X_M, 0, PROP_Z_M) with force
+        # (−T, 0, 0); (r × F)_y = z·F_x − x·F_z = PROP_Z_M·(−T) − PROP_X_M·0
+        # = −PROP_Z_M·T.  Constant in y-component because rotation axis ⊥y.)
+        f"if (pseudoStep == 0) state[2] + "
         f"( ( momentY + (mc_z - {Z_CG_IK}) * forceX - (mc_x - {X_CG_IK}) * forceZ "
         f"    - prop_z_m * T_disk_nd ) "
-        f"/ I_yy_nd ) * timeStepSize; else state[5];",
+        f"/ I_yy_nd ) * timeStepSize; else state[2];",
+        # state[3]: x_cg += V_x_NEW · dt   (symplectic: reads state[0] NEW)
+        "if (pseudoStep == 0) state[3] + state[0] * timeStepSize; else state[3];",
+        # state[4]: z_cg += V_z_NEW · dt   (symplectic: reads state[1] NEW)
+        "if (pseudoStep == 0) state[4] + state[1] * timeStepSize; else state[4];",
+        # state[5]: θ_body += q_NEW · dt
+        # GCL: omega_published_airframe = q_NEW (via output_vars below),
+        # mesh moves by Δθ = q_NEW · dt — published rate ≡ discrete
+        # displacement / dt, no GCL residual.
+        "if (pseudoStep == 0) state[5] + state[2] * timeStepSize; else state[5];",
         # state[6]: theta_link2 (IK output) = acos((2L² − r²) / 2L²)
+        # Uses NEW x, z (slots 3, 4 < 6).
         "if (pseudoStep == 0) "
-        "acos( ( two_L_sq - state[0] * state[0] - state[1] * state[1] ) / two_L_sq ); "
+        "acos( ( two_L_sq - state[3] * state[3] - state[4] * state[4] ) / two_L_sq ); "
         "else state[6];",
         # state[7]: theta_link1 (IK output)
         # = atan(L2·sin θ_link2 / (L1 − L2·cos θ_link2)) − atan(z / x)
         # atan2 is not supported by the UDD expression evaluator; atan(y/x)
-        # is exact here because both denominators stay strictly positive in
-        # the trim-near pose: L1 − L2·cos(π/2) = L1 > 0; state[0] starts at
-        # +L > 0 and phugoid excursions keep it positive.
+        # is exact here because both denominators stay strictly positive
+        # in the trim-near pose: L1 − L2·cos(π/2) = L1 > 0; state[3] starts
+        # at +L > 0 and phugoid excursions keep it positive.
         "if (pseudoStep == 0) "
         "atan( L2 * sin(state[6]) / (L1 - L2 * cos(state[6])) ) "
-        "- atan(state[1] / state[0]); "
+        "- atan(state[4] / state[3]); "
         "else state[7];",
-        # state[8]: ω̇_airframe_rel = q̇ - 0.5·ω̇_elbow + Ȧ/r² - 2·A·N/r⁴
-        # Derived by substituting ω̇_shoulder = -0.5·ω̇_elbow - Ȧ/r² + 2·A·N/r⁴
-        # into ω̇_airframe_rel = q̇ - ω̇_shoulder - ω̇_elbow.
+        # state[8]: ω̇_airframe_rel = q̇ − 0.5·ω̇_elbow + Ȧ/r² − 2·A·N/r⁴
+        # Derived by substituting ω̇_shoulder = −0.5·ω̇_elbow − Ȧ/r² + 2·A·N/r⁴
+        # into ω̇_airframe_rel = q̇ − ω̇_shoulder − ω̇_elbow.
         # Variables (all in update_law, where forces are allowed):
-        #   q̇  = (momentY + (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
-        #         - prop_z_m·T_disk_nd) / I_yy_nd
-        #   ax = (forceX - T_disk_nd·cos(state[4])) / m_nd      (BODY-fixed thrust)
-        #   az = (forceZ + T_disk_nd·sin(state[4])) / m_nd − g_nd
-        #   ω̇_elbow = (Ṅ - ω_elbow²·L²·cos θ₂) / (L²·sin θ₂),
+        #   q̇  = (momentY + (mc_z − Z_IK)·forceX − (mc_x − X_IK)·forceZ
+        #         − prop_z_m·T_disk_nd) / I_yy_nd
+        #   ax = (forceX − T_disk_nd·cos(state[5])) / m_nd      (BODY-fixed thrust)
+        #   az = (forceZ + T_disk_nd·sin(state[5])) / m_nd − g_nd
+        #   ω̇_elbow = (Ṅ − ω_elbow²·L²·cos θ₂) / (L²·sin θ₂),
         #     where Ṅ = Vx² + Vz² + x·ax + z·az
         #   Ȧ = x·az − z·ax,  A = x·Vz − z·Vx,  N = x·Vx + z·Vz, r² = x² + z²
+        # (slot 8 sees NEW state[3..7] — diagnostic, not what state[2] used.)
         f"if (pseudoStep == 0) "
         f"((momentY + (mc_z - {Z_CG_IK})*forceX - (mc_x - {X_CG_IK})*forceZ "
         f"  - prop_z_m * T_disk_nd)/I_yy_nd "
-        " - 0.5*((state[2]*state[2] + state[3]*state[3] "
-        "         + state[0]*((forceX - T_disk_nd*cos(state[4]))/m_nd) "
-        "         + state[1]*((forceZ + T_disk_nd*sin(state[4]))/m_nd - g_nd)) "
+        " - 0.5*((state[0]*state[0] + state[1]*state[1] "
+        "         + state[3]*((forceX - T_disk_nd*cos(state[5]))/m_nd) "
+        "         + state[4]*((forceZ + T_disk_nd*sin(state[5]))/m_nd - g_nd)) "
         "        /(L1*L2*sin(state[6])) "
-        "        - ((state[0]*state[2] + state[1]*state[3])/(L1*L2*sin(state[6]))) "
-        "         *((state[0]*state[2] + state[1]*state[3])/(L1*L2*sin(state[6]))) "
+        "        - ((state[3]*state[0] + state[4]*state[1])/(L1*L2*sin(state[6]))) "
+        "         *((state[3]*state[0] + state[4]*state[1])/(L1*L2*sin(state[6]))) "
         "         *cos(state[6])/sin(state[6])) "
-        " + (state[0]*((forceZ + T_disk_nd*sin(state[4]))/m_nd - g_nd) "
-        "    - state[1]*((forceX - T_disk_nd*cos(state[4]))/m_nd)) "
-        "  /(state[0]*state[0] + state[1]*state[1]) "
-        " - 2.0*(state[0]*state[3] - state[1]*state[2]) "
-        "       *(state[0]*state[2] + state[1]*state[3]) "
-        "  /((state[0]*state[0] + state[1]*state[1]) "
-        "    *(state[0]*state[0] + state[1]*state[1]))); "
+        " + (state[3]*((forceZ + T_disk_nd*sin(state[5]))/m_nd - g_nd) "
+        "    - state[4]*((forceX - T_disk_nd*cos(state[5]))/m_nd)) "
+        "  /(state[3]*state[3] + state[4]*state[4]) "
+        " - 2.0*(state[3]*state[1] - state[4]*state[0]) "
+        "       *(state[3]*state[0] + state[4]*state[1]) "
+        "  /((state[3]*state[3] + state[4]*state[4]) "
+        "    *(state[3]*state[3] + state[4]*state[4]))); "
         "else state[8];",
-        # state[9]: ω̇_shoulder = -0.5·ω̇_elbow - Ȧ/r² + 2·A·N/r⁴
+        # state[9]: ω̇_shoulder = −0.5·ω̇_elbow − Ȧ/r² + 2·A·N/r⁴
         # (closed-form analytic; uses forces, so must be cached here).
         f"if (pseudoStep == 0) {OMEGA_DOT_SHOULDER}; "
         "else state[9];",
@@ -577,20 +686,24 @@ def _build_per_zone_udds(
     # through the freestream, so the apparent γ-correction is lost.
     #
     # Analytic ω derivations (the IK gives state[6], state[7] as closed-
-    # form functions of state[0..3] + L1=L2=L, so their derivatives are
-    # also closed-form):
+    # form functions of state[3..4] + L1=L2=L, so their derivatives are
+    # also closed-form).  All output_vars are evaluated AFTER update_law,
+    # so state[*] here are NEW (post-step) values:
     #
     #   ω_elbow      = (x·Vx + z·Vz) / (L1·L2·sin(state[6]))
-    #   ω_shoulder   = -ω_elbow/2  -  (x·Vz - z·Vx) / r²
-    #   ω_airframe_r = state[5] - ω_elbow/2  +  (x·Vz - z·Vx) / r²
-    #                = state[5] - ω_shoulder - ω_elbow   (Δ from absolute pitch
+    #   ω_shoulder   = −ω_elbow/2  −  (x·Vz − z·Vx) / r²
+    #   ω_airframe_r = state[2] − ω_elbow/2  +  (x·Vz − z·Vx) / r²
+    #                = q − ω_shoulder − ω_elbow   (Δ from absolute pitch
     #                  rate minus parent-chain rates)
     #   ω_htail_r    = 0   (theta_ht_rel constant)
     #
-    # where x = state[0], z = state[1], Vx = state[2], Vz = state[3],
-    # r² = state[0]² + state[1]².  All quantities are in Flow360 internal
-    # non-dim (timeStepSize is non-dim, so ω is rad / non-dim-time, which
-    # is what the solver expects).
+    # where x = state[3], z = state[4], Vx = state[0], Vz = state[1],
+    # q = state[2], r² = state[3]² + state[4]².  All quantities are in
+    # Flow360 internal non-dim (timeStepSize is non-dim, so ω is rad /
+    # non-dim-time, which is what the solver expects).
+    # GCL: with symplectic update, omega_airframe_published = q_NEW
+    # which equals (θ_NEW − θ_OLD)/dt exactly — commanded grid velocity
+    # ≡ discrete mesh-displacement rate, no residual.
     #
     # omegaDot (angular acceleration) is set to 0 as a first cut.  For
     # phugoid-rate evolution at our dt, omegaDot is ~10⁻⁷ rad/(nd-time)²
@@ -599,14 +712,14 @@ def _build_per_zone_udds(
 
     # ---- ω expressions (already validated to give CFD agreement vs simplistic) -----
     # Common subexpressions re-used across UDDs.
-    OMEGA_ELBOW = ("(state[0]*state[2] + state[1]*state[3]) "
+    OMEGA_ELBOW = ("(state[3]*state[0] + state[4]*state[1]) "
                     "/ (L1*L2*sin(state[6]))")
-    PSI_DOT     = ("(state[0]*state[3] - state[1]*state[2]) "
-                    "/ (state[0]*state[0] + state[1]*state[1])")
+    PSI_DOT     = ("(state[3]*state[1] - state[4]*state[0]) "
+                    "/ (state[3]*state[3] + state[4]*state[4])")
 
     omega_shoulder   = f"-0.5 * {OMEGA_ELBOW} - {PSI_DOT}"
     omega_elbow      = OMEGA_ELBOW
-    omega_airframe_r = f"state[5] - 0.5 * {OMEGA_ELBOW} + {PSI_DOT}"
+    omega_airframe_r = f"state[2] - 0.5 * {OMEGA_ELBOW} + {PSI_DOT}"
     omega_htail_r    = "0.0"
 
     # ---- ω̇ analytic expressions -------------------------------------------------
@@ -650,7 +763,7 @@ def _build_per_zone_udds(
             omega_shoulder, omegaDot_shoulder),
         ("elbow",    cyl_elbow,    "state[6]",
             omega_elbow, omegaDot_elbow),
-        ("airframe", cyl_airframe, "state[4] - state[7] - state[6]",
+        ("airframe", cyl_airframe, "state[5] - state[7] - state[6]",
             omega_airframe_r, omegaDot_airframe_r),
         ("htail",    cyl_htail,    "theta_ht_rel",
             omega_htail_r, omegaDot_htail_r),
@@ -667,16 +780,16 @@ def _build_per_zone_udds(
     # Diagnostic channels via omegaDot.  Solver rejects custom output_var
     # names (only the whitelist: theta/omega/omegaDot/alphaAngle/...), and
     # only omegaDot is safe to hijack (theta and omega drive the cylinder).
-    # We allocate one diagnostic per UDD:
-    #   shoulder.omegaDot  ← state[4]  (theta_body, sanity)
-    #   elbow.omegaDot     ← state[5]  (q, body pitch rate)
+    # We allocate one diagnostic per UDD (new slots):
+    #   shoulder.omegaDot  ← state[5]  (theta_body, sanity)
+    #   elbow.omegaDot     ← state[2]  (q, body pitch rate)
     #   airframe.omegaDot  ← state[8]  (M_about_CG_nd, repurposed cache)
     #   htail.omegaDot     ← state[9]  (Q_DOT_nd, repurposed cache)
     diag_omegaDot = {}
     if diagnostics:
         diag_omegaDot = {
-            "shoulder": "state[4]",
-            "elbow":    "state[5]",
+            "shoulder": "state[5]",
+            "elbow":    "state[2]",
             "airframe": "state[8]",
             "htail":    "state[9]",
         }
@@ -704,18 +817,46 @@ def build_unsteady_params(
     surfaces,                       # SurfaceBundle from cfd_setup
     *,
     phase:           str = "cruise",
-    mode:            str = "phugoid",       # "warmup" or "phugoid"
+    mode:            str = "phugoid",       # "warmup", "phugoid", or "pitch_step_cyl3_integrated"
     n_physical_steps: int = 1500,
     timestep_size_s:  float = 0.01,
     max_pseudo_steps: int = 100,
     gamma_kick_deg:   float = 10.0,
     use_analytic_omegaDot: bool = False,
+    pitch_step_T_ramp_s:   float = 2.0,      # pitch_step_cyl3_integrated: cosine ramp duration
+    pitch_step_step_offset: int  = 20,       # parent-case final physicalStep (so t_local starts at 0)
+    pitch_step_link1_ramp_deg: float = 0.0,  # pitch_step_cyl3_integrated: link1 cosine ramp amount
+    pitch_step_link2_ramp_deg: float = 0.0,  # pitch_step_cyl3_integrated: link2 cosine ramp amount
+    pitch_damping_si: float = 0.0,           # mode='pitch_step_cyl3_integrated' only:
+                                              # artificial rotational damping D_si in N·m·s/rad.
+                                              # Adds -D·q term to Q_DOT to make the body
+                                              # settle to equilibrium θ_eq quickly without
+                                              # oscillation.  D_crit ≈ 2·√(I·|∂M/∂θ|);
+                                              # 5000-15000 N·m·s/rad is typically slightly
+                                              # overdamped for our airframe (I ≈ 3000).
+    quasi_static_q:     bool  = False,        # mode='pitch_step_cyl3_integrated' only:
+                                              # if True, drop the q-memory term entirely —
+                                              # q_new = Q_TORQUE/D directly (pure relaxation).
+                                              # Useful when dt·D/I ≫ 1 anyway and the residual
+                                              # q-memory (13% at dt·D/I=6.7) is contaminating
+                                              # the angle trajectory.  In this mode dt can be
+                                              # taken very large; per-step δθ = dt·Q_torque/D
+                                              # so dt and D should be scaled together to keep
+                                              # δθ in a sensible range and dt·k/D < 1 (no
+                                              # forward-Euler overshoot on θ).
+    theta_ht_override_deg: float | None = None,  # if set, override trim["theta_ht_deg"]
+    V_inf_override_m_s:    float | None = None,  # if set, override trim["V_inf_m_s"]
     diagnostics: bool = False,               # phugoid mode only: instrument the 4 UDDs
                                               # with custom diag_* output_vars exposing all
                                               # state slots + M_about_CG_nd + Q_DOT_nd.
     slice_frequency: int = -1,               # y=0 SliceOutput write frequency in physical
                                               # steps (-1 = last step only; 1 = every step
                                               # for a flow-field animation).
+    surface_frequency: int = -1,             # SurfaceOutput write frequency in physical
+                                              # steps (-1 = last step only; 1 = every step
+                                              # so that body-pose .pvtu files match the
+                                              # per-step slices for a body+slice 3D animation
+                                              # without manual coordinate transforms).
 ):
     """Build SimulationParams for the v3 phugoid 4-cylinder unsteady setup.
 
@@ -723,20 +864,30 @@ def build_unsteady_params(
                         Run to steady-state convergence on the multi-zone
                         mesh; fork the phugoid case from this.
 
-    `mode='phugoid'` → four lockstep UDDs active.  Initial state seeded
-                        with the γ_0 kick.  Fork this from the warmup case so
-                        the flow starts converged.
+    `mode='phugoid'` → four lockstep UDDs active (symplectic Euler–Cromer,
+                        slot order in the module docstring).  Initial state
+                        seeded with γ_trim + γ_kick.  Fork this from the
+                        warmup case so the flow starts converged.
 
-    The prescribed-kinematics diagnostic modes used while chasing the two
-    root-cause bugs (pitch_ramp, pitch_step*) were removed on 2026-10-30;
-    their conclusions are recorded in PHUGOID_UDD_POSTMORTEM.md §2 and
-    their case IDs in post/v3/unsteady_project_ids.json.  Recover the code
-    from git history (commit d1dacc8) if ever needed.
+    `mode='pitch_step_cyl3_integrated'` → 1-DOF pitch-only: cyl 1/2 follow
+                        prescribed cosine ramps, cyl 3 integrates I·q̇ + D·q = M
+                        with implicit damping (`pitch_damping_si`) or pure
+                        relaxation (`quasi_static_q=True`).  This is the
+                        production integrator for the θ_eq(θ_ht, V_inf) grid
+                        (`flow360/pitch_eq_grid.py`, results in
+                        `post/v3/phugoid_runs/landing/`).
+
+    Removed 2026-10-30: the prescribed-motion diagnostics `pitch_ramp`,
+    `pitch_step`, `pitch_step_multi`, `pitch_step_match_phugoid` (May 2026
+    debugging; conclusions in PHUGOID_UDD_POSTMORTEM.md).  Recover them from
+    commit c263a1d (`git show c263a1d:flow360/unsteady_setup.py`).
     """
     if phase not in PHASE_TRIM:
         raise ValueError(f"phase must be one of {list(PHASE_TRIM)}, got {phase!r}")
-    if mode not in ("warmup", "phugoid"):
-        raise ValueError(f"mode must be 'warmup' or 'phugoid', got {mode!r}")
+    if mode not in ("warmup", "phugoid", "pitch_step_cyl3_integrated"):
+        raise ValueError(
+            f"mode must be 'warmup', 'phugoid' or 'pitch_step_cyl3_integrated', "
+            f"got {mode!r}")
     trim = PHASE_TRIM[phase]
 
     # Unpack surfaces.
@@ -757,13 +908,21 @@ def build_unsteady_params(
     alpha_BO_rad   = radians(trim["alpha_BO_deg"])
     gamma_trim_rad = radians(trim["gamma_trim_deg"])
     theta_body_trim = alpha_BO_rad + gamma_trim_rad
-    theta_ht_rel    = radians(trim["theta_ht_deg"])
+    # Allow per-call override of htail incidence (used by the
+    # θ_eq(θ_ht, V_inf) grid sweep — avoids needing one PHASE_TRIM
+    # entry per grid cell).
+    theta_ht_deg_eff = (theta_ht_override_deg
+                        if theta_ht_override_deg is not None
+                        else trim["theta_ht_deg"])
+    theta_ht_rel    = radians(theta_ht_deg_eff)
 
     # Thrust setting (held fixed in this implementation).
     mult   = max(trim["T_mult"], 1e-4)
     fpa    = mult * C.FPA_CRUISE_PA
     swirl  = mult * C.SWIRL_CRUISE
-    V_inf  = trim["V_inf_m_s"]
+    V_inf  = (V_inf_override_m_s
+              if V_inf_override_m_s is not None
+              else trim["V_inf_m_s"])
 
     farfield = fl.AutomatedFarfield()
 
@@ -851,7 +1010,7 @@ def build_unsteady_params(
         ]
 
         # ---- Rotation specs ---------------------------------------------
-        # Airframe-cylinder angle that puts the body at trim pitch in the L-pose.
+        # `cyl3_theta_trim` is used by both warmup and pitch_ramp.
         cyl3_theta_trim = theta_body_trim - theta_link1_0 - theta_link2_0
         if mode == "warmup":
             # All cylinders frozen at the trim L-pose; no UDD.  This gives a
@@ -877,7 +1036,207 @@ def build_unsteady_params(
                 parent_volume=cyl_airframe,
             )
             udds = None
-        else:  # mode == "phugoid": all four cylinders driven by the UDDs
+        elif mode == "pitch_step_cyl3_integrated":
+            # Hybrid diagnostic: cyl_1/cyl_2 PRESCRIBED via sine ramps
+            # (identical to pitch_step_match_phugoid), but cyl_3 driven by
+            # GENUINE moment-about-CG integration (same formula as phugoid).
+            # If wing CL still responds to α: integration of cyl_3 alone
+            # isn't the trigger.  If CL goes flat: q-integration on cyl_3
+            # IS the trigger.
+            rot_shoulder = fl.Rotation(
+                name="cyl1_rotation", volumes=[cyl_shoulder],
+                spec=fl.FromUserDefinedDynamics(),
+            )
+            rot_elbow = fl.Rotation(
+                name="cyl2_rotation", volumes=[cyl_elbow],
+                spec=fl.FromUserDefinedDynamics(),
+                parent_volume=cyl_shoulder,
+            )
+            rot_airframe = fl.Rotation(
+                name="cyl3_rotation", volumes=[cyl_airframe],
+                spec=fl.FromUserDefinedDynamics(),
+                parent_volume=cyl_elbow,
+            )
+            rot_htail = fl.Rotation(
+                name="cyl4_rotation", volumes=[cyl_htail],
+                spec=fl.FromUserDefinedDynamics(),
+                parent_volume=cyl_airframe,
+            )
+
+            link1_ramp_rad_i = radians(pitch_step_link1_ramp_deg)
+            link2_ramp_rad_i = radians(pitch_step_link2_ramp_deg)
+            T_inf_K_i = (288.15 if trim["altitude_m"] == 0.0
+                          else 288.15 - 0.0065 * trim["altitude_m"])
+            rho_inf_i = (1.225 if trim["altitude_m"] == 0.0 else P.RHO_CRUISE_KG_M3)
+            a_inf_i = (1.4 * 287.0 * T_inf_K_i) ** 0.5
+            T_ramp_nd_i = pitch_step_T_ramp_s * a_inf_i
+
+            # Match phugoid constants: I_yy_nd, prop_z_m, T_disk_nd, mc_{x,z}
+            T_disk_total_N = (P.N_PROPS * trim["T_mult"] * P.T_CRUISE_PER_PROP_N)
+            T_disk_nd_i    = T_disk_total_N / (rho_inf_i * a_inf_i * a_inf_i)
+
+            # Artificial damping coefficient.
+            # SI Newton's law for the body's pitch:  I·q̇ + D·q = M  (radians)
+            # In the UDD's solver-nondim, state[5] = q_si / a_inf and
+            # Q_DOT = q̈_si / a_inf².  So the damping term to subtract
+            # from Q_DOT is (D_si · q_si) / (I_si · a_inf²)
+            #   = (D_si / I_si) · (state[5] · a_inf) / a_inf²
+            #   = (D_si / (I_si · a_inf)) · state[5].
+            # Pre-bake the coefficient as a constant so the update_law
+            # expression can simply reference state[5] * damping_coef.
+            damping_coef_nd = (pitch_damping_si
+                               / (3000.0 * a_inf_i))   # I_si=3000 kg·m²
+
+            constants_i = {
+                "L1":                 L1_M,           # link 1 length (m)
+                "L2":                 L2_M,           # link 2 length (m)
+                "theta_body_0":       theta_body_trim,
+                "link1_0":            theta_link1_0,
+                "link2_0":            theta_link2_0,
+                "link1_ramp":         link1_ramp_rad_i,
+                "link2_ramp":         link2_ramp_rad_i,
+                "theta_ht_rel":       theta_ht_rel,
+                "T_ramp_nd":          T_ramp_nd_i,
+                "step_offset":        float(pitch_step_step_offset),
+                # Dynamics constants (matching phugoid mode)
+                "I_yy_nd":            3000.0 / rho_inf_i,
+                "T_disk_nd":          T_disk_nd_i,
+                "prop_z_m":           P.PROP_Z_M,
+                "mc_x":               initial_x_cg_m,
+                "mc_z":               initial_z_cg_m,
+                "x_cg_0":             initial_x_cg_m,
+                "z_cg_0":             initial_z_cg_m,
+                "damping_coef":       damping_coef_nd,
+                # `pi` is built-in; do not redeclare.
+            }
+
+            # Quarter-sine ramp time-normalized variable, same as match_phugoid
+            T_RAW_I  = "((physicalStep - step_offset) * timeStepSize)"
+            T_CLAMP_I = (f"(0.5*({T_RAW_I} + T_ramp_nd "
+                          f"- sqrt(({T_RAW_I} - T_ramp_nd)*({T_RAW_I} - T_ramp_nd))))")
+            ARG_I     = f"(pi*{T_CLAMP_I}/(2.0*T_ramp_nd))"
+            LINK1_I   = f"(link1_0 + link1_ramp*sin({ARG_I}))"
+            LINK2_I   = f"(link2_0 + link2_ramp*sin({ARG_I}))"
+            HOLD_GATE_I = (f"(0.5*(1.0 - ({T_RAW_I} - T_ramp_nd)/"
+                            f"sqrt(({T_RAW_I} - T_ramp_nd)*({T_RAW_I} - T_ramp_nd) + 1e-12)))")
+            DOM_I     = f"((pi/(2.0*T_ramp_nd))*cos({ARG_I})*{HOLD_GATE_I})"
+            OMEGA1_I  = f"(link1_ramp*{DOM_I})"
+            OMEGA2_I  = f"(link2_ramp*{DOM_I})"
+
+            # Moment about (mc_x, mc_z), translated from origin moment;
+            # with state[0]=mc_x, state[1]=mc_z held constant, the lever-arm
+            # terms vanish.  This matches the phugoid's q̇ formula exactly:
+            # M_about_CG = momentY + (mc_z − state[1])·forceX − (mc_x − state[0])·forceZ
+            #              − prop_z_m·T_disk_nd
+            # We treat the damping term implicitly so the time-step limit
+            # is set by the slow (θ-relaxation) timescale D/k, not the fast
+            # (q-relaxation) timescale I/D.  Define the inertial-only part
+            # of q̇ (= M_about_CG / I), then assemble the q update as
+            #   q_new = (q_old + Q_TORQUE·dt) / (1 + D·dt)
+            # which reduces to the old explicit form when damping_coef=0.
+            # See: dt·D/I > 2 with explicit damping causes |gain|>1 blow-up;
+            # implicit form is unconditionally stable for any dt > 0.
+            # When quasi_static_q=True, drop the q-memory entirely:
+            #   q_new = Q_TORQUE / D
+            # i.e. the body relaxes purely on the moment direction with no
+            # inheritance of the previous step's rate.  This is the limit
+            # of the implicit form as dt·D/I → ∞.
+            Q_TORQUE = ("((momentY + (mc_z - state[1])*forceX "
+                         "- (mc_x - state[0])*forceZ "
+                         "- prop_z_m*T_disk_nd) / I_yy_nd)")
+            if quasi_static_q:
+                Q_NEW = f"({Q_TORQUE} / damping_coef)"
+            else:
+                Q_NEW = (f"(state[5] + {Q_TORQUE} * timeStepSize) "
+                          "/ (1.0 + damping_coef * timeStepSize)")
+
+            # ACTUAL CG position via forward IK from the prescribed link angles.
+            # cyl_3 in cyl_1 frame: x_cyl1 = L1 − L2·cos(link2),  z_cyl1 = L2·sin(link2)
+            # cyl_3 in world      = R_y(link1) · (above)
+            CG_X_FWD_IK = ("cos(state[7])*(L1 - L2*cos(state[6])) "
+                            "+ sin(state[7])*L2*sin(state[6])")
+            CG_Z_FWD_IK = ("-sin(state[7])*(L1 - L2*cos(state[6])) "
+                             "+ cos(state[7])*L2*sin(state[6])")
+            update_law_i = [
+                # state[0,1]: actual CG world position via forward IK on
+                # state[6], state[7].  This makes the moment-translation
+                # term in Q_DOT compute the moment about the ACTUAL CG
+                # (rather than about the fixed reference).
+                CG_X_FWD_IK,
+                CG_Z_FWD_IK,
+                # state[2,3] = 0 (CG velocity unused for moment translation
+                # and we're not integrating 6DOF translation here).
+                "0.0",
+                "0.0",
+                # state[4] = θ_body integrated.  GATED at pseudoStep==0 so
+                # the update happens BEFORE the recorder UDD's snapshot
+                # (= the plateASI convention).  This makes deltaTheta =
+                # theta(new) - previousTheta(old) > 0 at the start of each
+                # physical step, so rotateGrid actually rotates the mesh.
+                # The forces consumed are the END-OF-PREVIOUS-STEP converged
+                # values (still in the registry from pseudoStep=last of the
+                # previous physical step).
+                # The q used here is the IMPLICIT q_new (semi-implicit /
+                # symplectic Euler-Cromer), computed inline so state[4]
+                # doesn't have to wait one step for state[5]'s new value.
+                f"if (pseudoStep == 0) "
+                f"state[4] + ({Q_NEW}) * timeStepSize; else state[4];",
+                # state[5] = q, implicit damping update.
+                f"if (pseudoStep == 0) {Q_NEW}; else state[5];",
+                # state[6,7] = prescribed sine ramps (NOT gated — pure analytic).
+                LINK2_I,
+                LINK1_I,
+            ]
+            state_init_i = [
+                str(initial_x_cg_m),
+                str(initial_z_cg_m),
+                "0.0",
+                "0.0",
+                str(theta_body_trim),
+                "0.0",
+                str(theta_link2_0),
+                str(theta_link1_0),
+            ]
+            common_i = dict(
+                input_vars=["forceX", "forceZ", "momentY"],
+                constants=constants_i,
+                state_vars_initial_value=state_init_i,
+                update_law=update_law_i,
+                input_boundary_patches=all_surfs,
+            )
+            # cyl_3 ω = ω_body (= state[5]) − ω_link1 − ω_link2
+            OMEGA3_I = f"(state[5] - {OMEGA1_I} - {OMEGA2_I})"
+            udds = [
+                fl.UserDefinedDynamic(
+                    name="pitch_cyl3int_shoulder",
+                    output_vars={"theta": "state[7]",
+                                 "omega": OMEGA1_I,
+                                 "omegaDot": "0.0"},
+                    output_target=cyl_shoulder, **common_i,
+                ),
+                fl.UserDefinedDynamic(
+                    name="pitch_cyl3int_elbow",
+                    output_vars={"theta": "state[6]",
+                                 "omega": OMEGA2_I,
+                                 "omegaDot": "0.0"},
+                    output_target=cyl_elbow, **common_i,
+                ),
+                fl.UserDefinedDynamic(
+                    name="pitch_cyl3int_airframe",
+                    output_vars={"theta": "state[4] - state[7] - state[6]",
+                                 "omega": OMEGA3_I,
+                                 "omegaDot": "0.0"},
+                    output_target=cyl_airframe, **common_i,
+                ),
+                fl.UserDefinedDynamic(
+                    name="pitch_cyl3int_htail",
+                    output_vars={"theta": "theta_ht_rel",
+                                 "omega": "0.0",
+                                 "omegaDot": "0.0"},
+                    output_target=cyl_htail, **common_i,
+                ),
+            ]
+        else:  # mode == "phugoid"
             rot_shoulder = fl.Rotation(
                 name="cyl1_rotation", volumes=[cyl_shoulder],
                 spec=fl.FromUserDefinedDynamics(),
@@ -934,12 +1293,20 @@ def build_unsteady_params(
                     ),
                     fl.RotationVolume(
                         name="cyl3_zone", entities=cyl_airframe,
-                        # prop_cyls enclosed so the actuator-disk slipstream
-                        # rotates with the airframe (otherwise disk axes stay
-                        # horizontal as the body pitches, blowing past the wing).
-                        enclosed_entities=(
-                            wing_system_surfs + [cyl_htail] + prop_cyls
-                        ),
+                        # NOTE: prop_cyls (actuator-disk shape Cylinders) are
+                        # intentionally NOT enclosed here.  They are neither
+                        # surfaces nor RotationVolumes — listing them caused
+                        # Flynn360 to create `slidingInterface-disk_R1` that
+                        # then had no backing volume zone:
+                        #   "(ERROR 7221) ... slidingInterface-disk_R1 ... not
+                        #    a known volume entity."   (vm-f8cbe461, landing
+                        #    warmup, 26-05-28).
+                        # Tradeoff: the AD axis stays world-fixed.  At cruise
+                        # ≤±10° the axis mismatch is small; at landing ±30°
+                        # it grows — revisit via a pitch-aware AD UDD if the
+                        # landing phugoid shows pathological coupling.
+                        # (Mirrored in cfd_setup.py for the 2-cyl steady path.)
+                        enclosed_entities=wing_system_surfs + [cyl_htail],
                         spacing_axial=0.30 * fl.u.m,
                         spacing_radial=0.15 * fl.u.m,
                         spacing_circumferential=0.15 * fl.u.m,
@@ -1018,18 +1385,26 @@ def build_unsteady_params(
             user_defined_dynamics=udds,
             outputs=[
                 fl.SurfaceOutput(name="surface", entities=all_surfs,
-                                 output_fields=["Cp", "Cf", "yPlus", "CfVec"]),
+                                 output_fields=["Cp", "Cf", "yPlus", "CfVec"],
+                                 frequency=surface_frequency),
                 fl.VolumeOutput(output_fields=["Mach", "qcriterion", "Cp"]),
-                # Mandated y=0 symmetry-plane slice (CLAUDE.md convention).
-                # The body only translates/pitches in the x-z plane, so y=0
-                # always cuts the centerline as the airframe oscillates.
-                # frequency=slice_frequency physical steps (default -1 = last
-                # step only; set =1 for a per-step flow-field animation).
+                # Y-slices (CLAUDE.md mandates y=0 always; here we add
+                # spanwise slices through the wing + propeller slipstreams).
+                # Span ≈ 11 m (half-span 5.5 m); props at y ≈ 0.55, 1.66,
+                # 2.77, 3.88, 4.98 m (and -y mirror).  y=0 cuts the
+                # fuselage centerline; y=±1, ±2, ±3 m cut through the
+                # wing+flap+slipstream regions on each side.
+                # frequency=slice_frequency physical steps (default -1 =
+                # last step only; set =1 for a per-step flow-field animation).
                 fl.SliceOutput(
-                    name="y0_slice",
-                    entities=[fl.Slice(name="y=0",
-                                       normal=(0.0, 1.0, 0.0),
-                                       origin=(0.0, 0.0, 0.0) * fl.u.m)],
+                    name="y_slices",
+                    entities=[
+                        fl.Slice(name=f"y={y_m:+.1f}",
+                                 normal=(0.0, 1.0, 0.0),
+                                 origin=(0.0, y_m, 0.0) * fl.u.m)
+                        for y_m in (-3.0, -2.0, -1.0, 0.0,
+                                    +1.0, +2.0, +3.0)
+                    ],
                     output_fields=["velocity", "Mach", "Cp", "primitiveVars"],
                     frequency=slice_frequency,
                 ),

@@ -13,7 +13,11 @@ load-bearing; lever arm from forward IK of the OLD link-angle slots; publish
 `L_ref = 1 m`; forces are world-frame totals at `moment_center`; one
 `output_target` per UDD, so N zones means N identical lockstep UDDs; at most
 10 state slots; no `atan2`. The implementation to copy is
-`_build_per_zone_udds` in `unsteady_setup.py`.
+`_build_per_zone_udds` in `unsteady_setup.py`. Use the slot numbers from that
+file's docstring, not from the postmortem: since 2026-05-28 the integrator is
+symplectic Euler–Cromer with velocities in slots 0–2 and positions in 3–5, so
+positions read the new velocities and the published `omega` equals the
+discrete mesh displacement per step.
 
 ## 2. Topology: where the second body can live
 
