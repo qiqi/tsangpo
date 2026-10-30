@@ -20,7 +20,8 @@ TOPOLOGY (per the design dialog, "Topology X — 4 rotating cylinders"):
                        construction, which is the airframe CG location)
                 └── cyl 4 (htail, rotates θ_ht_rel rel. cyl 3)
 
-  All cylinder rotation axes are (0, +1, 0).  L1 = L2 = R_arm = 250·c_w.
+  All cylinder rotation axes are (0, +1, 0).  L1 = L2 = R_arm = 750·c_w
+  (R_ARM_C below; was 250 in the first build).
 
 INERTIAL FRAME = the CSM construction frame.  The freestream BC at the
 farfield is a fixed velocity vector in this frame (uniform direction +x at
@@ -41,8 +42,8 @@ STATE (6 dynamics + 2 IK-cache, all in radians/SI/inertial-frame):
     state[7] = theta_link1 (rad, IK auxiliary)
 
 INITIAL CONDITIONS for the v3-cruise phugoid γ₀ = +10° kick:
-    state[0] = -L = -250·c_w     (L-pose, Jacobian-safe)
-    state[1] = -L = -250·c_w
+    state[0] = -L = -750·c_w     (L-pose, Jacobian-safe)
+    state[1] = -L = -750·c_w
     state[2] = V_∞·(1 − cos γ₀)  ≈ +0.69 m/s     (small +x drift)
     state[3] = V_∞·sin γ₀        ≈ +7.94 m/s     (climb in inertial)
     state[4] = α_BO + γ₀ (in rad) ≈ +0.272 rad   (body pitched up to maintain α)

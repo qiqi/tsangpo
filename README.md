@@ -47,10 +47,14 @@
 3. `flow360/LESSONS.md` — Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས། (case ID
    དང་བཅས།)
 4. `flow360/unsteady_setup.py` — སྐྱོར་སྒྱུར་ཁྱམས་བཞིའི་ topology དང་
-   UDD བཞིའི་སྦྱོར་སྒྲིག (`mode='warmup'` དང་ `mode='phugoid'` ཁོ་ན་
-   གལ་ཆེ། `pitch_*` modes རྣམས་ནི་སྐྱོན་འཚོལ་གྱི་ཤུལ་ལྷག་ཡིན།)
+   UDD བཞིའི་སྦྱོར་སྒྲིག (`mode='warmup'` དང་ `mode='phugoid'` གཉིས་
+   ཁོ་ན་ལྷག་ཡོད། སྔོན་གྱི་ `pitch_*` modes རྣམས་ commit d1dacc8 ནས་
+   ཕྱིར་ལེན་ཐུབ།)
 5. `cfd_setup.py` དང་ `params.py` — བརྟན་པོའི་ SimulationParams དང་
    ཚད་འཇོག་གི་མཛོད་ཁང་།
+6. `flow360/ADAPTING_TO_TWO_BODY_SEPARATION.md` — ལུས་གཉིས་ཁ་འབྲལ་
+   (stage separation) ལ་བཀོལ་སྤྱོད་བྱེད་པའི་ལམ་སྟོན། ཕྱི་མིས་ཀློག་
+   རྒྱུར་དམིགས།
 
 ---
 
@@ -75,6 +79,7 @@
 ├── flow360/
 │   ├── PHUGOID_UDD_POSTMORTEM.md   UDD འགུལ་སྐྱོད་ཀྱི་ལམ་སྟོན། (ཡིག་ཆ་གལ་ཆེ་ཤོས)
 │   ├── LESSONS.md                  Flow360 གི་གྱོང་གུད་ཀྱི་ལོ་རྒྱུས།
+│   ├── ADAPTING_TO_TWO_BODY_SEPARATION.md  ལུས་གཉིས་ཁ་འབྲལ་ལ་བཀོལ་སྤྱོད་ཀྱི་ལམ་སྟོན།
 │   ├── AGENT_USABILITY_REPORT_v2.md  SDK ལ་ agent གིས་འཕྲད་པའི་དཀའ་ངལ།
 │   ├── unsteady_setup.py           སྐྱོར་སྒྱུར་ཁྱམས་ 4 + UDD 4 (phugoid གི་རྨང་གཞི)
 │   ├── submit_unsteady_warmup.py   phugoid གི་ warmup (དྲ་མིག་སྦྱོར་བ)
@@ -240,8 +245,12 @@ UDD). Result: a validated free-flight phugoid, T = 17.4 s, ζ ≈ 0.026.
 
 **Read in this order.** `CLAUDE.md` → `flow360/PHUGOID_UDD_POSTMORTEM.md`
 (§4, §5, §8 are the hard-won rules) → `flow360/LESSONS.md` →
-`flow360/unsteady_setup.py` (`mode='warmup'` and `mode='phugoid'` only; the
-`pitch_*` modes are debugging leftovers) → `cfd_setup.py`, `params.py`.
+`flow360/unsteady_setup.py` (only `mode='warmup'` and `mode='phugoid'`
+remain; the old `pitch_*` diagnostics are recoverable from commit d1dacc8) →
+`cfd_setup.py`, `params.py`. If you are here for a two-body separation, read
+`flow360/ADAPTING_TO_TWO_BODY_SEPARATION.md` next: it states which topologies
+the nested-cylinder constraint allows and the two open questions to settle
+with the Flow360 team before authoring.
 
 **Reusable.** The rotation-chain topology and interface-gap sizing rule
 (`unsteady_setup.py` §1); the per-zone lockstep-UDD pattern
