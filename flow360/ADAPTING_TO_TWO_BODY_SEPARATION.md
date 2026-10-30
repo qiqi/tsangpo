@@ -139,6 +139,12 @@ separation has no trim state.
 1. **Frozen-pose warmup** (`mode='warmup'`, `submit_unsteady_warmup.py`) at
    the initial standoff. This is also where you confirm the forces are
    world-frame at `moment_center`, as in §7 step 2 of the postmortem.
+   If the trim flight path is not horizontal, tilt the freestream by minus
+   the flight-path angle (`AerospaceCondition(alpha=-gamma_trim)`) in both
+   the warmup and the dynamic case, so the frozen body sees the same
+   relative wind the moving body will. Tsangpo's landing warmups did not
+   do this and chunk 1 opens with a re-equilibration transient
+   (LESSONS.md, "Landing warmup convention flaw").
 2. **Python prototype.** Forward-Euler the rigid-body equations with the same
    initial conditions, dt and a crude aero model. Ours was a few dozen lines
    and is not in this repo.

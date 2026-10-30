@@ -284,10 +284,22 @@ Last reviewed: 2026-10-30 — all cases ran on SDK v25.9.x / release-25.9.
   `q_new = (q + Q·dt)/(1 + D·dt)` is unconditionally stable; explicit damping
   needs `dt < 2·I/D`. With `quasi_static_q=True` the θ relaxation needs
   `dt < 2·D/k_local`. Grid used D = 30 kN·m·s/rad, dt = 2 s.
-- **Landing warmup convention flaw**: holding the body at θ = α_BO + γ_trim
-  in a flat freestream puts the wing at α = −2.4°, not the design +27.6°.
-  Fix by tilting the body (`theta_body_trim = alpha_BO_rad`) or the freestream
-  (`AerospaceCondition(alpha=gamma_trim)`); see OPEN_LOOP_LANDING.md.
+- **Landing warmup convention flaw (open as of 2026-10-30)**: the warmup
+  holds the body at θ = α_BO + γ_trim in a flat +x freestream with no
+  translation, so for landing (γ_trim = −30°) the wing converges at
+  α = −2.4°, not the design +27.6°; the dynamic case then starts from the
+  wrong flow field and chunk 1 opens with a CL spike while the flow
+  re-equilibrates (`OPEN_LOOP_LANDING.md`, "Caveat"). Cruise (γ_trim = 0)
+  is unaffected, and the 1-DOF pitch-only grid is unaffected because it
+  never translates. The physically faithful fix is to tilt the freestream,
+  not the body: steady descent at γ in still air is a relative wind tilted
+  by −γ with gravity still vertical, so set `AerospaceCondition(alpha =
+  -gamma_trim)` (+30° for landing) in both warmup and dynamic cases, keep
+  θ_body = α_BO + γ_trim, and drop the γ_trim part from the UDD's initial
+  velocity (the kick alone remains). Tilting the body instead
+  (`theta_body_trim = alpha_BO_rad`) fixes the warmup but reintroduces the
+  30° cylinder snap of the γ_trim bug above. Neither has been applied; every
+  landing warmup/chunk in the registry was run with the flaw.
 
 ## Open / unverified
 

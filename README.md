@@ -299,7 +299,10 @@ not. (2) Two fixes the pre-merge snapshot lacked: the actuator-disk
 cylinders are no longer listed in `enclosed_entities` (the mesher rejected
 them, so new meshes could not be built), and the phugoid initial state now
 includes `gamma_trim`, so takeoff and landing phases no longer snap by 30° on
-the first step. (3) The landing trim is open-loop unstable; the 1-DOF mode
+the first step. One related defect is documented but not fixed: with a
+non-zero trim flight-path angle the frozen warmup sees the wrong angle of
+attack, so landing chunk 1 starts with a transient (LESSONS.md, "Landing
+warmup convention flaw"). (3) The landing trim is open-loop unstable; the 1-DOF mode
 `pitch_step_cyl3_integrated` with `quasi_static_q=True` is the production
 tool for mapping θ_eq(θ_ht, V_inf). `share/udd_starter/README.md` is the
 generalized how-to. Everything the phugoid chain needs is here: the two
