@@ -10,22 +10,28 @@ resumes the parent's final state (state_vars_initial_value is ignored on a
 fork).  gamma_kick=0 → no re-perturbation.
 
 Usage:
-    python3 flow360/submit_gap110_chunkN_nokick_diag.py <parent_case_id> <chunk_idx>
+    python3 flow360/submit_gap110_chunkN_nokick_diag.py <parent_case_id> <chunk_idx> \
+        [--project-id prj-...]
+
+<parent_case_id> is the previous chunk (or the chunk-1 case).  The project
+defaults to key `cruise_warmup_gap110` in post/v3/unsteady_project_ids.json;
+pass --project-id when forking inside a project of your own.
 """
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import sys
 from pathlib import Path
 
-if len(sys.argv) != 3:
-    print("usage: submit_gap110_chunkN_nokick_diag.py <parent_case_id> <chunk_idx>",
-          file=sys.stderr)
-    sys.exit(2)
-
-PARENT = sys.argv[1]
-CHUNK  = int(sys.argv[2])
+_ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+_ap.add_argument("parent_case_id", help="case to fork from (previous chunk)")
+_ap.add_argument("chunk_idx", type=int, help="index of the chunk being submitted")
+_ap.add_argument("--project-id", help="Flow360 project (default: IDs-file entry)")
+_args  = _ap.parse_args()
+PARENT = _args.parent_case_id
+CHUNK  = _args.chunk_idx
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
@@ -45,8 +51,14 @@ MAX_PSEUDO_STEPS = 200
 
 def main() -> str:
     ids_path = REPO / "post" / "v3" / "unsteady_project_ids.json"
-    d = json.loads(ids_path.read_text())
-    project = fl.Project.from_cloud(project_id=d[PROJECT_KEY])
+    try:
+        d = json.loads(ids_path.read_text())
+    except FileNotFoundError:
+        d = {}
+    project_id = _args.project_id or d.get(PROJECT_KEY)
+    if not project_id:
+        _ap.error("no IDs file entry found; pass --project-id")
+    project = fl.Project.from_cloud(project_id=project_id)
     parent  = fl.Case.from_cloud(case_id=PARENT)
     print(f"  parent: {parent.id}  status={parent.status}")
 
@@ -71,6 +83,7 @@ def main() -> str:
     )
     print(f"  submitted: {case.id}")
     d[f"phugoid_gap110_nokick_lagfix_chunk{CHUNK}"] = case.id
+    ids_path.parent.mkdir(parents=True, exist_ok=True)
     ids_path.write_text(json.dumps(d, indent=2))
     print(f"  saved phugoid_gap110_nokick_lagfix_chunk{CHUNK} -> {case.id}")
     return case.id

@@ -23,10 +23,17 @@ externally reconstructed CSV-based moment tells us if the UDD is integrating
 what we think it's integrating.
 
 Usage:
-    python3 flow360/submit_gap110_nokick_diag.py
+    python3 flow360/submit_gap110_nokick_diag.py \
+        [--project-id prj-...] [--parent-case-id case-...]
+
+Both IDs default to the entries saved by submit_unsteady_warmup.py in
+post/v3/unsteady_project_ids.json (keys `cruise_warmup_gap110` and
+`cruise_warmup_gap110_case`).  Pass them explicitly to fork from a warmup
+you ran yourself; the IDs file is then created/updated, not required.
 """
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import sys
@@ -49,11 +56,29 @@ DT_S             = 0.05
 MAX_PSEUDO_STEPS = 200
 
 
+def _load_ids(ids_path: Path) -> dict:
+    try:
+        return json.loads(ids_path.read_text())
+    except FileNotFoundError:
+        return {}
+
+
 def main() -> str:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--project-id", help="Flow360 project holding the warmup "
+                    f"(default: key {PROJECT_KEY!r} in the IDs file)")
+    ap.add_argument("--parent-case-id", help="converged warmup case to fork "
+                    f"(default: key {PARENT_CASE_KEY!r} in the IDs file)")
+    args = ap.parse_args()
+
     ids_path = REPO / "post" / "v3" / "unsteady_project_ids.json"
-    d = json.loads(ids_path.read_text())
-    project = fl.Project.from_cloud(project_id=d[PROJECT_KEY])
-    parent  = fl.Case.from_cloud(case_id=d[PARENT_CASE_KEY])
+    d = _load_ids(ids_path)
+    project_id = args.project_id or d.get(PROJECT_KEY)
+    parent_id  = args.parent_case_id or d.get(PARENT_CASE_KEY)
+    if not project_id or not parent_id:
+        ap.error("no IDs file entries found; pass --project-id and --parent-case-id")
+    project = fl.Project.from_cloud(project_id=project_id)
+    parent  = fl.Case.from_cloud(case_id=parent_id)
     print(f"  parent: {parent.id}  status={parent.status}")
 
     surfaces = C.get_gapped_geometry_surfaces(project)
@@ -76,6 +101,7 @@ def main() -> str:
     )
     print(f"  submitted: {case.id}")
     d["phugoid_gap110_nokick_diag_chunk1"] = case.id
+    ids_path.parent.mkdir(parents=True, exist_ok=True)
     ids_path.write_text(json.dumps(d, indent=2))
     print(f"  saved phugoid_gap110_nokick_diag_chunk1 -> {case.id}")
     return case.id

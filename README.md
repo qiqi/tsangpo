@@ -86,14 +86,16 @@
 ├── post/
 │   ├── _phase_plot.py, cg_shift_trim.py
 │   ├── v2_gapped/           v2 བར་སྟོང་ཅིན་ཡིའི་ཐིག་གཞི་དང་ TRIM_RESULTS.md
+│   ├── v3/                  phugoid གི་ཐིག་གཞི་ (plot_running_case, viz_nokick_lagfix,
+│   │                        render_phugoid_slices) + unsteady_project_ids.json + mp4/png
 │   └── FLOW360_GAI_BUG_REPORT.md
 └── paper/                   SciTech extended abstract + figures (paper/build.sh)
 ```
 
-**མ་ཚང་བ།** `post/v3/` (phugoid གི་ཐིག་གཞི་དང་ `unsteady_project_ids.json`),
-`flow360/UDD_DYNAMICS_GUIDE.md`, `slidingInterfaceToUDD.py` བཅས་ 2026-06
-ཀྱི་ལས་ཀ་རྣམས་ད་དུང་ 014-v100-dev ཁོ་ནར་ཡོད་ལ། GitHub ལ་མ་ཕུལ།
-དེའི་རྐྱེན་གྱིས་ `submit_gap110_*` གཉིས་ clone གསར་པའི་ཐོག་ནས་འཁོར་མི་ཐུབ།
+**མ་ཚང་བ།** 2026-06 ཀྱི་ལས་ཀ་ (`flow360/UDD_DYNAMICS_GUIDE.md`,
+`slidingInterfaceToUDD.py`, animation གི་ chase-camera ཡིག་ཆ་རྣམས) ད་དུང་
+014-v100-dev ཁོ་ནར་ཡོད་ལ། GitHub ལ་མ་ཕུལ། `post/v3/` (phugoid གི་ཐིག་གཞི་
+དང་ `unsteady_project_ids.json`) ནི་གནས་མཛོད་ནང་ཡོད།
 
 ---
 
@@ -130,8 +132,10 @@ TSANGPO_PARENT_CASE_ID=case-... python flow360/submit_thrust_sweep.py
 
 # ---- phugoid (unsteady, UDD) ----
 python flow360/submit_unsteady_warmup.py        # ཁྱམས་བཞི་ trim ལ་བརྟན་པོར་བཞག་ནས་དྲ་མིག་ + བརྟན་པོའི་འཁོར་སྐྱོད
-python flow360/submit_gap110_nokick_diag.py     # chunk 1: warmup ནས་ fork, UDD སློང་བ (200 × 0.05 s)
-python flow360/submit_gap110_chunkN_nokick_diag.py <parent_case_id> <N>   # chunk N
+python flow360/submit_gap110_nokick_diag.py [--project-id prj-... --parent-case-id case-...]
+                                                # chunk 1: warmup ནས་ fork, UDD སློང་བ (200 × 0.05 s)
+python flow360/submit_gap110_chunkN_nokick_diag.py <parent_case_id> <N> [--project-id prj-...]
+                                                # chunk N: chunk N-1 ནས་ fork
 ```
 
 phugoid གི་ chunk རེ་རེ་ནི་སྔ་མའི་ chunk ནས་ fork བྱེད་པ་ཡིན། Flow360 ཡིས་
@@ -258,8 +262,10 @@ geometry metrics when a nested zone rotates about a different axis from its
 parent. Any 6-DOF extension (roll or yaw nested inside pitch) must run on
 25.12 or later.
 
-**Known gaps in this GitHub snapshot.** `post/v3/` (including
-`unsteady_project_ids.json`, read by both `submit_gap110_*` scripts),
-`flow360/UDD_DYNAMICS_GUIDE.md` and `slidingInterfaceToUDD.py` exist only on
-the author's workstation and have not been pushed. The fork scripts
-therefore do not run from a fresh clone until the IDs file is supplied.
+**Known gaps in this GitHub snapshot.** The June 2026 additions
+(`flow360/UDD_DYNAMICS_GUIDE.md`, `slidingInterfaceToUDD.py`, the
+chase-camera animation scripts) exist only on the author's workstation and
+have not been pushed. Everything the phugoid chain needs is here: the two
+`submit_gap110_*` fork scripts default to the IDs in
+`post/v3/unsteady_project_ids.json` (the author's cloud projects) and take
+`--project-id` / `--parent-case-id` to fork from a warmup you ran yourself.
