@@ -166,7 +166,7 @@ fork སྐབས་ UDD ཡི་ state ཉར་ཚགས་བྱེད་པ
 - སྐྱོར་སྒྱུར་ཁྱམས་བཞི་པོ་ (shoulder, elbow, airframe, htail) ཚང་མའི་
   ཚིག་ (axis) ནི་ `(0, 1, 0)` ཡིན་ཏེ་ **མཉམ་འགྲོ་** (parallel) ཡིན།
   `cfd_setup.py` ནང་གི་ཁྱམས་གཉིས་ཀྱང་དེ་བཞིན།
-- **FXC-11747** (25.12 ལ་བཅོས་ཟིན): 25.12 སྔོན་གྱི་པར་གཞིར། ནང་གི་ཁྱམས་
+- **ཚིག་མི་མཉམ་པའི་ནང་ཁྱམས་ཀྱི་སྐྱོན།** (25.12 ལ་བཅོས་ཟིན): 25.12 སྔོན་གྱི་པར་གཞིར། ནང་གི་ཁྱམས་
   ཤིག་ཕ་མའི་ཁྱམས་དང་ཚིག་མི་མཉམ་པར་སྐྱོར་སྒྱུར་བྱེད་ཚེ། གོམ་པ་རེ་རེའི་
   གཟུགས་ཀྱི་གསར་བཅོས་ (ངོས་ཀྱི་ normal, gradient, wall distance) ཀྱིས་
   ནང་གི་ཁྱམས་ཀྱི་ཚིག་རྙིང་པ་སྤྱོད། node ཀྱི་གནས་ས་འགྲིག་ཀྱང་ metric
@@ -282,7 +282,7 @@ airfoil pipeline under `geometry/`, the Flow360 folder names in
 chains and `pitch_eq_grid.py`.
 
 **Solver version.** All runs used release-25.9 with all rotation axes
-parallel (`(0, 1, 0)`). FXC-11747 (fixed in 25.12) corrupts per-step
+parallel (`(0, 1, 0)`). A solver bug fixed in Flow360 25.12 corrupts per-step
 geometry metrics when a nested zone rotates about a different axis from its
 parent. Any 6-DOF extension (roll or yaw nested inside pitch) must run on
 25.12 or later.

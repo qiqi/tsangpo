@@ -128,7 +128,7 @@ moment.
 See `LESSONS.md`, "Solver version & rotation-axis caveat". Every Tsangpo axis
 is `(0, 1, 0)`. The moment you nest a roll or yaw rotation inside the pitch
 chain, which a spin-stabilised stage or any out-of-plane separation does,
-FXC-11747 applies: run on Flow360 25.12 or later and pin the version in the
+the nested-axis solver bug applies: run on Flow360 25.12 or later and pin the version in the
 project. Do not start on 25.9.
 
 ## 8. Validation ladder

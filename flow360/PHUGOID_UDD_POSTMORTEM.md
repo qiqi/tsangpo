@@ -20,8 +20,8 @@ include `gamma_trim` (5a98590); see LESSONS.md.
 
 **Solver version / axis caveat (added 2026-10-30).** All cases ran on
 release-25.9. All four rotation zones (and the two in `cfd_setup.py`) rotate
-about the same axis, `(0, 1, 0)`, so this work was NOT exposed to FXC-11747
-(fixed in 25.12): before 25.12, a nested zone rotating about a different axis
+about the same axis, `(0, 1, 0)`, so this work was NOT exposed to the
+nested-axis solver bug fixed in 25.12: before 25.12, a nested zone rotating about a different axis
 from its parent gets its per-step geometry metrics (face normals, gradients,
 wall distance) updated with the inner zone's original axis; node positions are
 right, metrics drift. Rule: non-parallel nested axes (roll or yaw inside pitch,

@@ -11,7 +11,7 @@ Last reviewed: 2026-10-30 — all cases ran on SDK v25.9.x / release-25.9.
 - Every rotation zone in this repo has `axis=(0, 1, 0)` — all nested axes
   are parallel. The actuator-disk cylinders (`axis=(-1, 0, 0)`) are enclosed
   entities, not `Rotation` targets, so they do not count.
-- **FXC-11747 (fixed in 25.12):** before 25.12, a nested zone rotating about
+- **Nested non-parallel axes (solver bug, fixed in 25.12):** before 25.12, a nested zone rotating about
   a different axis from its parent has its per-step metrics (face normals,
   gradients, wall distance) computed with the inner zone's ORIGINAL axis.
   Node positions stay right; metrics drift over the run. Parallel axes are
